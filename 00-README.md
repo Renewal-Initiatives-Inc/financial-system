@@ -42,7 +42,7 @@ Each chunk follows the pattern: `N-name-discovery.md` → `N-name-spec.md` → `
 5. **Compliance Reporting** — IRS Form 990, MA AG Form PC, public charity support test.
 6. **Board & Management Reporting** — Financial statements, dashboards, metrics.
 7. **Budgeting** — Annual budgets, fund-level budgeting, variance tracking.
-8. **Integration Layer** — APIs connecting to renewal-timesheets, expense-reports-homegrown, internal-app-registry-auth, Ramp, bank feeds.
+8. **Integration Layer** — APIs connecting to renewal-timesheets, expense-reports-homegrown, app-portal, Ramp, bank feeds.
 
 ## Current Status
 
@@ -54,7 +54,7 @@ Each chunk follows the pattern: `N-name-discovery.md` → `N-name-spec.md` → `
 
 - **renewal-timesheets** → financial-system (approved timesheets create payroll GL entries)
 - **expense-reports-homegrown** → financial-system (approved expense reports create AP entries)
-- **internal-app-registry-auth** → financial-system (auth + employee payroll master data)
+- **app-portal** → financial-system (auth + employee payroll master data)
 - **Ramp credit card** → financial-system (transaction import and categorization)
 - **UMass Five bank** → financial-system (statement data for reconciliation)
 

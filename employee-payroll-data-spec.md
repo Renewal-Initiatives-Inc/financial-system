@@ -1,16 +1,28 @@
 # Employee Payroll Data API Specification
 
-**Integration:** internal-app-registry-auth → financial-system
+**Integration:** app-portal → financial-system
 **Purpose:** Fetch employee master data for payroll processing
-**Status:** ✅ Spec Complete (Updated 2026-02-11)
-**Related Decisions:** D-017 (Employee Master Data in internal-app-registry-auth)
+**Status:** ⚠️ SUPERSEDED — Payroll endpoints are now part of the broader People Service API
+**Related Decisions:** D-017 (Employee Master Data in app-portal)
 
 **API Version:** v1 (current)
-**Last Updated:** 2026-02-11 — Naming convention fixes committed to app-portal
+**Last Updated:** 2026-02-13 — Migrated to People Service API
 
 ---
 
 ## Changelog
+
+**2026-02-13 — People Service Migration**
+- Payroll endpoints moved from `/api/v1/users/...` to `/api/v1/people/...`
+- Authentication changed from X-API-Key to Zitadel JWT (Bearer token)
+- Payroll list: `GET /api/v1/people/payroll` (was `/api/v1/users/payroll`)
+- Payroll detail: `GET /api/v1/people/:id/payroll` (was `/api/v1/users/:user_id/payroll`)
+- Payroll audit: `GET /api/v1/people/:id/audit` (was `/api/v1/users/:user_id/payroll/audit`)
+- Person `:id` is now the internal People Service UUID, not the Zitadel user ID
+- Use `GET /api/v1/people` to discover person IDs from Zitadel user IDs
+- Payroll data is now nested under a broader People Service that also provides
+  employee profile data (title, department, skills, hourly rate, start/end dates, etc.)
+- financial-system should use a Zitadel service account JWT for authentication
 
 **2026-02-11 — Naming Convention Fixes**
 - Response field: `last_updated` → `updated_at` (list and detail endpoints)
@@ -27,7 +39,7 @@ The app portal at `tools.renewalinitiatives.org` exposes a REST API for querying
 **Workflow:**
 1. renewal-timesheets sends approved timesheet (employee ID, hours, rate, period, task code)
 2. financial-system receives timesheet via API
-3. financial-system calls internal-app-registry-auth API to fetch employee payroll data (tax IDs, withholding elections)
+3. financial-system calls app-portal API to fetch employee payroll data (tax IDs, withholding elections)
 4. financial-system calculates gross pay, withholdings, net pay
 5. financial-system creates GL payroll entry
 
@@ -35,11 +47,16 @@ The app portal at `tools.renewalinitiatives.org` exposes a REST API for querying
 
 ## Authentication
 
-All endpoints require an `X-API-Key` header. The key is a shared secret stored as `PAYROLL_API_KEY` in the financial system's environment.
+**Updated 2026-02-13:** All endpoints now require a Zitadel JWT token in the `Authorization: Bearer <token>` header. The financial system should authenticate using a Zitadel service account (same mechanism app-portal uses for its own Zitadel API calls). Admin role is required for payroll endpoints.
 
-**Required Environment Variable:**
+~~All endpoints require an `X-API-Key` header. The key is a shared secret stored as `PAYROLL_API_KEY` in the financial system's environment.~~ (Deprecated — use JWT auth instead.)
+
+**Required Environment Variables (financial-system):**
 ```
-PAYROLL_API_KEY=GPXosNFmdKsPF3G+IkcZ4r5UiTClQ+vrC8OPrLohx7M=
+ZITADEL_ISSUER=<your-zitadel-instance-url>
+ZITADEL_SERVICE_ACCOUNT_USER_ID=<service-account-id>
+ZITADEL_SERVICE_ACCOUNT_KEY_ID=<key-id>
+ZITADEL_SERVICE_ACCOUNT_PRIVATE_KEY=<base64-encoded-private-key>
 ```
 
 ---

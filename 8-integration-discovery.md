@@ -20,7 +20,7 @@ API contracts and data flows between financial-system and existing app ecosystem
 - Pivoting from QBO API to financial-system API
 - API contract: TBD
 
-**3. internal-app-registry-auth → financial-system** (D-006, D-017)
+**3. app-portal → financial-system** (D-006, D-017)
 - Authentication/authorization (existing, working)
 - Employee payroll master data (API exists at tools.renewalinitiatives.org)
 - API spec: ✅ Complete — see `employee-payroll-data-spec.md`
@@ -45,7 +45,7 @@ API contracts and data flows between financial-system and existing app ecosystem
 
 - renewal-timesheets: REST API or shared DB? Real-time or batch?
 - expense-reports-homegrown: Per-expense or batch posting? Receipt transfers?
-- ✅ ~~internal-app-registry-auth: What payroll data exists? Enhancement needed?~~ **ANSWERED:** REST API exists at tools.renewalinitiatives.org with full payroll data endpoints (see employee-payroll-data-spec.md)
+- ✅ ~~app-portal: What payroll data exists? Enhancement needed?~~ **ANSWERED:** REST API exists at tools.renewalinitiatives.org with full payroll data endpoints (see employee-payroll-data-spec.md)
 - Ramp: API availability? Webhook or polling? Export fallback?
 - UMass Five: Export formats? Frequency?
 - API architecture: REST, shared DB, or event-driven?

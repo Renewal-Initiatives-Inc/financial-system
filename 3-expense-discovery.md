@@ -63,7 +63,7 @@ Recording outgoing money. Categorization by program vs. admin vs. fundraising (r
 
 ### Session 2: Approved Timesheets → Payroll GL Entry Flow (2026-02-11)
 
-**Context:** renewal-timesheets app sends approved timesheets to financial-system for payroll processing. D-017 established that employee master data (tax IDs, withholding elections, pay frequency) lives in internal-app-registry-auth. D-018 established simple payroll GL structure: single "Salaries & Wages" expense account, with liability accounts for withholdings. D-024 established that timesheets default to Unrestricted Fund, with override via Task Code.
+**Context:** renewal-timesheets app sends approved timesheets to financial-system for payroll processing. D-017 established that employee master data (tax IDs, withholding elections, pay frequency) lives in app-portal. D-018 established simple payroll GL structure: single "Salaries & Wages" expense account, with liability accounts for withholdings. D-024 established that timesheets default to Unrestricted Fund, with override via Task Code.
 
 **Additional context (from user):**
 - Timesheets will be submitted intermittently in 2026, not on a disciplined weekly schedule

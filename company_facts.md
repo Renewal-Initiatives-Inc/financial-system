@@ -60,8 +60,8 @@
 - **Board size:** 3 members (Bylaws allow 3-7, in three rotating classes with staggered 1/2/3-year terms)
 - **Board meets:** Quarterly (July 2025, October 2025, January 2026 so far)
 - **Board receives:** P&L, Balance Sheet, Cash Flow statements; requested 3-month forward cash projections
-- **Treasurer access to financial systems:** Action item noted at January 2026 meeting — not yet established. When ready, just assign Damien Newman as a User in internal-app-registry-auth with financial-system access.
-- **Auth model:** Shared via `internal-app-registry-auth`. Admin role = all apps; User role = assigned apps. Full access once in — no in-app permissions. (see D-006)
+- **Treasurer access to financial systems:** Action item noted at January 2026 meeting — not yet established. When ready, just assign Damien Newman as a User in app-portal with financial-system access.
+- **Auth model:** Shared via `app-portal`. Admin role = all apps; User role = assigned apps. Full access once in — no in-app permissions. (see D-006)
 
 ## Mission & Programs
 
@@ -402,7 +402,7 @@ Each transaction gets TWO class assignments:
 - **Day-to-day bookkeeping:** Heather Takle (via QuickBooks + personal expense reimbursement pattern)
 - **External accountant / CPA:** None yet. Bylaws provision for auditor statements exists but no relationship established.
 - **Existing homegrown apps:**
-  - `internal-app-registry-auth` — user management & auth for all apps (financial-system will use this; see D-006)
+  - `app-portal` — user management & auth for all apps (financial-system will use this; see D-006)
   - `expense-reports-homegrown` — expense reports; will API approved reports into financial-system (see D-007)
   - `renewal-timesheets` — timesheets; will API approved timesheets into financial-system for payroll (see D-008)
   - `proposal-rodeo` — proposal writing; NO integration with financial-system (see D-009)
@@ -413,7 +413,7 @@ Each transaction gets TWO class assignments:
 ## Known Constraints
 
 - System must be buildable and maintainable by Jeff using Claude Code
-- Target user count is tiny (~2-5) — auth handled by `internal-app-registry-auth`; no in-app permissions (see D-006)
+- Target user count is tiny (~2-5) — auth handled by `app-portal`; no in-app permissions (see D-006)
 - Must support fund accounting (restricted vs. unrestricted) at minimum — not currently needed but will be as grants arrive
 - Must support dual classification: by program (Farm Training / Housing Support / Community Workshops) AND by fund source (General Fund / Restricted Grants), matching existing QBO class structure
 - Must support three functional expense categories (Program / Admin / Fundraising) for 990 reporting
