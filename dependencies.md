@@ -69,10 +69,11 @@ Before writing your chunk spec:
 - **What Chunk 6 needs:** Fund-level capital reporting (how much have we spent on Easthampton building infrastructure?). Details TBD.
 
 ### D-017: Employee Master Data in app-portal
-- **Status:** ✅ Decided
+- **Status:** ✅ Decided → ✅ **Implemented (D-132)**
 - **Impacts:** Chunk 3, Chunk 8
-- **What Chunk 3 needs:** Payroll entry generation depends on fetching employee data (name, tax IDs, withholding elections, pay frequency) from auth system via API.
-- **What Chunk 8 needs:** Must design/enhance app-portal to provide employee data. Direct read-only DB access per D-124.
+- **What Chunk 3 needs:** Payroll entry generation depends on fetching employee data (name, tax IDs, withholding elections, pay frequency) from app-portal's `employee_payrolls` table via direct DB read (D-124).
+- **What Chunk 8 needs:** ~~Must design/enhance app-portal API to provide employee data. Separate spec: employee-payroll-data-spec.md (TBD).~~ **DONE (D-132).** People Service schema and API built in app-portal. DB tables: `people`, `employee_payrolls`, `people_audit_logs`. Tax IDs encrypted with AES-256-GCM. Access: financial-system and timesheets read via restricted Postgres roles (D-124); app-portal admin UI uses REST API (`/api/v1/people/`). ~~employee-payroll-data-spec.md~~ archived.
+- **Remaining work:** Add D-119/D-120 compensation fields (`compensation_type`, `annual_salary`, `expected_annual_hours`, `exempt_status`) to `people` table before timesheets integration build.
 
 ### D-018: Payroll GL — Single "Salaries & Wages" Account, Year-End Allocation
 - **Status:** ✅ Decided
@@ -941,15 +942,20 @@ Chunk 8 is the integration hub connecting financial-system to the existing app e
     - `exempt_status`: EXEMPT | NON_EXEMPT
     - `calculated_hourly_rate`: derived field (salary ÷ expected hours) passed to timesheets
   - **Usage:** Financial-system reads employee master data directly from auth portal DB to calculate withholdings. Timesheets reads compensation profile to determine rate source and overtime rules.
-  - **Access mechanism (D-124):** Read-only database access. Financial-system and renewal-timesheets get restricted Postgres roles with SELECT on employee/payroll tables in the auth portal's Neon database. Same pattern as D-118. No REST API needed.
-  - ~~**REST API status:** REST API at `https://tools.renewalinitiatives.org` (employee-payroll-data-spec.md) is **DEPRECATED** per D-124. Direct DB reads replace API calls.~~
-  - **PII security:** Neon provides encryption at rest and TLS in transit. Restricted Postgres roles limit access to specific tables. Sufficient for RI's scale.
+  - **Access mechanism (D-124):** Read-only database access. Financial-system and renewal-timesheets get restricted Postgres roles with SELECT on employee/payroll tables in the auth portal's Neon database. Same pattern as D-118.
+  - **People Service API (D-132):** REST API also exists at `/api/v1/people/` with Zitadel JWT auth. Used by app-portal admin UI for people/payroll management. Internal app integration uses D-124 DB reads, not the API. Both access the same underlying tables.
+  - ~~**REST API status (OLD):** REST API at `https://tools.renewalinitiatives.org` (employee-payroll-data-spec.md) is **DEPRECATED** per D-124. Direct DB reads replace API calls.~~
+  - **PII security (D-132):** Tax IDs (SSN, state tax ID) encrypted with AES-256-GCM at the application layer in `employee_payrolls` table. Neon provides encryption at rest and TLS in transit. Restricted Postgres roles limit access to specific tables. Field-level audit trail in `people_audit_logs` with automatic PII masking.
   - **Dependencies:** Chunk 3 (payroll processing logic depends on this data)
-  - **Implementation notes:**
-    - Cache employee data (refresh daily or on webhook notification)
-    - Handle 401 (invalid key), 404 (employee not found), 503 (retry logic)
-    - Tax IDs are PII — encrypt at rest, never log in plaintext
-    - Audit all API calls (who fetched whose data, when)
+  - **Implementation status (D-132):**
+    - ✅ DB schema built: `people`, `employee_payrolls`, `people_audit_logs` tables
+    - ✅ AES-256-GCM encryption for tax IDs (env var: `PEOPLE_ENCRYPTION_KEY`)
+    - ✅ API routes: list, detail, create, update, payroll CRUD, audit trail
+    - ✅ JWT auth middleware (validates Zitadel tokens via JWKS)
+    - ⬜ D-119/D-120 fields not yet in schema: `compensation_type`, `annual_salary`, `expected_annual_hours`, `exempt_status`
+    - ⬜ Drizzle migration not yet generated (`pnpm db:generate`)
+    - ⬜ Admin UI for managing people/payroll data not yet built
+    - ⬜ Neon cross-project DB access roles not yet provisioned (D-131 noted this as spec/build concern)
 
 #### 4. Ramp credit card → financial-system (D-021)
 - **Status:** ✅ Integration confirmed, API/export mechanism TBD
@@ -1065,11 +1071,11 @@ Chunk 8 is the integration hub connecting financial-system to the existing app e
 ### Key Questions for Chunk 8 Discovery
 1. **renewal-timesheets API:** REST or shared DB? Real-time or batch? Does it send hourly rate or does financial-system fetch from employee master?
 2. **expense-reports-homegrown API:** Per-expense or per-report posting? How are receipts transferred? Pre-categorized or categorize-on-intake?
-3. ✅ ~~**app-portal enhancement:** What payroll data exists today? What needs to be added? API endpoint design for employee-payroll-data?~~ **ANSWERED:** REST API exists at tools.renewalinitiatives.org with full payroll endpoints. See `employee-payroll-data-spec.md`
+3. ✅ ~~**app-portal enhancement:** What payroll data exists today? What needs to be added? API endpoint design for employee-payroll-data?~~ **RESOLVED (D-132):** People Service API built in app-portal with full CRUD for people + payroll data. REST API at `/api/v1/people/...` serves admin UI; inter-app integration uses D-124 direct DB reads. `employee-payroll-data-spec.md` is archived — see D-132 and the route files in `app-portal/src/app/api/v1/people/` for current specs.
 4. **Ramp:** API availability? Webhook or polling? Refund handling? Export format fallback?
 5. ✅ ~~**UMass Five:** Bank export formats (CSV, OFX, API)? Frequency? Manual or automated?~~ **ANSWERED:** Plaid `/transactions/sync` API. Daily scheduled sync. $0.30/account/month. See Integration #5 above for full technical details.
-6. **API architecture:** Should financial-system expose REST APIs for integrations, or use shared database access, or event-driven (message queue)?
-7. **⚠️ Employee Data Source of Truth (OQ-001, from D-068):** With payroll restored to v1, where does employee setup and PII live? internal-app-registry-auth currently owns this data (API built), but full payroll creates deeper dependencies — W-4 updates, onboarding workflows, PII encryption at rest, access control for sensitive data. Three dimensions: (a) PII security architecture, (b) workflow origination (where does Heather set up a new hire?), (c) API vs. direct ownership. **Deferred — resolve before payroll module build. This is likely the single biggest architectural question D-068 creates.**
+6. ✅ ~~**API architecture:** Should financial-system expose REST APIs for integrations, or use shared database access, or event-driven (message queue)?~~ **RESOLVED (D-118):** Database-mediated integration — internal apps share Postgres database, each getting restricted roles with access only to tables they need. No REST APIs between internal apps. See D-118, D-124.
+7. ✅ ~~**⚠️ Employee Data Source of Truth (OQ-001, from D-068):** With payroll restored to v1, where does employee setup and PII live?~~ **RESOLVED (D-132):** app-portal owns employee data via People Service. All three dimensions addressed: (a) **PII security:** AES-256-GCM encryption at application layer for tax IDs, field-level audit logging with masked sensitive values; (b) **workflow origination:** Heather manages people via app-portal admin UI at `/api/v1/people/...` endpoints; (c) **API vs. direct:** Both — REST API for admin UI, D-124 direct DB reads (restricted Postgres roles) for inter-app integration. Schema: `people` table (profile, employment), `employee_payrolls` table (encrypted tax IDs, withholding elections as JSONB), `people_audit_logs` table.
 
 ---
 

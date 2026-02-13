@@ -33,6 +33,9 @@ Each chunk follows the pattern: `N-name-discovery.md` → `N-name-spec.md` → `
 - **`discovery-docs/`** — Source materials (PDFs, extractions, reference documents)
 - **`archive/`** — Deprecated files retained for reference
 
+### Archived Specs
+- **`employee-payroll-data-spec.md`** — ⚠️ ARCHIVED. Original payroll API spec, superseded by People Service API (D-132) in app-portal. Retained for its payroll calculation walkthrough and withholding elections schema examples. Do not use for requirements — see `app-portal/src/app/api/v1/people/` route files for current specs.
+
 ## The 8 Chunks
 
 1. **Core Ledger / Chart of Accounts** — Foundation. Double-entry bookkeeping, fund accounting, accrual basis.
@@ -59,7 +62,7 @@ Each chunk follows the pattern: `N-name-discovery.md` → `N-name-spec.md` → `
 
 - **renewal-timesheets** → financial-system (approved timesheets create payroll GL entries)
 - **expense-reports-homegrown** → financial-system (approved expense reports create AP entries)
-- **app-portal** → financial-system (auth + employee payroll master data)
+- **app-portal** → financial-system (auth + People Service: employee/payroll master data via D-124 direct DB reads)
 - **Ramp credit card** → financial-system (transaction import and categorization)
 - **UMass Five bank** → financial-system (statement data for reconciliation)
 
