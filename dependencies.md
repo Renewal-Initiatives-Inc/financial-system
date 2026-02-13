@@ -68,11 +68,11 @@ Before writing your chunk spec:
 - **What Chunk 5 needs:** Once Chunk 5 researches funder substantiation requirements (Historic Tax Credit, historic tax credit, CDBG if applied for), it will specify detailed cost codes (e.g., "Building — Gable Restoration" vs. "Building — HVAC"). GL can be retrofitted without redesign.
 - **What Chunk 6 needs:** Fund-level capital reporting (how much have we spent on Easthampton building infrastructure?). Details TBD.
 
-### D-017: Employee Master Data in internal-app-registry-auth
+### D-017: Employee Master Data in app-portal
 - **Status:** ✅ Decided
 - **Impacts:** Chunk 3, Chunk 8
 - **What Chunk 3 needs:** Payroll entry generation depends on fetching employee data (name, tax IDs, withholding elections, pay frequency) from auth system via API.
-- **What Chunk 8 needs:** Must design/enhance internal-app-registry-auth API to provide employee data. Separate spec: employee-payroll-data-spec.md (TBD).
+- **What Chunk 8 needs:** Must design/enhance app-portal API to provide employee data. Separate spec: employee-payroll-data-spec.md (TBD).
 
 ### D-018: Payroll GL — Single "Salaries & Wages" Account, Year-End Allocation
 - **Status:** ✅ Decided
@@ -857,7 +857,7 @@ Chunk 8 is the integration hub connecting financial-system to the existing app e
 - **Fund mapping logic:** Each time entry has explicit fund selection (Task Code + Funding Source are separate fields)
 - **Validation rules (D-024):** Default to Unrestricted Fund, allow override via funding source dropdown
 - **Dependencies:**
-  - D-017: Employee master data (tax withholding, pay frequency) from internal-app-registry-auth
+  - D-017: Employee master data (tax withholding, pay frequency) from app-portal
   - D-018: Single payroll GL account (no functional split at entry)
   - D-024: GL validation (default fund, task code override)
   - **Chunk 3 discovery:** Batching per pay period (not real-time per timesheet), task code + separate fund selection
@@ -911,7 +911,7 @@ Chunk 8 is the integration hub connecting financial-system to the existing app e
   - ✅ Receipt references stay in expense-reports DB (D-122)
   - Error handling at INSERT time: deferred to spec (FK constraints on GL accounts/funds will catch invalid codes)
 
-#### 3. internal-app-registry-auth → financial-system (D-006, D-017)
+#### 3. app-portal → financial-system (D-006, D-017)
 - **Status:** ✅ Integration confirmed
 - **Two distinct use cases:**
 
@@ -1065,7 +1065,7 @@ Chunk 8 is the integration hub connecting financial-system to the existing app e
 ### Key Questions for Chunk 8 Discovery
 1. **renewal-timesheets API:** REST or shared DB? Real-time or batch? Does it send hourly rate or does financial-system fetch from employee master?
 2. **expense-reports-homegrown API:** Per-expense or per-report posting? How are receipts transferred? Pre-categorized or categorize-on-intake?
-3. ✅ ~~**internal-app-registry-auth enhancement:** What payroll data exists today? What needs to be added? API endpoint design for employee-payroll-data?~~ **ANSWERED:** REST API exists at tools.renewalinitiatives.org with full payroll endpoints. See `employee-payroll-data-spec.md`
+3. ✅ ~~**app-portal enhancement:** What payroll data exists today? What needs to be added? API endpoint design for employee-payroll-data?~~ **ANSWERED:** REST API exists at tools.renewalinitiatives.org with full payroll endpoints. See `employee-payroll-data-spec.md`
 4. **Ramp:** API availability? Webhook or polling? Refund handling? Export format fallback?
 5. ✅ ~~**UMass Five:** Bank export formats (CSV, OFX, API)? Frequency? Manual or automated?~~ **ANSWERED:** Plaid `/transactions/sync` API. Daily scheduled sync. $0.30/account/month. See Integration #5 above for full technical details.
 6. **API architecture:** Should financial-system expose REST APIs for integrations, or use shared database access, or event-driven (message queue)?

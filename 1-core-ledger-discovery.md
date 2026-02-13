@@ -43,7 +43,7 @@ See `decisions.md` for complete decision text and rationale:
 - D-014: Net Assets — Split "Without Donor Restrictions" and "With Donor Restrictions" from Day One
 - D-015: Opening Balance Equity — AHP In-Kind Contribution ($12,835)
 - D-016: Capital Cost Coding — Fund-Level Tagging, Details Deferred
-- D-017: Employee Master Data in internal-app-registry-auth
+- D-017: Employee Master Data in app-portal
 - D-018: Payroll GL — Single "Salaries & Wages" Account, Year-End Allocation
 - D-019: Depreciation GL Structure — Assets, Accumulated Depreciation, Monthly Automation
 - D-020: AI Depreciation Assistant — **SUPERSEDED by D-128/D-129** (system-wide copilot pattern)
