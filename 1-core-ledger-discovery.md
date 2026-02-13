@@ -46,7 +46,11 @@ See `decisions.md` for complete decision text and rationale:
 - D-017: Employee Master Data in internal-app-registry-auth
 - D-018: Payroll GL — Single "Salaries & Wages" Account, Year-End Allocation
 - D-019: Depreciation GL Structure — Assets, Accumulated Depreciation, Monthly Automation
-- D-020: AI Depreciation Assistant
+- D-020: AI Depreciation Assistant — **SUPERSEDED by D-128/D-129** (system-wide copilot pattern)
+- D-127: Depreciation Policy — Straight-Line, IRS Standard Lives, No Accelerated Methods
+- D-128: AI Depreciation Assistant Superseded by System-Wide AI Copilot
+- D-129: System-Wide AI Copilot — Architectural Pattern
+- D-130: AI Transaction Entry Assistant Absorbed into Copilot Pattern
 - D-021: Ramp Credit Card Integration — GL Structure in Chunk 1, Workflow in Chunk 8
 - D-022: AHP Loan Structure — Only Drawn Amount is Liability
 - D-023: Loan Forgiveness — Treated as Donation Income

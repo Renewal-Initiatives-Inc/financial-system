@@ -443,35 +443,39 @@ These requirements represent the minimum viable core ledger. If any P0 is cut, t
 
 These requirements significantly improve user experience or operational efficiency but are not required for the ledger to function. P1s are strong candidates for fast-follow releases after P0 launch.
 
-#### GL-P1-001: AI Depreciation Assistant
-**Requirement**: When a user adds a fixed asset, Claude guides them through depreciation configuration by asking clarifying questions (year built, components, recent replacements, historic property status) and recommending useful lives and methods based on asset type and the most recent IRS rules.
+#### GL-P1-001: Fixed Asset Setup with Copilot Support *(Updated — replaces "AI Depreciation Assistant")*
+**Requirement**: When a user adds a fixed asset, the system provides a structured form for depreciation configuration. The system-wide AI copilot (D-129) is available in the right panel with page-specific context (form state, asset register, IRS publication search, standard useful life lookup) to answer questions and provide guidance.
 
 **Acceptance Criteria**:
-- [x] When user initiates "Add Fixed Asset", Claude asks: asset type, year built/acquired, components (if building), recent major replacements, historic property status
-- [x] Claude provides depreciation recommendations: suggested useful life, depreciation method (straight-line, etc.), component breakdown if applicable
-- [x] User can accept recommendations or override with custom values
+- [x] "Add Fixed Asset" form captures: asset type, cost, date placed in service, useful life, depreciation method
+- [x] For buildings: form supports component-level entry (structure, roof, HVAC, electrical, plumbing, windows, flooring) with individual useful lives per component (D-080)
+- [x] Depreciation method defaults to straight-line per organizational policy (D-127). No accelerated method options.
+- [x] Standard useful life lookup table pre-populates suggested useful life based on asset type (residential structure 27.5yr, roof 20yr, HVAC 15yr, equipment 5-7yr, vehicles 5yr, computers 3-5yr, furniture 7yr)
+- [x] User can accept suggested useful life or override with custom value
+- [x] AI copilot (right panel) has access to: current form state, asset register, IRS publication search tools, standard useful life reference data
 - [x] System includes disclaimer: "This is guidance, not tax advice. Consult a CPA for compliance."
 - [x] Configured depreciation schedule is stored and monthly entries begin automatically
+- [x] Annual compliance calendar trigger (D-065): copilot reviews IRS publications for useful life or depreciation rule changes, surfaces findings to user
 
-**Decision Reference**: D-020 (AI depreciation assistant)
+**Decision Reference**: D-020 (original, superseded), D-127 (depreciation policy), D-128 (D-020 superseded), D-129 (copilot pattern)
 
-**Why P1 (not P0)**: The building won't be placed in service until late 2026. Depreciation setup can be done manually for the first few months if the AI assistant isn't ready at launch. This feature is high-value but not blocking.
+**Why P1 (not P0)**: The building won't be placed in service until late 2026. Depreciation setup can be done manually for the first few months if copilot isn't ready at launch. The form itself is P0 (part of GL-P0-008); copilot support on the form is P1.
 
 ---
 
-#### GL-P1-002: AI Transaction Entry Assistant for Prepaid/Accruals
-**Requirement**: When a user enters a transaction that might involve timing adjustments (prepaid, accrued, deferred), Claude asks clarifying questions and writes detailed memos automatically, setting up amortization schedules as needed.
+#### GL-P1-002: Transaction Entry with Copilot Support *(Updated — replaces "AI Transaction Entry Assistant")*
+**Requirement**: When a user enters a transaction that might involve timing adjustments (prepaid, accrued, deferred), the system-wide AI copilot (D-129) is available to ask clarifying questions, suggest memos, and help set up amortization schedules. The copilot on transaction entry pages gets context: transaction data, GL structure, historical patterns, amortization rules.
 
 **Acceptance Criteria**:
-- [x] When user enters a transaction, Claude detects potential timing issues (e.g., insurance payment, reimbursement owed, prepaid rent received)
-- [x] Claude asks: "What is this payment for?", "What period does it cover?", "Is this for the current month or future months?"
-- [x] Claude generates detailed memo based on answers (e.g., "Property insurance $50K paid 3/1/26, covers 3/1/26–2/28/27, $4,167/month amortization")
-- [x] For prepaids spanning multiple months, Claude sets up amortization schedule and generates monthly entries automatically
-- [x] User can review and approve before posting
+- [x] Transaction entry pages include AI copilot (right panel) with context: current transaction data, GL chart of accounts, historical transaction patterns, amortization calculation tools
+- [x] Copilot can detect potential timing issues from transaction context (e.g., insurance payment, reimbursement owed, prepaid rent received) and proactively suggest questions
+- [x] Copilot can generate detailed memo suggestions (e.g., "Property insurance $50K paid 3/1/26, covers 3/1/26–2/28/27, $4,167/month amortization")
+- [x] For prepaids spanning multiple months, copilot can help set up amortization schedule; system generates monthly entries automatically once configured
+- [x] User reviews and approves before posting — copilot suggests, user decides
 
-**Decision Reference**: D-028 (AI-enhanced entry for prepaid/accruals)
+**Decision Reference**: D-028 (original GL structure, unchanged), D-129 (copilot pattern), D-130 (D-028 AI assistant absorbed into copilot)
 
-**Why P1 (not P0)**: Full AI assistant requires understanding all transaction sources (revenue, expense, integrations) which won't be complete until Chunks 2, 3, and 8 are finished. Manual entry with user-written memos is sufficient for P0.
+**Why P1 (not P0)**: Copilot context packages for transaction entry require understanding all transaction sources (revenue, expense, integrations) which won't be complete until Chunks 2, 3, and 8 are finished. Manual entry with user-written memos is sufficient for P0.
 
 ---
 
@@ -701,12 +705,16 @@ These are explicitly out of scope for V1 but documented to ensure the GL archite
 
 **Risk: Depreciation rules are implemented incorrectly, creating IRS audit risk**
 
-- **Likelihood**: Low-Medium — Depreciation is complex and rules change annually. AI assistant may provide incorrect guidance.
-- **Impact**: Medium — Incorrect depreciation affects taxable income and could trigger IRS audit or penalties.
+- **Likelihood**: Low — D-127 established straight-line at IRS standard useful lives as organizational policy. This is the simplest, most conservative approach. No accelerated methods to get wrong.
+- **Impact**: Medium — Incorrect depreciation affects balance sheet accuracy and could create audit issues.
 - **Mitigation**:
-  - Include clear disclaimer in AI depreciation assistant (GL-P1-001): "This is guidance, not tax advice. Consult a CPA."
-  - Defer AI assistant to P1 (nice-to-have), allowing manual depreciation setup with external CPA guidance for P0
-  - When building is placed in service (late 2026), engage CPA specifically for depreciation schedule review
+  - Organizational policy (D-127): straight-line only, IRS standard useful lives, no accelerated methods. Eliminates most complexity.
+  - Standard useful life lookup table built into fixed asset form (GL-P1-001) — user selects asset type, system suggests standard life
+  - AI copilot (D-129) available on depreciation form with IRS publication search for edge cases
+  - Include clear disclaimer (GL-P1-001): "This is guidance, not tax advice. Consult a CPA."
+  - Copilot support deferred to P1; manual depreciation setup with external CPA guidance for P0
+  - When building is placed in service (late 2026), engage CPA specifically for component depreciation schedule review
+  - Annual compliance calendar trigger (D-065): copilot reviews IRS publications for useful life changes
 
 ### Medium-Risk Items
 
@@ -820,8 +828,12 @@ This spec is based on 21 decisions made during Chunk 1 discovery. For full ratio
 | D-017 | Employee master data in auth system | (Integration, Chunk 8) |
 | D-018 | Payroll GL structure | GL-P0-006 |
 | D-019 | Depreciation GL structure | GL-P0-008 |
-| D-020 | AI depreciation assistant | GL-P1-001 |
+| D-020 | AI depreciation assistant (**superseded by D-128/D-129**) | GL-P1-001 (updated) |
 | D-021 | Ramp credit card integration | GL-P0-020 |
+| D-127 | Depreciation policy: straight-line, no accelerated methods | GL-P0-008, GL-P1-001 |
+| D-128 | AI depreciation assistant superseded by copilot | GL-P1-001 (updated) |
+| D-129 | System-wide AI copilot pattern | GL-P1-001, GL-P1-002, all pages |
+| D-130 | AI transaction entry assistant absorbed into copilot | GL-P1-002 (updated) |
 | D-022 | AHP loan structure (drawn amount only) | GL-P0-010 |
 | D-023 | Loan forgiveness as donation income | GL-P0-012 |
 | D-024 | GL entry validation (selective) | GL-P0-019 |

@@ -293,6 +293,194 @@ Recording outgoing money. Categorization by program vs. admin vs. fundraising (r
 - renewal-timesheets: funding source dropdown with auto-suggestion, monthly batching context
 - Ramp: Daily transaction sync, merchant + description data for AI categorization
 
+**AI assistant note (updated 2026-02-13):** The standalone AI Transaction Entry Assistant originally described in D-028 and elaborated in Session 5 (Ramp categorization with AI auto-suggestions) has been absorbed into the system-wide AI copilot pattern (D-129, D-130). The Ramp categorization UX design from Session 5 remains valid — AI auto-suggestions, user-defined rules, batch categorization are system features. The "AI" piece becomes the copilot's context on the categorization page rather than a standalone AI feature. The rule engine and auto-suggestion logic are system features (not copilot features) that the copilot can explain and help configure.
+
 **Next steps:**
-- Begin discovery on next chunk (Chunk 4: Cash Management, Chunk 5: Reporting & Analytics, or Chunk 6: Fixed Assets)
-- Or: Review any Chunk 3 edge cases before moving forward
+- Continue Chunk 3 discovery with remaining gap analysis (receipt requirements, mileage policies, etc.)
+- Or: Move to spec phase for v1 scope
+
+---
+
+## **V1 vs. V2 Scope Split**
+
+**Updated:** 2026-02-11
+
+### **Background: No Payroll Until 2028+**
+RI will not be cash-positive until rental income begins (~2028+). Current financial situation:
+- No cash on hand for salaries today
+- First anticipated payment: ~6 months out, $15K developer fee (one-time, handled manually)
+- If grant/contract awarded: timesheets used for billable hours (invoice customers), not payroll
+- Regular payroll won't start until 2028+ when rents provide cash flow
+
+**Decision (D-042, D-043):** Defer all payroll processing to v2. Build other expense flows in v1.
+
+### **V1 Scope (Build Now):**
+1. ✅ **Employee reimbursements** (Session 1) - expense-reports-homegrown → GL via API
+2. ✅ **Vendor invoices** (Session 4) - PO system with AI contract extraction, 3-way match, compliance warnings
+3. ✅ **Ramp corporate card** (Session 5) - Transaction categorization with AI suggestions + rules
+4. ✅ **Functional split allocation** (Session 3) - Year-end per-GL-account allocation for 990 filing
+5. ✅ **1099-NEC preparation** (Session 4) - Auto-tracking, W-9 collection, data export, PDF form generation
+6. ✅ **Manual expense entry** (via payment execution workflow) - Create payables, pay via UMass Five portal, match on bank rec
+7. ✅ **Audit logging** (D-041) - Comprehensive logging of all financial actions (who, what, when)
+8. ✅ **Payment execution workflow** (D-040) - Payables created in-system, paid via UMass Five portal, matched during bank rec
+9. ✅ **Multi-fund transaction splits** (D-051) - Single expense allocated across multiple funds with percentages/amounts
+10. ✅ **Transaction corrections/reversals** (D-053) - Void, edit (unmatched), or reverse (matched) transactions with audit trail
+
+### **V2 Scope (Deferred Until ~2028):**
+1. ❌ **Payroll processing** (Session 2) - Timesheets → GL payroll entries, withholding calculations
+2. ❌ **Payroll tax compliance** - Form 941, W-2 generation, EFTPS deposits, MA UI/PFML filings
+3. ❌ **Gusto integration** - Or alternative payroll service, or full in-system payroll engine (decision deferred)
+4. ❌ **Employee payroll master data enhancements** (D-017) - Withholding elections, tax IDs in internal-app-registry-auth
+5. ❌ **renewal-timesheets → financial-system integration** (D-008) - API integration for approved timesheets
+
+### **What Happens to Timesheets in the Meantime?**
+- renewal-timesheets continues tracking hours (for future grant billing if applicable)
+- No integration with financial-system until v2
+- If grant/contract comes through before 2028: timesheets = billable hours (invoice customers), not payroll
+- Architecture from Session 2 (task codes, fund attribution, monthly batching) remains sound for v2
+
+### **Architecture Decisions That Remain Valid for V2:**
+- GL structure (D-018): Single "Salaries & Wages" account, withholding liability accounts
+- Employee master data schema (D-017): Tax IDs, withholding elections, pay frequency
+- Batching approach (Session 2): Monthly payroll runs, not per-timesheet entries
+- Fund attribution (Session 2): Task code + separate fund selection dropdown with auto-suggestion
+- All architectural decisions from Session 2 remain correct — just not implemented until v2
+
+### **One-Time $15K Developer Fee Handling:**
+- Handled manually outside system (use tax calculator, cut check)
+- Doesn't warrant building full payroll infrastructure
+- If needed, can create manual GL entry for the payment (DR: Salaries & Wages, CR: Cash; separate entries for withholding liabilities)
+
+---
+
+---
+
+## Session 7: Discovery Gaps Identified & Resolved (2026-02-13)
+
+**Context:** External reviewer feedback identified four potential gaps in Chunk 3 expense tracking. This session documents gap assessment and resolution.
+
+**Gaps assessed:**
+
+1. **Direct/Manual Expense Entry Pathway** ✅ **Already addressed via D-040**
+   - Reviewer concern: Expenses not originating from the four defined inflow channels (expense reports, timesheets, Ramp, vendor invoices) — e.g., AHP loan interest payments, bank fees, utilities, property taxes
+   - **Resolution:** D-040 (Payment Execution Workflow) explicitly describes manual payable creation for "direct expenses like AHP interest, utilities, property taxes" with workflow: create payable in financial-system → pay via UMass Five portal → match during bank reconciliation. Unanticipated expenses (bank fees) handled retroactively via bank feed categorization.
+   - No additional action needed.
+
+2. **Multi-Fund Expense Splitting on Single Transaction** ✅ **Resolved via D-051**
+   - Reviewer concern: Current discovery assumes one expense line item codes to one fund. Shared costs (property insurance covering multiple funding sources, utilities during construction benefiting multiple grants, professional fees serving whole organization) require fund allocation splits.
+   - **Resolution:** D-051 (Multi-Fund Transaction Allocation) establishes that transactions support fund splits at transaction level. One expense can be allocated across multiple funds using percentages or amounts (e.g., $1,000 insurance → 60% Historic Tax Credit Fund, 40% Unrestricted). GL posting creates separate entries per fund. UI/UX details deferred to spec phase.
+   - **Data model impact:** Transaction → fund_allocations table (one-to-many), not single fund_id column.
+   - **Affects all expense sources:** Expense reports, vendor invoices, Ramp transactions, manual entries all support fund splits.
+   - Action: Spec phase must design UI for entering fund splits, validation rules (percentages sum to 100%), default behavior.
+
+3. **$20K Board Approval Threshold in PO System** ✅ **Resolved via D-052**
+   - Reviewer concern: Company_facts establishes contracts >$20,000 require board approval. Session 4 PO workflow doesn't mention enforcement.
+   - **Resolution:** D-052 ($20K Board Approval Threshold) establishes explicit decision: threshold enforced through governance process (board meetings), NOT system workflow. No approval gate, documentation requirement, or compliance warning in PO system. Consistent with D-044 (no approval workflows) and D-006 (all users fully trusted). At RI's scale (users ARE board members), in-system enforcement adds complexity without benefit.
+   - Action: None. Governance process is adequate.
+
+4. **Expense Corrections/Reversals Workflow** ✅ **Resolved via D-053**
+   - Reviewer concern: No specification of how to correct expenses posted to wrong GL account or fund.
+   - **Resolution:** D-053 (GL Transaction Corrections and Reversals) establishes correction workflows:
+     - **Unmatched transactions:** Edit in place with audit trail
+     - **Matched transactions:** Create reversing journal entry + new correcting entry (edits prohibited after bank rec matching)
+     - **Duplicates/errors:** Void transaction (excluded from GL but remains in audit trail)
+     - **Complex corrections:** Manual journal entry with memo referencing original transaction
+   - **Bank rec implication:** Matching locks transactions from editing to prevent reconciliation corruption.
+   - Action: Spec phase must design void/edit/reversal UI, transaction status indicators (active/void/matched).
+
+**Discovery impact:**
+- D-051 (multi-fund splits) affects data model and must be incorporated into Chunk 1 GL design and all Chunk 3 expense workflows
+- D-052 and D-053 are architectural clarifications with minimal spec impact (no new features, just explicit design decisions)
+
+**Related decisions:**
+- D-040: Payment Execution Workflow (addresses Gap 1)
+- D-041: Audit Logging (supports Gap 4 with comprehensive transaction modification logging)
+- D-044: No Approval Workflows (rationale for Gap 3 decision)
+- D-045: No Period Locking (supports Gap 4 by allowing corrections to any period)
+- D-051: Multi-Fund Transaction Allocation (resolves Gap 2)
+- D-052: $20K Board Approval Threshold (resolves Gap 3)
+- D-053: GL Transaction Corrections and Reversals (resolves Gap 4)
+
+---
+
+## Session 6: Receipt Requirements & Expense Substantiation (2026-02-11)
+
+**Context:** IRS Publication 463 requires adequate substantiation for accountable plan reimbursements: amount, time, place, essential character, and business purpose. Accountable plan rules require substantiation within 60 days and return of excess within 120 days.
+
+**Decisions:**
+
+1. **Receipt Threshold** — ✅ **ANSWERED:** $75 standard with exceptions
+   - Expenses ≥$75: Receipt required
+   - Mileage claims: No receipt needed (IRS allows mileage log as substantiation)
+   - Per diems: No receipt needed (IRS allows per diem rates)
+   - Lodging: ALWAYS requires receipt regardless of amount (IRS special rule for lodging)
+   - **Rationale:** Follows IRS Publication 463 guidelines. $75 threshold balances compliance with practicality for small purchases. Lodging exception prevents abuse of high-value claims without documentation.
+
+2. **Substantiation Timing** — ✅ **ANSWERED:** Block submission if expenses >60 days old
+   - **Rule:** expense-reports-homegrown blocks submission of expense reports containing any line items with expenses incurred >60 days prior to submission date
+   - **Helper text required:** "IRS accountable plan rules (Publication 463) require expenses to be substantiated within 60 days of being paid or incurred. Expenses older than 60 days cannot be submitted. Please either: (1) Adjust the date if entered incorrectly, or (2) Remove this expense from your report."
+   - **Citation link:** Provide link to IRS Publication 463, Accountable Plan section
+   - **User options:** Can adjust expense date or remove expense line from report to proceed
+   - **Rationale:** IRS fixed-date method requires 60-day substantiation. Blocking at submission (rather than warning) ensures compliance and protects RI's accountable plan status. Late expenses become taxable income to employee.
+
+3. **Missing Receipt Workflow** — ✅ **ANSWERED:** Require written explanation in memo field
+   - **Rule:** If expense ≥$75 and no receipt attached, require memo explanation
+   - **Helper text:** "No receipt attached. Please explain: Why is a receipt unavailable? (e.g., parking meter, lost receipt, merchant doesn't provide receipts). Note: Repeated missing receipts may require manager review."
+   - **Validation:** Warn if explanation is too brief (<20 characters for missing receipt explanation)
+   - **Audit trail:** System flags expenses with missing receipts for year-end review
+   - **Rationale:** IRS allows some flexibility for lost/unavailable receipts if adequately explained. Written explanation creates audit defense and discourages habitual missing receipts.
+
+4. **Business Purpose Documentation** — ✅ **ANSWERED:** GL account + memo field (both required)
+   - **IRS requires 5 elements** (Publication 463): Amount, Time, Place, Essential Character, Business Purpose
+   - **GL account = Essential Character** (what type of expense: Meals, Travel, Professional Services)
+   - **Memo field = Business Purpose** (why the expense serves the organization: who, what, how it advances mission)
+   - **Requirement:** Memo field MANDATORY (not optional) for all expenses
+   - **Helper text:** "Describe the business purpose: Who did you meet with? What was discussed? How does this expense serve Renewal Initiatives' mission? (Example: 'Lunch with prospective donor Jane Smith to discuss barn restoration campaign')"
+   - **Validation:** Warn if memo <10 characters or just repeats category name
+   - **Rationale:** GL account alone doesn't satisfy IRS "business purpose" requirement. Memo provides the "why" that IRS auditors look for. Adequate business purpose documentation is essential for accountable plan compliance and audit defense.
+   - **Examples:**
+     - ❌ Insufficient: "Meals" (GL account only)
+     - ✅ Sufficient: "Meals" (GL account) + "Lunch with AHP CEO to discuss loan terms and property development timeline" (memo)
+     - ❌ Insufficient: "Travel" + "Trip to Easthampton" (where, but not why)
+     - ✅ Sufficient: "Travel" + "Site visit to 75 Oliver St for pre-construction meeting with Five Star Building re: cost estimates" (who, what, why)
+
+5. **Mileage Claims** — ✅ **ANSWERED:** Treat like any other expense
+   - Subject to 60-day substantiation rule (same as other expenses)
+   - No receipt required (mileage log is substantiation)
+   - Memo field required (business purpose: where did you go, why)
+   - Origin, destination, miles, date already captured by expense-reports-homegrown
+   - **Current IRS standard mileage rate:** System should display current rate (67¢/mile for 2024, updated annually by IRS) as helper text when entering mileage
+   - **Rationale:** Mileage is significant expense category and must meet same substantiation timing rules. IRS Publication 463 explicitly addresses vehicle expense substantiation requirements.
+
+**Implementation requirements for expense-reports-homegrown:**
+
+**Validation rules to add:**
+1. Block submission if any expense line item is >60 days old (measure from expense date to submission date)
+2. Require receipt upload for expenses ≥$75 (except mileage and per diems)
+3. ALWAYS require receipt for lodging regardless of amount
+4. If expense ≥$75 and no receipt: require extended memo explaining why
+5. Make memo field mandatory (not optional) for all expense lines
+6. Warn if memo <10 characters or matches category name exactly
+
+**Helper text to add:**
+1. 60-day rule explanation with IRS citation and user options
+2. Business purpose guidance (who/what/why template)
+3. Missing receipt explanation prompt
+4. Current IRS mileage rate display
+
+**Audit trail enhancements:**
+1. Flag expenses with missing receipts for year-end review
+2. Track submission date vs. expense date (days elapsed) for compliance monitoring
+
+**Chunk 8 integration impact:**
+- expense-reports-homegrown must implement all validation rules before financial-system integration (GL entries should only be created for compliant expense reports)
+- API contract must include: expense date, submission date, receipt URLs, memo content, validation status
+
+**Related decisions:**
+- D-007: Expense report integration (API from expense-reports-homegrown)
+- D-041: Audit logging (track which expenses flagged for missing receipts)
+
+**IRS compliance references:**
+- [IRS Publication 463](https://www.irs.gov/pub/irs-pdf/p463.pdf): Travel, Gift, and Car Expenses
+- [Accountable Plan Requirements](https://www.irs.gov/pub/irs-pdf/p15b.pdf): Fixed-date method (60-day substantiation, 120-day return of excess)
+- Five elements: Amount, Time, Place, Essential Character, Business Purpose

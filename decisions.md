@@ -410,3 +410,711 @@ Each entry captures: what was decided, why, what alternatives were considered, a
 - **Rationale:** RI is in its initial 5-year test period (organized 2025), so the public support test doesn't become binding until after 2029. Current revenue levels (<$50K in FY25) qualify for 990-N (postcard) filing, not a full 990 with Schedule A. Building auto-calculation functionality now would be premature — the test is complex, IRS rules change, and RI won't need it for years. When the time comes, exporting revenue data by source (donations, grants, earned income) from the system will provide the raw data needed for manual calculation or CPA-assisted filing. The system's fund accounting (D-013) and revenue source tracking (D-034, D-036, D-037) already capture the necessary data dimensions.
 - **Future considerations:** If/when RI approaches the threshold where public support test matters (later in the initial 5-year period or after), revisit whether to add: (1) large donor flagging (donations >2% of total support), (2) support type categorization (qualifying public support vs. excluded support), (3) 5-year rolling average calculations, (4) Schedule A data export. These features can be added incrementally if needed.
 - **Affects:** Chunk 2 (Revenue Tracking — no public support test features required). Chunk 5 (Compliance Reporting — public support test is a future consideration, not immediate). Chunk 6 (Board Reporting — no Schedule A reporting required).
+
+### D-040: Payment Execution Workflow — Outside System via Bank Portal
+- **Date:** 2026-02-11
+- **Decision:** Payment execution (actually disbursing cash to pay liabilities) happens outside the financial-system, in the UMass Five bank portal. Workflow: (1) User creates payable in financial-system (manual entry for direct expenses like AHP interest, utilities, property taxes, or automatic via expense report/vendor invoice approval), (2) User logs into UMass Five online banking separately and executes payment (ACH, wire, check), (3) Bank transactions are imported later via bank feed, (4) System flags potential matches between payables and bank transactions, (5) User confirms match, (6) Payable is cleared. This applies to all bank-initiated payments. Ramp credit card payments are handled separately via Ramp autopay (D-041).
+- **Rationale:** At RI's scale (2-5 users, low transaction volume), integrating with UMass Five's payment API (if one even exists) adds complexity without benefit. Executing payments manually in the bank portal is simple, familiar, and provides direct bank confirmation. The financial-system focuses on liability tracking and GL accuracy; payment execution is delegated to the bank. Bank reconciliation (Chunk 4) handles the matching workflow. This separation also maintains control — users explicitly execute each payment in their bank interface rather than authorizing programmatic payments. No dual authorization is needed (D-006 — all users are fully authorized); payment execution is logged by the bank, and financial-system tracks payable creation/clearance via audit log (D-041).
+- **Implementation details:**
+  - **Anticipated expenses (vendor invoices, AHP interest, utilities):** User creates payable manually in financial-system before paying. Payable record includes: vendor/payee, amount, due date, GL account, fund, memo, supporting documents (invoice PDF, contract reference).
+  - **Unanticipated expenses (bank fees, automatic deductions):** Handled during bank feed import. User categorizes unmatched bank transactions (assign GL account + fund), GL entry created retroactively.
+  - **Matching workflow (Chunk 4):** When bank feed is imported, system compares bank transactions to outstanding payables (match by amount, date range, payee if available). User confirms matches. Matched payables are cleared (status: paid). Unmatched transactions are flagged for categorization.
+- **Ramp exception:** Ramp credit card bill is paid via Ramp autopay (deducts from UMass Five automatically). Financial-system sees Ramp payment in bank feed and categorizes it as "Credit Card Payable — Ramp" payment (clearing the liability). No manual authorization needed.
+- **Future enhancement:** If UMass Five offers payment API, could integrate in v2 to initiate ACH/wires directly from financial-system. For v1, manual execution in bank portal is sufficient.
+- **Affects:** Chunk 3 (Expense Tracking — payable creation workflow, no built-in payment execution). Chunk 4 (Bank Reconciliation — matching payables to bank transactions is core workflow). Chunk 8 (Integration Layer — no UMass Five payment API integration needed for v1).
+
+### D-041: Audit Logging for All Financial Actions
+- **Date:** 2026-02-11
+- **Decision:** The financial-system will implement comprehensive audit logging for all financial actions. Every action that creates, modifies, or deletes financial data will be logged with: user ID (who), timestamp (when), action type (what), affected records (transaction ID, account, amount), and before/after state for modifications. Audit logs are append-only (cannot be edited or deleted by users) and stored indefinitely for compliance and security purposes.
+- **Rationale:** With no dual authorization or approval workflows (D-006, D-040), audit logging serves as the security backstop. If an incorrect, negligent, or fraudulent action occurs, the audit log provides a complete record of who did what and when. This satisfies basic internal control requirements for small nonprofits: segregation of duties is impractical at 2-person scale, so compensating control is comprehensive audit trail. Audit logs also support: (1) Troubleshooting and error correction ("Why does this account show $X? Let me check the audit log."), (2) Compliance reviews (CPA or MA AG audit requests), (3) Board oversight (Treasurer can review audit log periodically to spot anomalies), (4) Training and process improvement (review logs to identify common user errors).
+- **What gets logged:**
+  - **GL transactions:** Create, modify, void (who created transaction X on date Y, what accounts/amounts, what fund, what memo)
+  - **Payable/receivable entries:** Create, modify, mark paid, write off (who created payable for vendor Z, who marked it paid, when)
+  - **Vendor/donor/entity changes:** Create new vendor, edit vendor info, merge/delete entities
+  - **Fund/account changes:** Create new fund, modify fund restrictions, create/modify GL accounts
+  - **System configuration changes:** Change tax rates, modify chart of accounts structure, update allocation rules
+  - **Data exports:** Who exported what data, when (for privacy/compliance tracking)
+  - **Failed actions:** Login failures, permission denied events, validation errors (security monitoring)
+- **What doesn't need logging:** Read-only actions (viewing reports, looking up transactions) — no need to log every page view, just data modifications.
+- **Log retention:** Indefinite (or at minimum 7 years to match consultant contract retention requirements and IRS audit statute of limitations). Old logs can be archived to cold storage but must remain accessible.
+- **Access controls:** Audit logs are visible to all users (transparency), but only system admin can export/download complete logs (privacy protection for sensitive actions). No user can edit or delete audit log entries (append-only).
+- **Implementation:** Standard web app audit logging pattern. Database table: audit_log (id, user_id, timestamp, action_type, entity_type, entity_id, details_json, ip_address). Index on timestamp and user_id for query performance. Details stored as JSON blob for flexibility (different actions have different relevant data). Simple audit log viewer UI in financial-system: filter by user, date range, action type, entity.
+- **Affects:** All chunks (every financial action must be logged). Chunk 1 (GL transaction logging). Chunk 2 (Revenue entry logging). Chunk 3 (Expense entry, payable creation logging). Chunk 4 (Bank reconciliation actions logged). Chunk 6 (Audit log viewer for Treasurer/board review).
+
+### D-042: Payroll Processing Deferred to v2 — No Payroll Until 2028+
+- **Date:** 2026-02-11
+- **Decision:** Payroll processing (converting approved timesheets to payroll GL entries, calculating withholdings, generating paychecks, filing payroll tax forms) is deferred to financial-system v2. RI will not run payroll until at least 2028 when rental income begins. Current timeline: (1) ~6 months from now: one-time $15K developer fee payment to one employee (handled manually outside system using tax calculator), (2) 2028+: regular payroll when rents provide cash flow, (3) If grant/contract awarded before 2028: timesheets used for billable hours (invoice customers), not payroll. The GL structure for payroll (D-018: single "Salaries & Wages" account, withholding liability accounts) and employee master data schema (D-017) are architecturally sound and remain in place for future v2 implementation, but no payroll workflows will be built in v1.
+- **Rationale:** Building payroll infrastructure (withholding calculations, tax deposit tracking, Form 941 generation, W-2 generation, etc.) for a problem that won't exist for 2+ years is premature. The $15K developer fee is a one-off that doesn't warrant full payroll automation. When regular payroll becomes necessary (~2028), RI can choose between: (1) Gusto or similar service ($600-750/year for 2-5 employees) with API integration to financial-system for GL entries, (2) Building full payroll engine in-system with comprehensive compliance features (see Chunk 3 Session 2 discovery notes for requirements), (3) Hybrid approach (Gusto for compliance, custom GL integration). Deferring the decision and the development work until the problem is imminent is the right trade-off.
+- **Impact on Chunk 3 discovery:** Session 2 (Approved Timesheets → Payroll GL Entry Flow) remains architecturally correct but is marked as "v2 scope — deferred." The decisions made in that session (monthly batching, task code + separate fund selection, withholding liability structure) will guide v2 implementation when needed.
+- **Impact on renewal-timesheets integration:** The renewal-timesheets → financial-system API integration (D-008) is deferred to v2. Timesheets will continue to accumulate in renewal-timesheets for grant/contract billing purposes (if applicable), but won't create payroll GL entries until v2.
+- **Impact on internal-app-registry-auth:** Employee payroll master data enhancements (tax IDs, withholding elections, pay frequency — D-017) are deferred to v2. The API spec (employee-payroll-data-spec.md) remains valid for future reference but won't be used in v1.
+- **What remains in v1:** All other expense flows (employee reimbursements via expense-reports, vendor invoices, Ramp credit card, manual entries) are still in scope and will be built. Functional split allocation (Session 3) is still needed for 990 filing regardless of payroll timing.
+- **Affects:** Chunk 3 (Expense Tracking — Session 2 deferred to v2, other sessions remain active). Chunk 8 (Integration Layer — renewal-timesheets API integration deferred to v2, internal-app-registry-auth payroll data API deferred to v2). Dependencies.md updated to reflect v1/v2 split.
+
+### D-043: Gusto Integration Planning Deferred to v2
+- **Date:** 2026-02-11
+- **Decision:** Planning and implementing Gusto API integration (or alternative payroll service integration) is deferred to financial-system v2, along with the broader payroll processing decision (D-042). If/when payroll becomes necessary (~2028), RI will evaluate: (1) External service (Gusto, Paychex, OnPay) with API integration for GL entries, (2) Full in-system payroll engine, (3) Manual payroll processing with accountant/CPA. The Gusto API research and integration architecture work is not needed for v1.
+- **Rationale:** No payroll = no need for Gusto integration. Deferring this decision until 2027-2028 allows RI to: (1) Assess actual payroll complexity after running it for a year (via external service or manual), (2) Evaluate payroll service market at that time (pricing, features, API capabilities may change), (3) Decide whether the integration ROI justifies development effort vs. continuing with external service. Building the integration now would be speculative.
+- **What this means for v1:** No Gusto API calls, no payroll service integration contracts, no GL entry automation from payroll runs. Payroll-related GL entries (if any one-off payments like the $15K developer fee occur) will be created manually in financial-system.
+- **What this means for v2:** When payroll work resumes, revisit Gusto API documentation, design integration architecture (API keys, webhook handlers for payroll run notifications, GL entry mapping, fund attribution for payroll), and implement. The GL structure (D-018) and fund accounting (D-013) are already designed to support this.
+- **Affects:** Chunk 8 (Integration Layer — Gusto integration deferred to v2). No impact on other chunks (GL structure is already in place for future payroll entries).
+
+### D-044: No Approval Workflows in Financial-System — Upstream Approval Only
+- **Date:** 2026-02-11
+- **Decision:** The financial-system will have NO approval workflows, approval queues, or tiered authorization. All users with access to financial-system have full admin rights (consistent with D-006). Transactions post to GL immediately when created — no pending approval state, no manager review step, no dual authorization. Approval happens UPSTREAM in source systems (expense-reports-homegrown, renewal-timesheets) before data reaches financial-system via API. Any transaction that arrives at financial-system is already approved and posts immediately.
+- **Rationale:** RI is a 2-5 person organization where approval hierarchies don't make sense. D-006 already established no in-app permissions (all users = full access). D-040 established no dual authorization for payments. D-041 established audit logging as the compensating control. Building approval workflows would add complexity without benefit. The trust model is: if you're authorized to access financial-system (controlled by internal-app-registry-auth), you're trusted to create transactions. Audit logging (D-041) creates accountability trail for post-hoc review if needed.
+- **Upstream approval model:**
+  - **Expense reports:** Approved in expense-reports-homegrown by admin BEFORE API call to financial-system. Only approved reports are sent via API. Financial-system receives approved reports and immediately creates GL entries + AP liability.
+  - **Timesheets (v2):** Approved in renewal-timesheets by admin BEFORE API call to financial-system. Only approved timesheets trigger payroll GL entries.
+  - **Vendor invoices:** No approval workflow. User who creates PO and matches invoice is effectively approving it. Invoice entry → immediate AP liability. Payment execution happens later via UMass Five portal (D-040).
+  - **Ramp transactions:** No approval workflow. User categorizes → immediate GL posting. Ramp card issuance = pre-authorization (only authorized cardholders have cards).
+  - **Manual GL entries:** No approval workflow. User creates entry → immediate posting. Audit log (D-041) tracks who created what.
+- **Month-end close implications:** Since there's no approval queue, month-end close is simplified. All transactions posted = all transactions approved. No "waiting for approvals to clear" before closing period. Month-end lock (if implemented) prevents new entries to closed periods, but doesn't involve approval workflows.
+- **Trade-offs accepted:** No approval workflows means: (1) No "manager must approve before posting" control, (2) No "pending approval" visibility in reports, (3) Errors require correcting journal entries (can't reject/return for revision). These trade-offs are acceptable at RI's scale with audit logging as compensating control.
+- **Not affected by this decision:** Source system approval workflows (expense-reports-homegrown has 4-state workflow: open → submitted → approved → rejected; this remains unchanged). Financial-system just doesn't replicate that workflow internally.
+- **Affects:** Chunk 3 (Expense Tracking — no approval queues for any expense type). Chunk 4 (Bank Reconciliation — all transactions are already "approved" when reconciling). Chunk 6 (Board Reporting — no "pending approval" category in reports). Chunk 8 (Integration Layer — API contracts simpler without approval state management).
+
+### D-045: No Period Locking — Open Periods Forever
+- **Date:** 2026-02-11
+- **Decision:** The financial-system will NOT implement period locking or month-end close restrictions. All accounting periods remain open indefinitely. Users can create, edit, or void transactions dated to any period (past, present, or future) at any time. There is no automatic lock after X days, no manual "close period" function, and no restriction on posting to prior months.
+- **Rationale:** At RI's scale (2-5 users, low transaction volume), period locking adds complexity without meaningful benefit. The typical concern with open periods — users posting late entries that change prior-month financials after board has reviewed them — is manageable through: (1) Audit logging (D-041) shows who posted what and when, making late entries easy to identify, (2) Small team size means communication is direct ("Hey, I just found a February receipt"), (3) Board reporting can include note: "These financials are as of [report generation date]; late entries may occur." Open periods also simplify error correction (no need to "reopen" a period to fix mistakes) and accommodate legitimate late entries (expense reports submitted after month-end, bank feeds arriving late, vendor invoices with timing delays).
+- **Trade-offs accepted:**
+  - **Board reporting variability:** February P&L could change after board receives it if late entries are posted. Mitigated by: (1) Audit log tracks timing, (2) Board can request "final" vs. "preliminary" reports if desired, (3) Month-over-month variance reports will show when historical periods change.
+  - **Compliance risk:** IRS/MA AG expect consistent period reporting. Mitigated by: (1) Annual filings (Form 990, Form PC) are generated from finalized year-end data, not month-by-month snapshots, (2) Audit log provides trail if questioned about late entries, (3) Late entries are expected to be rare (not systemic).
+  - **Troubleshooting complexity:** "Why did November expenses increase in April?" requires checking audit log for late entries. Acceptable trade-off for simplicity.
+- **Implementation implications:**
+  - No "period status" field in database (open/closed/locked)
+  - No validation against transaction date (can post to any date)
+  - Reports should display "as of [date/time]" to clarify snapshot timing
+  - Audit log is critical for tracking late entries (who, when, what period)
+- **Future consideration:** If RI scales significantly (10+ employees, external audit requirements, complex grant compliance), revisit period locking. At that stage, could implement: (1) Soft lock (warning when posting to prior months, but allow with justification), (2) Hard lock (prevent entries to closed periods without admin override), (3) Rolling lock (auto-lock periods >90 days old). For v1, open periods are sufficient.
+- **Board visibility:** Board can request specific report date ranges if they want "final" numbers. Example: "February financials as of March 10" vs. "February financials as of April 15" (includes late entries). Audit log viewer (Chunk 6) can show "transactions posted to February after March 10" to highlight late entries.
+- **Affects:** Chunk 3 (Expense Tracking — no period validation on transaction dates). Chunk 4 (Bank Reconciliation — can reconcile any month at any time, no lock-in). Chunk 6 (Board Reporting — reports include "as of" timestamp, note about potential late entries).
+
+### D-046: Conditional Grant Revenue Recognition — Per-Grant Assessment with Refundable Advance
+- **Date:** 2026-02-12
+- **Decision:** Grant revenue recognition depends on whether the grant is conditional or unconditional (ASC 958-605 distinction). Each grant award letter must be analyzed at the time of award:
+  - **Unconditional grants** (no barriers to entitlement): Recognize revenue at award per D-034. Cash received upfront or creates Grants Receivable if reimbursement model.
+  - **Conditional grants** (matching requirements, cost-share, milestone barriers): Cash received goes to Refundable Advance (liability account). Revenue recognized progressively as conditions are met (e.g., matching funds raised, milestones completed).
+- **Rationale:** Some grants (especially SARE and similar USDA programs) require RI to raise matching funds or meet performance milestones before the grant becomes RI's money. Recognizing revenue at award for these grants would overstate revenue and net assets. The conditional/unconditional distinction is fundamental to nonprofit accounting under ASU 2018-08. SARE grants typically have matching requirements — this is certain, not hypothetical.
+- **GAAP treatment examples:**
+  - **Conditional grant with matching requirement:** Grant awards $100K with 25% match required ($25K from RI). When grant award received: DR: Cash $100,000 | CR: Refundable Advance $100,000 (liability). As RI spends and meets match: DR: Refundable Advance | CR: Grant Revenue (in proportion to conditions met).
+  - **Unconditional upfront grant:** DR: Cash | CR: Grant Revenue (restricted fund) — per D-034
+- **Per-grant analysis required:** When a grant is awarded, user must assess: Does this grant have conditions (matching, milestones, performance requirements)? If yes → conditional. If no → unconditional. System must support both treatments.
+- **GL accounts needed:** Refundable Advance (liability — separate from Deferred Revenue in D-028, which is for timing, not conditions)
+- **Supersedes/refines D-034:** D-034's "revenue at award" policy applies to unconditional grants only. D-034's GAAP caveat acknowledged this issue but deferred resolution. This decision closes the gap by adding conditional grant treatment.
+- **Affects:** Chunk 1 (GL accounts — add Refundable Advance liability account). Chunk 2 (Revenue Tracking — grant setup workflow must capture conditional vs. unconditional status; revenue recognition logic differs). Chunk 5 (Compliance Reporting — funder reports must show progress toward conditions). Chunk 6 (Board Reporting — balance sheet shows Refundable Advance separately from revenue).
+
+### D-047: Fundraising Event Revenue Bifurcation — Exchange vs. Contribution Split with Quid Pro Quo Disclosure
+- **Date:** 2026-02-12
+- **Decision:** Fundraising event revenue (e.g., May 2026 event) must be bifurcated between exchange portion (fair market value of goods/services provided) and contribution portion (excess payment over FMV). IRS requires quid pro quo disclosure for any payment >$75 where donor receives goods/services. System will support:
+  - **Revenue split:** Two GL accounts: Event Exchange Revenue (for FMV of meal/entertainment/benefits) and Event Contribution Revenue (for excess over FMV)
+  - **Quid pro quo disclosure:** For payments >$75 receiving goods/services, donor receipt letter (D-038 workflow) must state: "You received goods/services valued at $[FMV] in exchange for your $[total] contribution." This is distinct from the >$250 acknowledgment letter — both may apply to same donation.
+  - **FMV determination:** Event organizer determines FMV of event benefits (meal, entertainment, auction items, etc.) before event. This value is used to split all ticket sales.
+- **Example:** Fundraising dinner with $150 ticket. Meal/entertainment FMV = $50. Split: $50 → Event Exchange Revenue (Line 8a on Form 990), $100 → Event Contribution Revenue (Line 1c on Form 990). Donor receives receipt: "You received dinner valued at $50. Your tax-deductible contribution: $100."
+- **IRS compliance:** Quid pro quo disclosure required by IRC 6115. Penalty: $10 per contribution (up to $5,000 per event) for failure to disclose. This is separate from the >$250 substantiation requirement in IRC 170(f)(8).
+- **Integration with D-038:** Donor acknowledgment letter workflow (D-038) must be enhanced to handle quid pro quo disclosure when event revenue is recorded. System needs: (1) FMV field when recording event donation, (2) conditional letter language based on whether FMV > $0.
+- **Form 990 reporting:** Handled in Chunk 5. Event exchange revenue and contribution revenue reported separately (Part VIII Lines 8a and 1c).
+- **Affects:** Chunk 2 (Revenue Tracking — event revenue entry workflow with FMV split; donor receipt letters with quid pro quo language). Chunk 5 (Compliance Reporting — Form 990 revenue bifurcation, Schedule G Part II if gross receipts + contributions from events exceed $15K).
+
+### D-048: Interest Income Recognition — Investment Income GL Account, Unrestricted Revenue
+- **Date:** 2026-02-12
+- **Decision:** Interest earned on bank accounts (checking, savings, money market) is recognized as unrestricted revenue in an Investment Income (or Interest Income) GL account. Interest will be material as RI draws larger amounts from the AHP revolving line of credit and deposits into interest-bearing accounts.
+- **GL Treatment:**
+  - **Interest earned on unrestricted cash:** DR: Cash (or Interest Receivable if accrued) | CR: Investment Income (General Fund, unrestricted)
+  - **Interest earned on restricted cash:** Interest follows the restriction of the underlying fund (e.g., interest on SARE grant funds → SARE restricted fund). However, this is rare — most restricted funds are spent quickly, not held long-term.
+- **Form 990 classification:** Investment income reported on Part VIII Line 3. This counts differently in the public support test than contributions (Line 1) — relevant for 170(b)(1)(A)(vi) classification. Chunk 5 responsibility.
+- **Current accounts earning interest:** Business Interest Savings (...0172) currently has $5 balance. As RI draws from AHP line of credit (up to $3.5M available), funds will be deposited into interest-bearing accounts while awaiting deployment.
+- **Accrual treatment:** Under accrual basis (D-005), interest is recognized when earned (monthly accrual), not when paid/credited. Most banks credit interest monthly or quarterly — system should accrue based on account statements or bank feed data.
+- **Affects:** Chunk 1 (GL accounts — add Investment Income revenue account). Chunk 2 (Revenue Tracking — interest income entry workflow, accrual logic if needed). Chunk 4 (Bank Reconciliation — interest transactions from bank feed). Chunk 5 (Compliance Reporting — Form 990 Part VIII Line 3). Chunk 6 (Board Reporting — investment income reported separately from contributions/grants).
+
+### D-049: AHP Loan Forgiveness Treatment — Unconditional Donation, No Refundable Advance
+- **Date:** 2026-02-12
+- **Decision:** AHP loan forgiveness (per Section 4.4 of loan agreement) has no enduring financial conditions. Forgiveness is a discretionary act by AHP with no performance requirements, affordable housing maintenance obligations, or clawback provisions. When AHP forgives a portion of the loan, it is treated as an unconditional donation with no strings attached — revenue recognized immediately and classified as unrestricted.
+- **Rationale:** This confirms and refines D-023. D-023 established that forgiveness = donation income (not equity adjustment). This decision clarifies that forgiveness is NOT a conditional contribution (no refundable advance treatment, unlike PPP loans or grants with performance requirements). The forgiven amount is fully discretionary and non-restricted — RI can use it for any purpose.
+- **GL Treatment:** (same as D-023)
+  - Debit: AHP Loan Payable $[forgiven amount]
+  - Credit: Donation Income (General Fund, unrestricted) $[forgiven amount]
+- **No tracking of forgiveness requirements:** The financial system does not need to track any ongoing obligations or conditions related to forgiveness. This is beyond the scope of the system — AHP's forgiveness decision is based on factors outside the financial system's purview.
+- **Supersedes D-023's ambiguity:** D-023 treated forgiveness as donation income but didn't address the conditional vs. unconditional question raised in D-046. This decision explicitly classifies AHP forgiveness as unconditional, distinguishing it from conditional grants that require refundable advance treatment.
+- **Affects:** Chunk 1 (GL treatment per D-023 — no new accounts needed). Chunk 2 (Revenue Tracking — forgiveness recorded as simple donation entry, no conditions to track). Chunk 6 (Board Reporting — forgiveness events increase unrestricted net assets and reduce long-term liabilities).
+
+
+### D-050: Pledge/Promise-to-Give Mechanics — Deferred Until Multi-Year Pledges Materialize
+- **Date:** 2026-02-12
+- **Decision:** Multi-year pledge accounting mechanics (present value discounting, allowance for uncollectibles) are deferred until/unless major donor commitments with signed pledge agreements materialize. For initial fundraising (May 2026 event and capital campaigns), the system supports simple Pledges Receivable tracking for near-term committed donations only — no PV discounting, no allowance for uncollectibles.
+- **Rationale:** Multi-year pledges require signed, legally enforceable commitments. Verbal promises ("I'll give $10K/year for 3 years") without binding agreements are not pledges under GAAP — no receivable recognition until cash is received or a signed commitment exists. Recurring automatic donations (monthly subscriptions) are payment mechanisms (cancellable at any time), not pledges. Based on RI's fundraising approach and donor culture, multi-year binding pledges are unlikely. Building complex PV/allowance mechanics before knowing they're needed violates the "personal software" philosophy (D-002) and wastes implementation time.
+- **What the system supports now:**
+  - **Pledges Receivable GL account:** For short-term committed donations (donor commits, payment pending within 90 days). Example: Donor pledges $50K at event, sends check 30 days later.
+  - **Accounting:** DR: Pledges Receivable | CR: Donation Revenue (when commitment is made). DR: Cash | CR: Pledges Receivable (when received).
+  - **No discounting, no allowance:** Assumes pledges are fulfilled within current fiscal year at face value.
+- **What the system does NOT support now:**
+  - Multi-year pledges with PV discounting (e.g., "$100K over 4 years" = recognize PV of $92K)
+  - Allowance for uncollectible pledges (e.g., 10% won't pay)
+  - Annual accretion of discount
+  - Write-off workflows for uncollectible pledges
+- **If multi-year pledges emerge:** System can be enhanced retroactively with CPA guidance. Add: (1) PV calculation at pledge entry, (2) allowance estimation logic, (3) annual accretion entries, (4) uncollectible write-off workflow. This is a straightforward retrofit — the GL structure (Pledges Receivable exists) supports it; just need to add the calculation/tracking features.
+- **Recurring donations distinction:** Monthly automatic donations (via Stripe, PayPal, etc.) are payment automation, not pledges. Revenue recognized when payment is received each month. Donor can cancel at any time → no enforceable commitment → no receivable until cash arrives.
+- **Supersedes D-036 ambiguity:** D-036 mentioned "unconditional pledge" recognition but didn't specify mechanics. This decision clarifies: simple near-term pledges only (no PV/allowance). Complex multi-year pledges deferred.
+- **Affects:** Chunk 1 (GL accounts — Pledges Receivable asset account added; no contra-asset accounts for discount/allowance). Chunk 2 (Revenue Tracking — pledge entry workflow supports simple receivable tracking only). Chunk 6 (Board Reporting — balance sheet shows Pledges Receivable for pending committed donations, but no allowance detail).
+
+
+### D-051: Multi-Fund Transaction Allocation — Support Fund Splits at Transaction Level
+- **Date:** 2026-02-13
+- **Decision:** Transactions support multi-fund allocation splits. A single expense can be allocated across multiple funds using percentages or amounts (e.g., property insurance invoice of $1,000 split 60% Historic Tax Credit Fund / 40% Unrestricted Fund). When posted to GL, one transaction creates separate GL entries per fund allocation. Implementation details (UI for entering splits, validation that percentages sum to 100%, whether to use percentages vs. amounts) are deferred to spec phase.
+- **Rationale:** Shared costs are inevitable as restricted grants arrive: property insurance covering multiple funding sources, utilities during construction benefiting multiple grant-funded activities, professional fees (legal, accounting) serving the whole organization. The alternative (requiring users to manually create separate line items for each fund) creates worse UX (more clicks, duplicate data entry), harder audit trail (splits scattered across multiple transactions instead of linked to one source document), and complicates bank reconciliation (one bank payment matching to multiple transactions instead of one). Supporting fund splits at the transaction level matches accounting reality (one expense, multiple funding sources) and keeps the user workflow clean. The schema change is minimal: add `fund_allocations` table (transaction_id, fund_id, allocation_amount or allocation_percentage) instead of single `fund_id` column. GL posting logic iterates over fund allocations and creates one GL entry per fund. This is standard nonprofit accounting practice for shared costs.
+- **Data model implications:**
+  - **Transaction table:** Remove single `fund_id` column (if present), add one-to-many relationship to `fund_allocations` table
+  - **Fund allocations table:** `transaction_id`, `fund_id`, `allocation_percentage` (0-100) or `allocation_amount` (dollar value), `created_at`, `created_by`
+  - **Validation:** Fund allocations must sum to 100% (if using percentages) or equal transaction amount (if using amounts). At least one fund allocation required per transaction.
+  - **GL posting:** When transaction is posted, iterate over fund allocations and create one GL entry per fund (debit/credit accounts same, fund differs, amount prorated)
+- **Deferred to spec phase:**
+  - UI/UX: How user enters splits (inline "Add fund" button? Modal? Percentage fields vs. amount fields?)
+  - Default behavior: Does transaction default to single fund (user adds splits as needed)? Or always prompt for fund allocation?
+  - Validation messages: What happens if percentages don't sum to 100%? Block submission or warn?
+  - Reports/exports: How are split transactions displayed in reports (one line with fund breakdown? Separate lines per fund?)
+- **Affects:** Chunk 1 (Core Ledger — GL posting logic must handle fund splits, schema includes fund_allocations table). Chunk 3 (Expense Tracking — all expense sources support fund splits: expense reports, vendor invoices, Ramp transactions, manual entries). Chunk 8 (Integration Layer — API contracts must support fund allocation arrays in transaction payloads).
+
+
+### D-052: $20K Board Approval Threshold — Governance Process, Not System Enforcement
+- **Date:** 2026-02-13
+- **Decision:** The $20,000 board approval threshold for contracts (per organizational bylaws documented in company_facts.md) is enforced through governance process, not financial-system workflow. Users are trusted to obtain board approval before creating purchase orders exceeding $20,000. The system does not gate PO creation, require approval documentation upload, or generate compliance warnings for contracts above the threshold.
+- **Rationale:** Consistent with D-044 (no approval workflows in financial-system) and D-006 (all users fully trusted with full access). At RI's scale (2-5 users who ARE the board or work directly with board members), board review of large contracts happens naturally in board meetings. Every expense is visible to the board in monthly financial reports, and any contract exceeding $20,000 will receive board attention given RI's overall transaction volume and budget scale. Building in-system enforcement (approval gates, required documentation uploads, compliance warnings) adds complexity without benefit when the users creating POs are also the board members reviewing them. Governance oversight through board meeting minutes (documenting approval of contracts >$20K) provides the compliance record. If a contract >$20K is created without proper board approval, audit logging (D-041) tracks who created it and when, supporting post-hoc review if needed. The board can identify and address any procedural gaps through normal oversight.
+- **Trade-offs accepted:** No automated compliance warning when user creates $20K+ PO. No system-enforced documentation requirement. Relies on users knowing the bylaws and following governance process. This is acceptable at RI's scale where all users have fiduciary responsibilities and direct board involvement.
+- **Not affected by this decision:** The $20K threshold remains in organizational bylaws and must be followed. Board meeting minutes should document approval of contracts >$20K. This decision only addresses whether the financial-system enforces the threshold programmatically (it does not).
+- **Affects:** Chunk 3 Session 4 (PO system — no approval gate, documentation requirement, or compliance warning for $20K+ contracts). No impact on GL structure or reporting.
+
+
+### D-053: GL Transaction Corrections and Reversals
+- **Date:** 2026-02-13
+- **Decision:** GL transactions can be **voided** or **edited** with comprehensive audit trail. **Void:** Transaction is marked as void, remains in audit log and transaction history but excluded from GL balances and all reports (balance sheet, P&L, fund reports). **Edit:** Allowed for unmatched transactions only (before bank reconciliation matching); after a transaction is matched to a bank feed entry, edits are prohibited and corrections require reversing journal entry. All modifications (voids, edits, reversals) are logged in audit trail (D-041) with before/after state, user ID, and timestamp.
+- **Correction workflows by scenario:**
+  - **Wrong GL account or fund (unmatched transaction):** Edit transaction in place. Change GL account and/or fund allocation. Audit log captures original values, new values, who changed, when. Transaction retains same transaction ID.
+  - **Wrong GL account or fund (matched transaction):** Create reversing journal entry (offsets original transaction exactly, marked as "Reversal of Transaction #123") + create new correcting entry with correct GL account/fund. Original transaction remains in GL for audit trail. All three transactions (original, reversal, correction) are linked via memo/reference field.
+  - **Duplicate entry or erroneous transaction:** Void transaction. Transaction status changed to "void," excluded from all GL calculations and reports, but remains visible in transaction history and audit log. Cannot be un-voided (if voided in error, create new transaction).
+  - **Complex corrections (e.g., multi-account adjustments, prior-period corrections):** Create manual journal entry with detailed memo explaining the correction, referencing original transaction IDs, and documenting reason for adjustment. Manual journal entries support multi-line debits/credits and can span multiple funds if needed.
+- **Bank reconciliation implications:** Once a transaction is matched to a bank feed entry, it becomes "locked" from editing to prevent reconciliation corruption (user edits transaction, breaking the match between GL and bank feed). Matched transactions require reversing entries for corrections. Unmatched transactions can be edited freely until matched.
+- **Rationale:** Balances audit trail integrity (all financial actions are preserved and traceable) with practical error correction needs. Restricting edits after bank matching prevents reconciliation integrity issues (matched transaction changing underneath the match would create GL/bank discrepancies). Reversing entries are standard GAAP practice for correcting posted transactions and create clear audit trail. Void functionality provides clean way to nullify errors without deletion (voided transactions don't disappear, just excluded from calculations). Consistent with D-045 (open periods, no period locking) — users can always correct mistakes regardless of transaction date, but corrections are transparent via audit log. At RI's scale (2-5 trusted users), flexibility to correct errors quickly outweighs risk of inappropriate modifications, with audit logging as compensating control.
+- **Implementation notes:**
+  - Transaction status field: `active`, `void`, or `matched` (matched = locked from editing)
+  - Void action: Changes status to `void`, sets `voided_at` timestamp, `voided_by` user ID. Does not delete transaction record.
+  - Edit action: Only allowed if status = `active` (not void, not matched). Updates transaction fields, logs before/after in audit trail.
+  - Reversing entry: System can provide "Reverse Transaction" button that auto-creates offsetting entry with reference to original transaction ID.
+  - UI considerations: Voided transactions shown in transaction history with strikethrough or "VOID" badge but excluded from reports. Matched transactions show lock icon and "Create Reversal" option instead of "Edit" button.
+- **Affects:** Chunk 1 (Core Ledger — transaction model includes status field, void/edit logic, reversal entry creation). Chunk 3 (Expense Tracking — expense corrections use same void/edit/reversal patterns). Chunk 4 (Bank Reconciliation — matching locks transactions from editing, unmatched transactions remain editable). Chunk 6 (Reporting — void transactions excluded from all reports; audit log viewer shows voids and modifications).
+
+### D-054: Full GAAP Financial Statement Presentation from Day One
+- **Date:** 2026-02-12
+- **Decision:** Board reports use GAAP-compliant nonprofit financial statement format from launch. Four core statements: Statement of Financial Position (Balance Sheet), Statement of Activities (P&L), Statement of Cash Flows, Statement of Functional Expenses. Supplementary notes/schedules include fund detail, AHP loan disclosure, accounting policies, fixed asset schedule. Dashboard/summary layer provides quick-glance operational view for daily management use.
+- **Rationale:** GL structure (Chunks 1-3) already captures everything needed for GAAP statements — the reporting layer just formats it. Building simplified reports first and GAAP later means building two things. Build GAAP once, add a dashboard layer. The 3-person board can learn the format — it's not materially different from what they already see (P&L, Balance Sheet).
+- **Affects:** Chunk 6 (all financial reports follow GAAP format). Sets the standard for all financial output from the system.
+
+### D-055: Consolidated + Fund Drill-Down Reporting Model
+- **Date:** 2026-02-12
+- **Decision:** Primary reporting view is consolidated across all funds. Every financial statement supports fund-level filtering/drill-down. No separate per-fund statement generation — same report, different filter. Restricted fund draw-down reports available per fund on demand.
+- **Rationale:** Data is already fund-coded (D-013, D-035). Consolidated = sum all funds. Fund-level = filter by fund. One report engine, one template, configurable view. Avoids maintaining separate per-fund report templates.
+- **Affects:** Chunk 6 (report architecture). Chunk 7 (budget vs. actuals uses same drill-down model by fund).
+
+### D-056: Interactive Reports + PDF Export
+- **Date:** 2026-02-12
+- **Decision:** All reports are interactive on-screen (filterable, expandable, drillable). Any report can be exported to PDF for board distribution. Board pack = curated set of PDF exports (financial statements + operational dashboards). No separate board report codebase — PDF is a print/export view of the same interactive report.
+- **Rationale:** Heather uses interactive reports daily. Board gets PDF snapshots quarterly. One codebase serves both needs. Avoids maintaining parallel report formats.
+- **Affects:** Chunk 6 (delivery mechanism). No downstream architectural impact.
+
+### D-057: "As Of" Timestamp on All Reports
+- **Date:** 2026-02-12
+- **Decision:** Every report header shows generation datetime ("These financials are as of [date/time]"). No "preliminary/final" mechanism. Audit log viewer enables "what changed since date X" queries for board members who want to understand the impact of late entries.
+- **Rationale:** Direct consequence of D-045 (no period locking). Reports reflect current state at generation time. If the board wants to compare snapshots, they regenerate the same report at a later date and check the audit log for what changed.
+- **Affects:** Chunk 6 (all reports). Extends D-045.
+
+### D-058: Report Comparison Columns — Current Period + YTD + Budget
+- **Date:** 2026-02-12
+- **Decision:** Financial statements include three comparison columns: (1) Current period (month or quarter), (2) Year-to-date, (3) Budget. Budget column depends on Chunk 7 providing budget data — shows "—" until budgets are entered. Report layout is designed for all three columns from launch.
+- **Rationale:** Gives the board context at three levels: what happened this period, the cumulative picture, and how it compares to plan. Budget column is a placeholder until Chunk 7 is built, but designing the layout now avoids a retrofit. Current + YTD + Budget is the standard nonprofit board report format.
+- **Affects:** Chunk 6 (report layout). Chunk 7 (must provide budget data in a format these reports can consume — budget amounts by GL account by period).
+
+### D-059: All Operational Reports Ship at Launch
+- **Date:** 2026-02-12
+- **Decision:** All 21 reports in the Chunk 6 inventory are launch scope — no tiering or phasing. This includes: 4 GAAP financial statements, 4 operational dashboards (cash position, AR aging, payables, rent collection), 3 fund/grant reports, 5 specialized reports (property expenses, utility trends, donor history, cash projection display, AHP loan summary), 3 audit/compliance views (audit log, transaction history, late entries), and 2 annual deliverables (AHP covenant package, 990/Form PC data support).
+- **Rationale:** Jeff's direction: "build the whole thing right up front." The reports are standard, not fancy — effective and relevant. Most reports are variations on the same GL data (filter by fund, filter by date, filter by account type). The reporting layer is the primary reason for building the system — skimping here defeats the purpose.
+- **Affects:** Scope commitment. All reports built as part of initial system delivery. No deferred reporting features.
+
+### D-060: 3-Month Cash Projection Deferred to Chunk 7
+- **Date:** 2026-02-12
+- **Decision:** The 3-month forward cash projection (requested by the board at January 2026 meeting) is a budgeting/forecasting function, owned by Chunk 7. Chunk 6 provides the report container and display format; Chunk 7 provides the projection logic, assumptions, and data model.
+- **Rationale:** Cash projection requires assumptions about future inflows and outflows — that's budgeting, not reporting. Keeping it in Chunk 7 avoids building forecasting logic in two places.
+- **Affects:** Chunk 7 (must specify: projection data model, automation level, how projection data feeds into the Chunk 6 report display). Chunk 6 (provides display container for projection data).
+
+### D-061: Functional Expense Allocation — Annual Worksheet with Stored Percentages
+- **Date:** 2026-02-13
+- **Decision:** Functional allocation (Program/Admin/Fundraising) for 990 Part IX is performed via an annual worksheet. The system stores allocation percentages per person (or per expense category) and generates year-end allocation journal entries. At RI's current scale (2 people, mixed roles), this means Heather and Jeff each get a % split across Program/Admin/Fundraising, applied to salary and shared expenses. The worksheet is completed once per year at 990 prep time.
+- **Rationale:** With 2 employees doing mixed roles and payroll deferred to v2, there's no timesheet data to derive functional splits from. An annual estimate is standard practice for small nonprofits — the IRS expects "reasonable and consistent" methodology, not precision accounting. The key is documenting the basis (job descriptions, typical time allocation) and applying it consistently. Quarterly estimates were considered but add overhead without proportional value at this scale.
+- **Affects:** Chunk 5 (allocation methodology documented). Chunk 6 (board reports can show functional split after year-end allocation runs). Chunk 1 (GL posting logic for allocation JEs). Extends D-018 (year-end payroll allocation).
+
+### D-062: 990 Line Item Mapping — System-Level GL Account Configuration
+- **Date:** 2026-02-13
+- **Decision:** Each GL expense account is tagged with its corresponding 990 Part IX line item (1–24) at account creation time. This is a system-level configuration, not a year-end exercise. Reports can auto-generate Part IX expense data by rolling up GL accounts into their 990 line items, then applying D-061 functional allocation percentages to produce the four-column layout (Total / Program / Admin / Fundraising).
+- **Rationale:** The mapping between GL accounts and 990 lines is mostly stable — "Utilities - Electric" always maps to Line 16 (Occupancy), "Insurance" always maps to Line 23. Building the mapping into the GL avoids annual re-mapping effort and enables on-demand compliance reporting. Edge cases can be handled with override capability at year-end.
+- **Affects:** Chunk 1 (GL account schema needs a `form_990_line` field). Chunk 5 (compliance reporting pulls from this mapping). Chunk 6 (990-style expense report becomes a standard report, not a manual exercise).
+
+### D-063: Public Support Test Data Capture from Day One
+- **Date:** 2026-02-13
+- **Decision:** Every contribution/donation/grant is tagged with source type (government, public, related party) and tracked by donor entity. This provides the data needed for Schedule A public support test calculations when RI exits its 5-year grace period (~FY2030). The actual public support test calculation is still deferred (D-039), but data capture begins immediately.
+- **Rationale:** The public support test uses a 5-year rolling window. Data from FY2025 onward will be needed for the first real test. D-038 already tracks donors with giving history — adding a source type tag (government/public/related party) is minimal incremental effort. The 2% excess contribution rule requires knowing each donor's cumulative giving over the 5-year window, which is already supported by D-038's donor tracking. Deferring data capture would risk having to reconstruct years of contribution history from bank statements.
+- **Affects:** Chunk 2 (donation/grant entry must include source type field). Chunk 5 (public support test calculation can be built when needed, with data already available). Extends D-038 (donor tracking) and D-039 (public support test deferral — calculation deferred, data capture not deferred).
+
+### D-064: Form PC — Compliance Calendar Reminder Only, No Data Generation
+- **Date:** 2026-02-13
+- **Decision:** The system does not generate Form PC data or reports. Form PC filing is handled manually via the MA Online Charity Portal. The system's compliance calendar (D-065) reminds RI when Form PC is due and what to attach (990 if over $25K gross support).
+- **Rationale:** Form PC is essentially "attach your 990 plus a cover sheet." At RI's current scale (under $25K), it's minimal. Even at higher revenue, the Form PC data requirements are a subset of what the 990 already provides. Building a Form PC generator would be over-engineering for a form that takes 15 minutes to complete manually.
+- **Affects:** Chunk 5 (Form PC is out of system scope). Chunk 6 (no Form PC report needed).
+
+### D-065: Built-In Compliance Calendar with Automated Reminders
+- **Date:** 2026-02-13
+- **Decision:** The financial system includes a compliance calendar that tracks all filing deadlines (990/990-N, Form PC, MA SOS Annual Report, AHP covenant deliverables, insurance renewal, COI attestations, ST-2 renewal). The calendar shows on the dashboard and sends email reminders at 30-day and 7-day marks before each deadline. Deadlines are configurable (add new obligations as they arise, e.g., new funder reporting requirements).
+- **Rationale:** Missing a filing deadline can have serious consequences (automatic 501(c)(3) revocation after 3 missed 990s, loss of charitable registration). A built-in calendar with reminders is the simplest defense against administrative oversight. The compliance calendar from company_facts.md provides the initial data set. This is a core "justify building the system" feature — it protects the org.
+- **Affects:** Chunk 5 (compliance calendar is a Chunk 5 deliverable). Chunk 6 (dashboard shows upcoming deadlines per D-059's operational dashboard scope).
+
+### D-066: 990 Program Descriptions — Manual Narrative, No Sub-Program Tagging
+- **Date:** 2026-02-13
+- **Decision:** The 990's program service accomplishments section is written as a manual narrative. No sub-program tagging in the GL. RI's single program class ("Property Operations" per D-012) is described on the 990 as encompassing all five Form 1023 program areas (affordable housing, regen agriculture, workforce dev, public education, energy). The 990 is the vehicle for updating program descriptions as the org matures — no Form 1023 amendment needed unless exempt purpose changes.
+- **Rationale:** The IRS expects program descriptions to evolve via the 990 — Form 1023 is the application, not a permanent constraint. RI's programs are dimensions of one property, not separate business lines. Adding sub-program tags would create data entry overhead with no reporting value (the 990 only asks for narrative descriptions and total program expenses, which are the same regardless of sub-program breakdown). If RI's program structure diversifies significantly in the future, sub-program tagging can be added then.
+- **Affects:** Chunk 5 (no sub-program mapping needed). Chunk 1 (no GL structure change). Simplifies D-012 implementation.
+
+### D-067: Officer Compensation Reporting — Derive from Payroll, Not Needed Pre-Payroll
+- **Date:** 2026-02-13
+- **Decision:** The 990 Part VII compensation table (officers, directors, key employees) will be populated from payroll data when the payroll module exists. No separate "officer compensation" data entry form is needed. For FY25-26, RI files 990-N which doesn't require compensation reporting. By the time RI files a 990-EZ or full 990 requiring Part VII, the payroll module will exist.
+- **Rationale:** The 990-N e-Postcard requires zero compensation data. The 990-EZ/990 Part VII data is exactly what the payroll module will track — employee names, titles, hours, compensation.
+- **Affects:** Chunk 5 (no separate compensation reporting feature needed). Payroll module (Chunk 3) provides the data.
+
+### D-068: Payroll Processing Restored to V1 Scope — Full In-House Build
+- **Date:** 2026-02-13
+- **Decision:** Payroll processing is restored to v1 scope, reversing D-042 and D-043. RI will build the full payroll calculation engine in-house: gross-to-net calculations, federal and MA withholding, FICA, payroll tax deposits, W-2 generation, and payroll reporting. No Gusto or third-party payroll service integration. The renewal-timesheets API integration and internal-app-registry-auth payroll data (already built) are also restored to v1 scope.
+- **Rationale:** The original deferral (D-042) was driven by uncertainty about payroll tax law complexity and perceived risk. After consultation with experienced practitioners, the risk was reassessed as manageable: (1) the payroll calculations are mechanical and well-documented, (2) the regulatory knowledge gap can be closed with dedicated upfront research, and (3) ongoing tax law changes can be managed through an AI-assisted annual review process — AI researches current year tax rates/thresholds, recommends system changes, human reviews and approves. This "AI-guided, human-involved" annual maintenance pattern fits RI's personal software philosophy and avoids recurring Gusto subscription costs.
+- **Reverses:** D-042 (Payroll Processing Deferred to V2), D-043 (Gusto Integration Deferred to V2)
+- **Affects:**
+  - **Chunk 3:** V1/v2 split eliminated. Payroll processing, payroll tax compliance, W-2 generation, 1099-NEC generation are all v1 scope. Chunk 3 discovery needs a payroll-focused session to specify: federal withholding (Publication 15-T), FICA (Social Security + Medicare), MA state income tax, MA PFML, MA unemployment (SUTA), deposit schedules, quarterly returns (941), annual returns (940, W-2, W-3).
+  - **Chunk 8:** renewal-timesheets API integration restored to v1. internal-app-registry-auth payroll data endpoints (already built) are v1 dependencies.
+  - **Chunk 5:** Payroll tax compliance calendar entries added to D-065. Annual payroll tax rate review process needed (AI-assisted).
+  - **Build scope:** Significant addition. Payroll is a research-heavy module with regulatory requirements that must be precisely implemented.
+- **Annual maintenance pattern:** The compliance calendar (D-065) includes a January "Annual Payroll Tax Rate Review" entry. This triggers the annual process: AI researches current-year IRS Publication 15, MA DOR updates, FICA rate changes, wage base limits, and recommends system configuration updates. Human reviews recommendations and approves changes. System stores tax rate tables as configurable data (not hardcoded), enabling annual updates without code changes. The compliance calendar is both the reminder system and the trigger for the AI-assisted rediscovery process — no separate maintenance infrastructure needed.
+- **Open question — Employee Data Source of Truth (OQ-001):** Where does employee setup and PII live? Currently, internal-app-registry-auth holds employee payroll master data (D-017, API already built at tools.renewalinitiatives.org). But full in-house payroll means the financial system needs deep, ongoing access to withholding elections, tax IDs, pay rates, employment status — and someone needs a workflow for setting up new employees, updating W-4s, onboarding/offboarding. Three sub-questions: (1) **PII security** — where is sensitive data stored/encrypted at rest? Who has access? (2) **Workflow origination** — where does Heather go to set up a new hire or update a W-4? (3) **API integration** — does financial-system consume from auth (current design), or own the data directly? **Status: Deferred. Do not decide until circumstances compel. Must be resolved before payroll module is built. Expected to surface during Chunk 8 discovery (integration architecture) or a dedicated Chunk 3 payroll discovery session.**
+
+### D-069: Security Deposit Escrow — Pooled Account with Per-Tenant Tracking
+- **Date:** 2026-02-13
+- **Decision:** RI will use a single pooled interest-bearing escrow bank account at UMass Five (or other MA bank) to hold all tenant security deposits. The financial system tracks individual tenant deposit balances within the pooled account. This is legally permissible under MA G.L. c. 186 § 15B as long as individual deposits are properly identified and tracked.
+- **Rationale:** With up to 20 units, maintaining 20 separate bank accounts is operationally impractical. A pooled account with per-tenant system tracking achieves the same compliance outcome — every tenant's deposit is identifiable, interest is calculable per deposit, and the total escrow balance is reconcilable against the sum of individual deposits.
+- **GL structure:**
+  - **Security Deposit Escrow (Asset):** Bank account holding tenant deposits. Reconciles to actual bank balance.
+  - **Security Deposits Held (Liability):** Total obligation to return deposits. Sum of individual tenant balances.
+  - **Interest Expense — Security Deposits:** Annual interest owed to tenants.
+  - Per-tenant detail tracked at the data layer (tenant ID, deposit amount, date collected, annual interest accrued/paid).
+- **MA law compliance requirements the system must enforce:**
+  - Receipt at collection (amount, date, premises description, person receiving)
+  - Second receipt within 30 days (bank name, location, account number)
+  - Statement of condition within 10 days of tenancy start
+  - Annual interest payment (lesser of bank rate or 5%)
+  - 30-day return deadline after move-out with itemized deductions
+  - Treble damages for non-compliance (automatic, no bad faith required)
+- **Affects:** Chunk 1 (3 new GL accounts: escrow asset, deposit liability, interest expense). Chunk 4 (escrow bank account reconciliation — separate from operating account). Chunk 6 (security deposit liability on balance sheet; per-tenant deposit report).
+
+### D-070: Security Deposit Interest — Fully Automated Annual Calculation
+- **Date:** 2026-02-13
+- **Decision:** The system automatically calculates annual interest per tenant deposit (lesser of actual bank rate or 5%), generates the journal entry (DR Interest Expense — Security Deposits, CR tenant credit or payable), and flags for payment or rent credit. The compliance calendar (D-065) reminds when annual interest is due for each tenant (based on tenancy anniversary).
+- **Rationale:** The treble damages penalty for missing interest payments makes this a high-compliance-risk area. Automating the calculation and JE generation removes the risk of manual oversight. The calculation is simple (principal × rate × time) and the data is already in the system from D-069's per-tenant tracking.
+- **Affects:** Chunk 5 (compliance calendar entries per tenant). Chunk 1 (interest calculation logic in GL engine).
+
+### D-071: Rent Proration — Statutory Daily Rate Method
+- **Date:** 2026-02-13
+- **Decision:** Rent proration follows MA statutory requirement: daily rate = monthly rent ÷ actual days in month × days occupied. This applies to both move-in and move-out partial months. The system calculates prorated amounts automatically when move-in or move-out dates are recorded. Prorated AR entries are generated using D-027's rent adjustment GL structure.
+- **Rationale:** MA law (G.L. c. 186 § 4) requires proration; it's not contractual or optional. Using actual calendar days (not 30-day month) is the legally correct method. Automated calculation prevents errors that could lead to tenant disputes. Proration entries flow through the existing rent adjustment accounts (D-027) to keep the audit trail clean — core rent vs. prorated adjustment is visible on reports.
+- **Affects:** Chunk 2 (AR generation must support partial-month entries). Extends D-027 (rent adjustments).
+
+### D-072: Move-Out Deposit Return Workflow — Deferred
+- **Date:** 2026-02-13
+- **Decision:** A structured move-out workflow (30-day countdown, inspection checklist, itemized deductions, return calculation) is deferred until closer to first tenant occupancy. The compliance calendar (D-065) will track the 30-day return deadline when a move-out is recorded, but the full workflow (inspection documentation, deduction itemization, return payment generation) is not built at launch.
+- **Rationale:** Property closing is March 2026, but first tenants won't move in until after renovation. First move-outs are likely 1+ years away. Building the workflow now when the exact operational process isn't yet established is premature. The compliance calendar provides the safety net (30-day deadline tracking) while the detailed workflow can be designed based on actual experience.
+- **Affects:** Chunk 5 (future scope). Compliance calendar (D-065) provides interim protection.
+
+### D-073: VASH/Section 8 Subsidy Tracking — Financial System Records Payments, Property Management Data Lives Elsewhere
+- **Date:** 2026-02-13
+- **Decision:** The financial system does not store HAP contract terms, tenant income-based calculations, PHA recertification dates, or other property management data. It records rental income as it arrives, coded by funding source (tenant direct, VASH/HAP, MVRAP, FVC, etc.) per D-026's existing AR-by-source tracking. Variance detection is against total expected rent per unit (set as part of the AR accrual from D-025), not broken out by tenant vs. PHA contract terms.
+- **Rationale:** HAP contracts, tenant income certifications, and recertification schedules are property management functions, not accounting functions. Storing them in the financial system creates scope creep and a maintenance burden for data that changes based on PHA actions, not financial transactions. The financial system's job is to record and reconcile money. Property management data (lease terms, HAP amounts, inspection schedules) will live in a separate system — whether that's a purpose-built tool, a spreadsheet, or a future project.
+- **What's already covered:** D-026 tracks AR by tenant/unit with funding source. D-024 requires rental income to identify funding source. D-027 handles adjustments with annotation. These provide the GL-level tracking needed. The gap (expected HAP amount vs. actual) is an operational/property management concern, not an accounting one.
+- **Affects:** Scopes financial-system boundary. Creates implicit requirement for separate property management tooling (future project, not part of financial-system scope).
+
+### D-074: MVRAP Program Name Clarification — Likely MRVP or VHVP
+- **Date:** 2026-02-13
+- **Decision:** Research could not locate a Massachusetts program called "MVRAP." The most likely matches are MRVP (Massachusetts Rental Voucher Program — state-funded), VHVP (Section 8 Veterans Housing Voucher Program — state-managed), or AHVP (Alternative Housing Voucher Program — state-funded with veteran preference). All operate on the same basic model as Section 8: tenant pays ~30% of income, subsidy covers the rest, paid directly to landlord. For system design purposes, all voucher programs are treated identically — the funding source label differs but the GL mechanics are the same (AR by source, income by source).
+- **Rationale:** The system doesn't need program-specific logic. All voucher programs produce the same accounting entries: tenant pays portion, PHA/state pays portion, both are rent income coded by source. The compliance calendar (D-065) can track program-specific reporting obligations as they're identified.
+- **Affects:** No architectural impact. Funding source labels in the system are configurable (D-013 dynamic fund creation). Correct program name to be confirmed when RI enters HAP contracts.
+
+### D-075: Capital vs. Operating Cost Categories — Deferred Until Funder Awards
+- **Date:** 2026-02-13
+- **Decision:** No capital vs. operating cost category tagging infrastructure is built now. Fund-level tracking (D-013) is sufficient. When specific funders (HTC, CDBG, CPA) award grants with cost categorization requirements, the system will be retrofitted with cost category fields as needed. This extends the D-016 deferral.
+- **Rationale:** RI doesn't have HTC, CDBG, or CPA awards yet. Building a speculative cost category system risks designing for requirements that may not materialize or may differ from assumptions. The fund structure (D-013) already isolates spending by funding source. Adding cost categories within funds is a data-layer addition that doesn't require architectural changes — it's a field on transactions, not a GL redesign.
+- **Affects:** Extends D-016 and D-032 deferrals. When awards arrive, Chunk 5 (or a mini-discovery) will specify the exact cost categories each funder requires.
+
+### D-076: Grant Spend-Down Monitoring — Existing Fund Reports Sufficient
+- **Date:** 2026-02-13
+- **Decision:** No special spend-down monitoring dashboard or alerting system is built. Fund-level spending reports (already in D-059's report inventory) provide the data needed to assess grant spend-down pace. Users run the fund spending report when they want to check. The compliance calendar (D-065) can include periodic "review grant spending pace" reminders if desired.
+- **Rationale:** At RI's current scale (1-2 active grants expected initially), a dedicated spend-down dashboard with pace indicators and alerts is over-engineering. The fund spending reports already show: fund name, total award, cumulative spending, remaining balance. A human can compare that to the grant timeline and assess pace. If RI eventually manages 10+ simultaneous grants with complex timing requirements, a dedicated monitoring tool can be built then.
+- **Affects:** Simplifies Chunk 5 and Chunk 6 scope. D-029's multi-year spend-down tracking is handled by existing fund reports, not a dedicated system.
+
+### D-077: Funder-Specific Reporting Requirements — Flexible Framework, Concrete Requirements Deferred
+- **Date:** 2026-02-13
+- **Decision:** The system does not pre-build funder-specific report formats. Instead, it provides the building blocks: fund-level spending reports, GL account detail by fund, transaction-level detail with memos and attachments, and the compliance calendar for deadline tracking. When specific funder reporting requirements are known (via award letters), custom reports or data exports can be built to match their formats. The compliance calendar (D-065) is the vehicle for tracking funder-specific reporting deadlines.
+- **Rationale:** Funder reporting requirements vary widely and aren't known until award letters arrive. SARE may want quarterly narrative + financial reports. CDBG may want HUD-standard drawdown requests. CPA may want annual progress reports. AHP requires annual financials or 990 (already tracked in compliance calendar). Pre-building report templates for unknown requirements wastes effort. The system's fund-level and GL-level reporting provides the raw data; formatting for specific funders is a customization exercise when requirements are clear.
+- **Affects:** Chunk 6 (no funder-specific report templates at launch). Compliance calendar (D-065) tracks funder reporting deadlines as they're established. Future mini-discoveries may be needed when major awards arrive.
+
+### D-078: Capitalization Threshold — $2,500 (IRS De Minimis Safe Harbor)
+- **Date:** 2026-02-13
+- **Decision:** RI's capitalization policy threshold is $2,500 per item or invoice. Items below $2,500 are expensed immediately. Items at or above $2,500 are capitalized on the balance sheet and depreciated over their useful life. This matches the IRS de minimis safe harbor for taxpayers without applicable financial statements (Reg. §1.263(a)-1(f)).
+- **Rationale:** $2,500 is the maximum safe harbor for organizations without audited financials. It provides maximum flexibility (fewer items to track as assets) while remaining IRS-compliant. When RI eventually has audited financials (Form PC $1M+ threshold), the safe harbor increases to $5,000 and the policy can be updated. The key requirement is consistent application and a written policy (this decision serves as that documentation).
+- **Affects:** Chunk 1 (capitalization logic — system should flag entries to CIP or asset accounts when amount ≥ $2,500). Chunk 3 (expense vs. capital determination at entry time). D-032 (CIP accumulation threshold).
+
+### D-079: Bad Debt Method — Direct Write-Off
+- **Date:** 2026-02-13
+- **Decision:** RI uses the direct write-off method for bad debts. Uncollectible receivables (tenant rent, other AR) are written off when determined to be uncollectible. No allowance-for-doubtful-accounts contra-asset account is maintained. Write-offs require a journal entry (DR Bad Debt Expense, CR Accounts Receivable) with mandatory annotation documenting the reason, collection efforts, and authorization.
+- **Rationale:** Direct write-off is simpler and appropriate for RI's current scale. The allowance method (estimating uncollectible percentages from AR aging) is GAAP-preferred for audited financials but adds complexity without proportional benefit when RI has <20 tenants and no audit requirement. When RI reaches the audit threshold ($500K+ for reviewed statements, $1M+ for audited per Form PC), the method can be switched to allowance. The system should support both methods so the transition is a configuration change, not a rebuild.
+- **GL accounts:** Bad Debt Expense (expense account, maps to 990 Part IX). No contra-asset account needed under direct write-off.
+- **Affects:** Chunk 1 (one GL account, not two). Chunk 2 (AR write-off workflow — annotation required per D-027 pattern). Simplifies D-026 AR tracking (no estimated allowance calculation).
+
+### D-080: Depreciation Policy — Component for Building, Single-Item for Everything Else
+- **Date:** 2026-02-13
+- **Decision:** Depreciation uses two approaches: (1) **Component depreciation for the Easthampton building** — major building components (roof, HVAC, electrical, plumbing, structure, windows, etc.) are tracked as separate assets with individual useful lives and depreciation schedules. (2) **Single-item depreciation for all other assets** — equipment, vehicles, furniture, and other personal property are each tracked as one asset with one useful life, using IRS-standard useful lives (equipment 5-7 years, vehicles 5 years, furniture 7 years, computers 3-5 years).
+- **Useful lives (building components):** Structure 27.5 years (IRS residential rental), roof 20 years, HVAC 15 years, electrical 15-20 years, plumbing 15-20 years, windows 15-20 years, flooring 5-10 years. Exact lives per component to be finalized at property closing when renovation scope is known.
+- **Method:** Straight-line for all assets (IRS standard for residential rental property).
+- **Rationale:** Component depreciation for the building is likely required for HTC cost substantiation (Historic Tax Credits need to demonstrate qualified rehabilitation expenditures by component) and produces a more accurate balance sheet. It's more complex but D-019/D-020's AI depreciation assistant was specifically designed to manage this complexity. For non-building assets, component depreciation is unnecessary — a truck is a truck, not an engine + chassis + tires.
+- **Affects:** Extends D-019 (depreciation GL structure) and D-020 (AI depreciation assistant). Chunk 1 (asset register must support component-level tracking for buildings). Chunk 6 (fixed asset schedule in notes to financials shows components).
+
+### D-081: Historic Tax Credit Equity Accounting — Fully Deferred
+- **Date:** 2026-02-13
+- **Decision:** All HTC-related GL accounting is deferred to a mini-discovery when the HTC deal is actually structured. No HTC-specific GL accounts (investor equity revenue, partnership investment, QRE tracking) are built now. The existing fund structure (D-013) already supports an "HTC Fund" for tracking HTC-related spending. When RI hires an HTC consultant and structures the syndication deal (investor equity, partnership/LLC formation, credit allocation), a dedicated mini-discovery will specify: partnership accounting (consolidation vs. equity method), investor equity recognition timing, QRE classification requirements, and exit/buyout mechanics.
+- **Rationale:** The HTC deal is very early stage — no consultant hired, no investors/syndicators identified, no credits approved, money unlikely until 2027+. The partnership structure (nonprofit + tax credit investor in an LLC) will bring complex accounting requirements (potentially consolidated financials under ASC 810, contribution recognition under ASC 958-605) that depend entirely on how the deal is structured. Building speculative GL infrastructure risks designing for the wrong structure. The fund-level tracking (D-013) and component depreciation (D-080) provide the foundation; HTC-specific accounting layers on top when the deal terms are known.
+- **Affects:** Chunk 1 spec should note that HTC GL accounts are a future addition (not v1). Chunk 5 compliance calendar (D-065) should include a trigger: "When HTC consultant is engaged, schedule HTC accounting mini-discovery."
+
+### D-082: QRE Tracking — Deferred with HTC
+- **Date:** 2026-02-13
+- **Decision:** Qualified Rehabilitation Expenditure (QRE) classification and tracking is deferred along with the rest of HTC accounting (D-081). No QRE-specific fields (e.g., `qre_eligible` flag on transactions) are built into the CIP or expense data model now. The existing CIP account (D-032) and component depreciation structure (D-080) capture costs by component, which provides the raw data needed for QRE classification. When the HTC consultant specifies exactly which costs qualify as QRE, the classification can be retrofitted as a data-layer addition (a field on transactions within CIP, not an architectural change).
+- **Rationale:** QRE classification depends on HTC consultant guidance and NPS (National Park Service) certification requirements. The substantial rehabilitation test (QREs must exceed adjusted basis of building or $5,000) and specific qualifying/non-qualifying cost categories are HTC-deal-specific. Building QRE tracking before knowing the exact requirements risks wrong assumptions. The CIP and component depreciation infrastructure provides the foundation.
+- **Affects:** Extends D-081. No impact on current Chunk 1/3 data model. When HTC mini-discovery runs, it will specify QRE fields as part of the overall HTC accounting design.
+
+### D-083: In-Kind Contribution GL Structure — Three Separate Revenue Accounts
+- **Date:** 2026-02-13
+- **Decision:** The system creates three separate in-kind contribution revenue GL accounts: (1) **In-Kind Contributions — Goods** (donated physical assets: materials, equipment, supplies), (2) **In-Kind Contributions — Services** (donated specialized professional services that meet ASC 958-605 recognition criteria: specialized skills, volunteer possesses skills, nonprofit would normally purchase), (3) **In-Kind Contributions — Facility Use** (donated use of space, equipment, or other facilities). All three accounts map to 990 Part VIII Line 1g (Noncash contributions). Each entry requires fair market value documentation (valuation method, source of rate, supporting evidence). The existing D-015 AHP in-kind contribution ($12,835) would be classified under In-Kind Goods.
+- **Rationale:** Three accounts provide the disaggregation needed for (a) 990 Schedule M reporting if noncash contributions exceed $25,000 in any year, (b) ASU 2020-07 disclosure requirements when RI reaches audited financial statement threshold, and (c) clear separation between goods (which may need appraisals), services (which require the specialized-skills test), and facility use (which requires rental rate documentation). At RI's current scale this is minimal overhead, and it avoids having to reclassify or split accounts later.
+- **Affects:** Chunk 1 (3 new GL revenue accounts, all mapping to `form_990_line` for noncash contributions). Chunk 2 (contribution entry workflow should prompt for in-kind type when recording noncash donations). Extends D-036 (donation recognition) and D-038 (donor tracking).
+
+### D-084: Volunteer Hour Tracking — Outside Financial System
+- **Date:** 2026-02-13
+- **Decision:** Volunteer hours are tracked outside the financial system (spreadsheet, separate tool, or future dedicated module). The financial system only records the dollar value of qualifying volunteer services as an in-kind contribution journal entry (to In-Kind Contributions — Services per D-083) when volunteer work meets ASC 958-605 specialized skills criteria or when dollar values are needed for grant matching reports. Volunteer hour summaries (name, dates, hours, tasks, rates) are maintained externally and referenced in JE memos.
+- **Rationale:** Volunteer tracking is an operational/HR function, not a financial accounting function. At RI's projected scale ($4,200/year in volunteer hours), building a volunteer management module in the financial system is over-engineering. The financial system's role is recording the financial impact (in-kind revenue) when it occurs. Grant matching documentation (required by SARE and similar funders) can reference external volunteer logs. If RI eventually manages dozens of volunteers across multiple programs, a dedicated volunteer management tool can be evaluated then.
+- **Affects:** No Chunk 1 GL impact beyond D-083's in-kind accounts. Compliance calendar (D-065) will include volunteer-related reminders (see D-085).
+
+### D-085: Compliance Calendar — Annual In-Kind & Schedule M Review
+- **Date:** 2026-02-13
+- **Decision:** The compliance calendar (D-065) includes an annual reminder: "Review in-kind contributions for 990 Schedule M threshold ($25,000) and verify fair value documentation." Timing: January (as part of year-end close / 990 prep). The reminder prompts: (1) total noncash contributions for the year across all three in-kind accounts (D-083), (2) whether Schedule M filing is triggered, (3) whether all in-kind entries have adequate fair value documentation (valuation method, supporting evidence), (4) review of any volunteer hours that should have been recorded as in-kind services but weren't.
+- **Rationale:** Low-effort annual hygiene. Catches potential Schedule M filing requirements before the 990 deadline. Ensures fair value documentation is current (not reconstructed months later). Consistent with the compliance calendar's role as the central "don't forget this" mechanism.
+- **Affects:** Extends D-065 compliance calendar entries. No GL impact.
+
+### D-086: Annual Budget Cycle — Standard Nonprofit Process with December Board Approval
+- **Date:** 2026-02-13
+- **Decision:** RI adopts a standard nonprofit annual budget cycle aligned with the calendar fiscal year. September: review current year actuals and assess priorities. October: ED drafts next year's budget. November: draft circulated to board. December board meeting: board reviews and approves budget before January 1. Quarterly: board reviews budget vs. actuals. Mid-year: optional revision if material changes occur. No approval workflow in the system (consistent with D-044).
+- **Rationale:** Standard nonprofit best practice is to complete and approve the budget before the fiscal year starts. Compliance calendar (D-065) should include budget preparation reminders starting in September.
+- **Affects:** Compliance calendar (D-065) gets budget cycle reminders. Chunk 6 (quarterly board reports include budget vs. actuals per D-058).
+
+### D-087: Budget Entry — Annual Amounts with Monthly Spread Options
+- **Date:** 2026-02-13
+- **Decision:** Budget creation uses annual amounts per GL account per fund, with the system spreading across months. Four spread modes per line item: (1) Even spread (default), (2) Seasonal pattern, (3) One-time, (4) Custom monthly. Supports both predictable recurring items and irregular items. For 2027+, system offers "copy last year's budget" with percentage adjustment.
+- **Rationale:** Keeps budget creation fast (~30-50 annual line items) while enabling monthly variance tracking.
+- **Affects:** Budget data model stores annual amount + monthly breakdown per line. Chunk 6 reports consume monthly amounts (D-058).
+
+### D-088: Full Budget — Operating + Capital + Financing
+- **Date:** 2026-02-13
+- **Decision:** Annual budget includes operating (P&L), capital (CIP, equipment), and financing (AHP draws, loan payments). Single source of truth for all planned financial activity. Cash projection (D-091) derives from this budget.
+- **Rationale:** Cash projection needs capital and financing data. Single budget avoids disconnected data sources. Board gets complete picture.
+- **Affects:** Budget data model supports non-P&L items. Cash projection pulls from full budget. Chunk 6 may need capital budget section.
+
+### D-089: Variance Reporting — Color-Coded Thresholds
+- **Date:** 2026-02-13
+- **Decision:** Budget vs. actuals reports use color coding: green (within/under budget), yellow (moderately over, ~>10%), red (significantly over, ~>25%). Visual flags only, no active alerts. Thresholds configurable, exact values defined in spec.
+- **Rationale:** At-a-glance visibility without notification noise. Appropriate for RI's 2-person operation.
+- **Affects:** Chunk 6 report rendering needs conditional color formatting. Thresholds configurable.
+
+### D-090: Budget Revisions — Simple Overwrite, No Version History
+- **Date:** 2026-02-13
+- **Decision:** One active budget per fiscal year. Mid-year revisions edit remaining months (actuals-to-date locked). No version history, no original vs. revised comparison.
+- **Rationale:** Version tracking adds complexity without proportional value at RI's scale. Can be added later as data-layer enhancement.
+- **Affects:** Simple budget data model: one record per GL account per fund per month per fiscal year.
+
+### D-091: Cash Projection — Semi-Automated, Quarterly, Budget-First Pre-Fill
+- **Date:** 2026-02-13
+- **Decision:** 3-month cash projection (D-060) is semi-automated, updated quarterly before board meetings. Pre-fill: starting cash from bank balances, inflows from AR/Grants Receivable/budget, outflows from payables/budget/AHP interest. No budget → fall back to 3-month actuals average. Heather manually adjusts for pending grants, planned draws, one-time items. AHP available credit displayed as context only.
+- **Rationale:** Data-grounded projection without building from scratch. Budget-first reflects the plan; GL-history handles gaps. Quarterly matches board cadence.
+- **Affects:** Integrates with budget data (D-088), AR/AP (Chunks 2/3), bank data (Chunk 4). Chunk 6 provides display container.
+
+### D-092: Grant Budgets — Fund-Level Budgets, No Funder Category Mapping
+- **Date:** 2026-02-13
+- **Decision:** Grant budgets are fund-level budgets in RI's GL structure. Org budget = sum of fund budgets. Multi-year grant support (budget entries span fiscal years). No funder-category-to-GL mapping in v1.
+- **Rationale:** Consistent with D-077 and D-013. Zero active grants makes category mapping premature.
+- **Affects:** Budget model supports multi-year entries. Fund drill-down (D-055) applies to budgets.
+
+---
+
+## Chunk 4: Bank Reconciliation Decisions
+
+### D-093: Plaid API for Bank Feeds
+- **Date:** 2026-02-13
+- **Decision:** Use Plaid `/transactions/sync` API for bank transaction feeds from UMass Five Credit Union. Two accounts initially (checking, savings) at $0.30/account/month ($0.60/month total). Third account (escrow, per D-069) added when opened ($0.90/month).
+- **Rationale:** Jeff confirmed Plaid access via direct call. Cursor-based incremental sync is efficient for low-volume accounts (<20 transactions/month). Rich transaction data (merchant, category, counterparties) supports matching. Cost is negligible. Alternative (OFX file import) was considered but API is cleaner and eliminates manual export step.
+- **Affects:** Chunk 8 integration (Plaid token management, auth flow). Bank rec matching model. Cash projection (D-091) can read real-time balances.
+
+### D-094: Daily Scheduled Bank Sync
+- **Date:** 2026-02-13
+- **Decision:** System syncs bank transactions once daily via scheduled job. Manual "sync now" button available for on-demand refresh. Not real-time webhook-driven.
+- **Rationale:** <20 transactions/month makes real-time sync overkill. Daily sync keeps data current for reconciliation without unnecessary API calls. Manual sync available when user is actively reconciling and wants latest data. Plaid webhook (`SYNC_UPDATES_AVAILABLE`) could be added later if needed.
+- **Affects:** Scheduling infrastructure (cron job or equivalent). Plaid API call frequency.
+
+### D-095: Trust-Escalation Transaction Matching Model
+- **Date:** 2026-02-13
+- **Decision:** All bank transactions land in review queue. System suggests matches (amount, date, payee). User confirms or rejects suggestions. On confirmation, system offers to create a matching rule. If rule exists and future transaction matches rule criteria, match is auto-approved. Same pattern as Ramp categorization from Chunk 3.
+- **Rationale:** Balances efficiency with control. New system starts with zero trust (everything requires confirmation). Trust builds through rules that the user explicitly creates. Auto-approval only happens when user has established a pattern. Consistent UX with Chunk 3 Ramp workflow — users learn one interaction pattern. Avoids the "auto-match then fix mistakes" model that hides errors.
+- **Affects:** Matching engine design, rule storage, UX for reconciliation workflow. Chunk 3 Ramp categorization should use same rule engine if possible.
+
+### D-096: Inline GL Creation from Bank Reconciliation
+- **Date:** 2026-02-13
+- **Decision:** Allow creating GL entries directly from the bank reconciliation screen for bank-originated transactions (fees, interest income, small ACH debits). Configurable threshold prompts user to use full journal entry workflow for larger amounts. Entries marked as "bank-originated" in audit trail. Fund assignment still required.
+- **Rationale:** Bank-originated items (monthly service fees, interest credits) have no prior GL entry and are simple enough to categorize inline. Requiring users to leave rec screen, create a journal entry, then return to rec screen for a $5 bank fee is unnecessarily cumbersome. Threshold prompt prevents misuse for complex transactions. Audit marking enables review of all bank-originated entries.
+- **Affects:** Reconciliation UI design. Audit trail schema. GL entry creation API must support this lightweight path.
+
+### D-097: Two-Way Reconciliation (Bank-to-GL and GL-to-Bank)
+- **Date:** 2026-02-13
+- **Decision:** Reconciliation checks both directions: (1) every bank transaction has a GL match or explanation, AND (2) every GL cash entry has a bank match or explanation. Reconciliation is "complete" only when both sides are fully accounted for — matched, marked as timing difference (outstanding checks, deposits in transit), or marked as GL-only with explanation.
+- **Rationale:** Standard bank-to-book reconciliation only catches bank-side discrepancies. The more common and dangerous errors are GL-side: journal entries hitting cash accounts incorrectly, mispostings between funds, entries that should be cash but hit the wrong account. Two-way rec catches both. GAAP doesn't mandate a specific format, but AU-C 315 and COSO framework treat bank rec as fundamental internal control. ASC 230 implicitly requires GL cash to tie to balance sheet.
+- **Affects:** Reconciliation data model must track items from both directions. UI shows two panels (bank unmatched, GL unmatched). GL-only items (D-015, D-019, D-023) are pre-configured as known GL-only categories.
+
+### D-098: Ramp Credit Card — 1-Level Bank Reconciliation with Statement Cross-Check
+- **Date:** 2026-02-13
+- **Decision:** At the bank rec layer, match Ramp's single autopay settlement debit to a single GL entry. Individual Ramp transactions are already categorized in GL via Chunk 3 workflow. Separately, system performs a Ramp statement cross-check: sum of categorized Ramp transactions for the period must equal the settlement amount. Mismatch flags for investigation.
+- **Rationale:** 2-level reconciliation (verifying individual Ramp charges sum to settlement at bank rec time) duplicates work already done in Chunk 3 expense workflow. 1-level keeps bank rec clean. The statement cross-check catches the specific risk of Ramp discrepancies (disputed charges, mid-cycle refunds, missing categorizations) without burdening the bank rec workflow.
+- **Affects:** Chunk 3 must expose categorized Ramp transaction totals per period. Ramp statement cross-check is a separate validation, possibly a monthly report or dashboard widget.
+
+### D-099: Reconciliation Sign-Off with Auditable Edit History
+- **Date:** 2026-02-13
+- **Decision:** Reconciliation has a formal completion action recording: who reconciled, when, and the reconciled balance. Previously reconciled items can be edited if errors are discovered, but changes require an explanatory note and are logged in audit trail. Consistent with D-045 (no period locking) but adds accountability.
+- **Rationale:** Formal sign-off creates clear accountability (who said these numbers are right?). Edit capability is necessary because D-045 keeps all periods open — mistakes discovered later need correction. Required note + audit logging prevents silent changes to reconciled data. This is the same pattern as D-053 (transaction corrections via reversing entries) applied at the reconciliation level.
+- **Affects:** Reconciliation data model needs sign-off metadata. Audit trail schema. UI for reconciliation history and edit flow.
+
+### D-100: Escrow Account — Third Plaid Connection When Opened
+- **Date:** 2026-02-13
+- **Decision:** Security deposit escrow account (D-069) will be a third account at UMass Five, connected via Plaid when opened. Same reconciliation workflow applies. Per-tenant sub-tracking is a GL-level concern (D-069), not a bank rec concern. Plaid cost increases to $0.90/month.
+- **Rationale:** Same bank, same integration pattern, minimal incremental cost. Bank rec sees escrow as just another account. The complexity of per-tenant tracking lives in the GL layer where D-069 already specifies pooled account with per-tenant ledger entries.
+- **Affects:** Plaid token may need to support multiple accounts at same institution. Escrow rec may have different cadence than operating accounts (quarterly vs. monthly). D-069 and D-070 feed GL-only items into the two-way rec.
+
+### D-101: Outstanding Items — Simple Status, No Aging Rules
+- **Date:** 2026-02-13
+- **Decision:** GL entries without a bank match appear as "outstanding" in the reconciliation view. Single status — no system distinction between outstanding checks vs. deposits in transit. No aging logic, no stale check flags, no system-enforced timeframes. User assesses staleness from the transaction date and voids through normal D-053 workflow if needed.
+- **Rationale:** RI writes very few checks and has minimal outstanding item volume. System rules for aging/stale checks add complexity without value at this scale. The transaction date is visible; the user can make their own judgment. Consistent with the project's "personal software" philosophy (D-002) — don't build features for edge cases that can be handled manually.
+- **Affects:** Reconciliation UI shows outstanding items with dates. No scheduled jobs or alerts for aging. Void workflow (D-053) handles stale items.
+
+### D-102: Full History Rebuild from Account Origination
+- **Date:** 2026-02-13
+- **Decision:** Bank reconciliation starts from $0 balance at account origination, not from a mid-stream FY25/FY26 cutover balance. RI will rebuild full transaction history from when accounts were opened. Initial reconciliation round covers the entire history.
+- **Rationale:** RI's bank accounts were opened when the company had $0 net cash, so starting balance is unambiguous. Total transaction count is small enough to make full rebuild feasible. Plaid provides up to 24 months of history on initial sync, covering RI's full operating period. This eliminates the D-033 conversion complexity for bank rec — no need to validate a mid-stream opening balance or carry forward unreconciled items from QBO.
+- **Affects:** Initial Plaid sync should request maximum history. First reconciliation session will be larger than normal but is a one-time effort. Supersedes D-033 bank rec concerns (FY25 conversion is still relevant for GL balances but not for bank rec starting point).
+
+### D-103: Multi-Transaction Matching with Bank Transaction Splitting
+- **Date:** 2026-02-13
+- **Decision:** Support 1:many matching (one bank transaction to multiple GL entries) and many:1 matching (multiple bank transactions to one GL entry). For 1:many, user can "split" a bank transaction into multiple lines, each assigned to a GL account and fund. Split lines must sum to the original bank transaction amount (system validates).
+- **Rationale:** Key use case: outside property manager deposits net amount as single bank transaction (rents minus management fee). User needs to split into individual revenue lines per tenant plus expense line for management fee. Also covers: consolidated deposits (multiple tenant checks deposited together), batch payments. Many:1 is simpler — just linking multiple bank items to one GL entry (e.g., two partial payments against one invoice).
+- **Affects:** Reconciliation data model must support one-to-many and many-to-one relationships between bank transactions and GL entries. Split workflow needs UI for adding lines, assigning accounts/funds, and validating totals. This is a significant UX feature — spec should detail the split interaction carefully.
+
+### D-104: AR Timing — Handled by AR Aging Report, Not Bank Rec
+- **Date:** 2026-02-13
+- **Decision:** Bank reconciliation has no special AR logic. Tenant rent accrued in month N and received in month N+1 matches through normal bank→GL matching (DR Cash, CR AR). AR timing gaps are investigated through the AR aging report (D-026), not through bank reconciliation.
+- **Rationale:** Bank rec's job is matching bank transactions to GL entries. When cash arrives, the GL entry (cash debit, AR credit) matches the bank deposit normally. The question of *why* cash hasn't arrived for a particular tenant is an AR aging concern, not a bank rec concern. Keeping these responsibilities separate avoids cluttering bank rec with AR context it doesn't need.
+- **Affects:** Bank rec UI does not show AR-related metadata. AR aging report (D-026) is the primary tool for investigating slow-paying tenants.
+
+### D-105: AHP Loan Interest Accrual — Known GL-Only Category
+- **Date:** 2026-02-13
+- **Decision:** Monthly AHP loan interest accrual (DR Interest Expense, CR Accrued Interest Payable per D-011) is a known GL-only item in the two-way reconciliation, same treatment as depreciation (D-019), opening balance (D-015), and loan forgiveness (D-023). Annual interest payment matches through standard bank→GL matching.
+- **Rationale:** Interest accrual is a textbook GL-only entry — it exists to match expense to the period it's incurred, with no bank transaction until the annual payment. Pre-configuring it as a known GL-only category means it doesn't show up as an "unmatched GL item" every month during reconciliation.
+- **Affects:** Two-way reconciliation config needs a list of known GL-only categories. AHP interest accrual joins: depreciation, opening balance equity, loan forgiveness.
+
+### D-106: Plaid Pending Transactions — Informational Display, Not Matchable
+- **Date:** 2026-02-13
+- **Decision:** Pending transactions from Plaid are displayed in a separate section of the reconciliation view (visually distinct — greyed out or similar). They are not matchable to GL entries while pending. When they post (Plaid transitions them from `removed` to `added` with new transaction_id), they enter the normal matching queue.
+- **Rationale:** Showing pending transactions helps users understand why a recent GL entry doesn't have a bank match yet ("it's still pending at the bank"). Not making them matchable avoids creating matches against items that might change amount or be reversed before posting. Best of both worlds: visibility without premature matching.
+- **Affects:** Reconciliation UI needs a "pending" section. Plaid sync logic must track pending-to-posted transitions (existing `removed`/`added` mechanism handles this). No additional data model complexity — pending items are just bank_transactions with `pending = true`.
+
+### D-107: Match Confidence Scoring — Exact Amount, ±3 Day Window, Merchant Tiebreaker
+- **Date:** 2026-02-13
+- **Decision:** Match suggestions use: (1) exact amount match (no fuzzy matching), (2) ±3 day window between GL entry date and bank transaction date, (3) merchant/payee name similarity as tiebreaker when multiple candidates exist. For split transactions (D-103), system also checks if unmatched GL entries sum to the bank transaction amount. Criteria refined after launch based on usage patterns.
+- **Rationale:** Fuzzy amount matching is too risky for financial data — a $500 expense and a $500.50 bank fee are different transactions. Exact matching eliminates false positives. ±3 day window accounts for normal bank processing delays. Merchant name tiebreaker handles the case where two $1,200 rent deposits hit in the same week. Starting simple and iterating is consistent with the personal software approach (D-002).
+- **Affects:** Matching engine implementation. Rule engine (D-095) stores match criteria per rule. Split matching (D-103) needs sum-check logic. Post-launch: analytics on match suggestion acceptance rate informs criteria tuning.
+
+---
+
+## Chunk 6: Board & Management Reporting Decisions (Session 2 — Gap Analysis)
+
+### D-108: Security Deposit Register Report
+- **Date:** 2026-02-13
+- **Decision:** Per-tenant Security Deposit Register is report #22. Shows: deposit amount, date collected, escrow bank, interest rate, interest accrued/paid, tenancy anniversary, next interest due. Summary totals must reconcile to GL liability (Security Deposits Held) and escrow bank balance. 30-day anniversary alert.
+- **Rationale:** MA G.L. c. 186 § 15B imposes treble damages for any non-compliance with security deposit rules. Compliance-grade per-tenant tracking with proactive anniversary alerts is essential.
+- **Affects:** Extends D-069, D-070. Compliance calendar (D-065) also tracks anniversaries; this report provides the detail view.
+
+### D-109: Compliance Calendar — Full Page + Dashboard Widget
+- **Date:** 2026-02-13
+- **Decision:** Compliance calendar (D-065 data) displayed as both a dedicated full-page view (filterable by type: tax, tenant, grant, budget) and a "next 30 days" summary widget on the dashboard home screen. Report #23.
+- **Rationale:** Multiple deadline types (990 filing, Form PC, budget cycle, per-tenant interest, grant reviews, Schedule M) warrant a dedicated page. Dashboard widget ensures daily visibility.
+- **Affects:** Extends D-065. Dashboard design (D-113).
+
+### D-110: Universal Color-Coded Budget Variance
+- **Date:** 2026-02-13
+- **Decision:** Any report displaying a budget comparison column gets conditional color-coded variance highlighting. Universal application — P&L, fund-level P&L, property expense breakdown, capital budget summary, etc. Specific thresholds and color scheme deferred to spec.
+- **Rationale:** Consistent visual treatment across all budget reports. Extends D-089.
+- **Affects:** All reports with budget columns. Spec must define threshold values and color scheme.
+
+### D-111: Capital & Financing Budget Summary Report
+- **Date:** 2026-02-13
+- **Decision:** Dedicated Capital & Financing Budget Summary (report #24) showing planned vs. actual for: loan draws, capital spending by fund, and debt service.
+- **Rationale:** Capital and financing activities are balance sheet movements, not P&L items. Operating budget vs. actuals on the P&L covers operating needs; capital/financing needs its own view.
+- **Affects:** Extends D-088. Chunk 7 must provide capital and financing budget data.
+
+### D-112: Cash Projection Display — Auto-Fill + Manual Override
+- **Date:** 2026-02-13
+- **Decision:** Report #15 (cash projection) uses auto-fill + manual override pattern. Sections: starting cash (bank balances), expected inflows (rent from AR, grants from GR, budget revenue, manual "other"), expected outflows (payables, budget expenses, AHP interest, capital spending, manual "other"). Each line auto-populated with editable override. Adjustment notes visible. Monthly columns for 3 months. AHP available credit shown as informational context.
+- **Rationale:** Data-grounded projection with human judgment on uncertain items. Adjustment notes provide audit trail for board questions.
+- **Affects:** Extends D-060, D-091. Chunk 7 provides projection logic and pre-fill data; Chunk 6 provides display container and override mechanism.
+
+### D-113: Dashboard Home Screen — Five-Section Composite View
+- **Date:** 2026-02-13
+- **Decision:** System landing page has five sections: (1) Cash snapshot (bank balances, net available cash), (2) Alerts/attention items (overdue rent, compliance deadlines, payroll deposits, unmatched bank transactions), (3) Rent collection this month (billed vs. collected by unit), (4) Fund balances (restricted vs. unrestricted, per-fund), (5) Recent activity (last 5-10 transactions). Each section links to full report.
+- **Rationale:** Most-used screen in the system. Must answer "what do I need to know right now?" at a glance.
+- **Affects:** References reports #5, #6, #8, #9, #18, #23.
+
+### D-114: No Role-Based Report Views
+- **Date:** 2026-02-13
+- **Decision:** All users see the same home screen, reports, and data. No role-based filtering or restricted views. Consistent with D-006 (all users fully trusted, all-or-nothing access).
+- **Rationale:** 3-person board with full trust. Role-based views add complexity for zero benefit.
+- **Affects:** Simplifies UI — one view, one codebase. No permission logic in reporting layer.
+
+### D-115: PDF + CSV Export, Manual Board Pack Delivery
+- **Date:** 2026-02-13
+- **Decision:** All reports exportable as PDF (formatted) and CSV (raw data). Board pack generated manually by Heather on demand — no automated generation or email distribution.
+- **Rationale:** CSV covers CPA "give me the data" use case. Manual delivery is appropriate for a quarterly task with a 3-person board. Compliance calendar email reminders (D-065) are the only automated delivery.
+- **Affects:** Extends D-056 (adds CSV alongside PDF).
+
+### D-116: 990-Format Toggle on Functional Expense Report
+- **Date:** 2026-02-13
+- **Decision:** Statement of Functional Expenses (report #4) has GAAP format (RI chart of accounts rows) and 990 format (IRS Part IX 23 line items rows) toggle. Same data, same functional allocation, different row groupings. 990 format uses D-062 `form_990_line` field.
+- **Rationale:** One report, two views. CPA gets 990 format for filing; board gets GAAP format for statements.
+- **Affects:** Depends on D-061 (allocation) and D-062 (990 mapping).
+
+### D-117: Payroll Reports — Five Reports Added
+- **Date:** 2026-02-13
+- **Decision:** Five payroll reports (#25-29): Payroll Register, Tax Liability Summary, W-2 Verification, Employer Cost Summary, Quarterly 941/M-941 Prep. Added because D-068 restored payroll to v1.
+- **Rationale:** In-house payroll requires operational reports for verification, compliance, and cost management.
+- **Affects:** Chunk 3 payroll processing must produce the data. Updates D-059 scope from 21 to 29 reports.
+
+### D-118: Integration Architecture — Database-Mediated, Not API-Mediated
+- **Date:** 2026-02-13
+- **Decision:** Internal app integrations (renewal-timesheets, expense-reports-homegrown) communicate with financial-system via shared database access, not REST APIs. Financial-system owns its database. Source apps get a restricted Postgres role with: (1) SELECT on reference tables (GL accounts, funds, vendors) for populating dropdowns and autocomplete, (2) INSERT + SELECT on a staging table for submitting approved financial data and reading back processing status. Financial-system processes staged records into GL entries and updates status (received → posted → matched to payment → paid). Source apps read status back to surface payment/posting updates to their users. No UPDATE or DELETE granted to source apps. External integrations (Ramp, Plaid) are accessed via their own APIs directly by financial-system — they do not use the staging pattern.
+- **Rationale:** REST APIs between internal apps add unnecessary complexity for a 2-5 user system where all apps already use Postgres. The only existing inter-app "API" (payroll data on auth portal) isn't in production yet, so there's no established REST pattern to follow. Database-mediated integration is simpler: no API endpoints to build/maintain, no serialization overhead, live reference data without sync. The staging table provides a natural audit trail and a clean security boundary — source apps can only INSERT financial summaries (not receipts, metadata, or work-in-progress data), and financial-system controls all processing and status updates. Read-only access to reference tables lets source apps populate GL account and fund dropdowns without any API layer.
+- **Alternatives Considered:**
+  - REST APIs over HTTPS (Option A): Each app calls HTTP endpoints. Standard but adds code to build, authenticate, and maintain on both sides. Overkill at this scale.
+  - Shared database with full access (rejected): Security risk — source apps could edit or delete financial data.
+  - Financial-system pulls from source app databases (Option 3): Elegant but requires financial-system to understand source app schemas, which couples them.
+- **Affects:** Chunk 8 (all internal integration contracts use this pattern). Timesheets and expense-reports apps need code changes to write to staging table and read from reference tables/status. Staging table schema design deferred to spec phase. Ramp and Plaid integrations unaffected (they use external APIs).
+
+### D-119: Dual Compensation Model — Per-Task Rates and Salaried Hourly Rate
+- **Date:** 2026-02-13
+- **Decision:** The People API (internal-app-registry-auth) stores a compensation type per employee: `PER_TASK` or `SALARIED`. For salaried employees, the People API also stores annual salary and expected annual hours (default 2,080, editable). The People API calculates the hourly rate (salary ÷ expected hours) and passes the pre-calculated hourly rate to renewal-timesheets — not the salary itself. For per-task employees, the existing task code rate system applies (each task code has its own hourly rate with effective dates). Renewal-timesheets uses the compensation type to determine which rate to apply when calculating gross pay at approval time.
+- **Rationale:** The current timesheets app was built for youth workers (ages 12-17) with per-task agricultural/non-agricultural rates. Adult salaried employees (Heather, Jeff) work differently — one rate regardless of task. The compensation model is an employee attribute, so the People API is the right place for it. Passing the pre-calculated hourly rate (not salary) to timesheets keeps salary data out of the timesheets app and simplifies the calculation.
+- **Affects:** internal-app-registry-auth (new People API fields: compensation_type, annual_salary, expected_annual_hours). renewal-timesheets (receive hourly rate from People API, updated calculation logic). Chunk 8 staging table (receives calculated earnings regardless of which model produced them). Chunk 3 (payroll processing starts from gross earnings in staging table).
+
+### D-120: Overtime Exempt Status — Per-Employee Field in People API
+- **Date:** 2026-02-13
+- **Decision:** The People API stores an exempt_status per employee: `EXEMPT` or `NON_EXEMPT`. This is passed to renewal-timesheets along with the hourly rate. Timesheets calculation logic applies overtime rules (1.5× for hours over 40/week) only for non-exempt employees. Exempt employees get straight-time regardless of hours worked.
+- **Rationale:** Overtime applicability is a per-employee attribute determined by job duties and salary level (FLSA rules). The People API is the right place for this since it's part of the employee's compensation profile. Timesheets needs this to calculate gross pay correctly at approval time.
+- **Affects:** internal-app-registry-auth (new People API field: exempt_status). renewal-timesheets (updated overtime calculation logic — check exempt status before applying OT). Staging table (overtime hours/earnings will be zero for exempt employees).
+
+### D-121: Timesheet Staging — Approval Trigger, Per-Fund Aggregation
+- **Date:** 2026-02-13
+- **Decision:** When a supervisor approves a timesheet in renewal-timesheets, the app immediately INSERTs summary records into the financial-system staging table. Records are aggregated by fund — one staging row per fund per approved timesheet. Each row includes both hours (regular + overtime) and dollars (regular earnings + overtime earnings + total). Entry-level detail (individual time entries with start/end times, task codes, compliance checks) stays in the timesheets database and is available for audit if needed. Fund allocation is per time entry — each entry in renewal-timesheets gets a funding source selection (defaults to Unrestricted Fund per D-024). The staging aggregation rolls up all entries for the same fund within one timesheet.
+- **Rationale:** Approval is the natural trigger — it's the moment the data is verified and ready for financial processing. Per-fund aggregation gives financial-system what it needs (dollars and hours by fund) without flooding the staging table with individual 30-minute time entries. Aggregating both hours and dollars provides flexibility — hours for labor reporting, dollars for GL posting. Entry-level detail is a timesheets concern, not a financial-system concern.
+- **Affects:** renewal-timesheets (fund selection per time entry, aggregation logic on approval, INSERT to staging table). Financial-system staging table schema (must support per-fund rows with hours and dollar amounts). Chunk 3 (payroll processing picks up staged records, fetches withholding data from People API, calculates net pay, creates GL entries).
+
+### D-122: Expense Report Staging — Per-Line-Item, No Receipts, No QBO
+- **Date:** 2026-02-13
+- **Decision:** When an admin approves an expense report in expense-reports-homegrown, the app immediately INSERTs one staging row per expense line item into the financial-system staging table. Each row includes: employee ID, expense report reference, date incurred, amount, merchant, memo, GL account code, fund ID, expense type (out_of_pocket or mileage), and mileage details if applicable. Receipt URLs, thumbnails, AI confidence data, email receipt metadata, and all other operational data stay in the expense-reports database — financial-system does not need them. Verification evidence lives in the source app and is available for audit there. All QBO-related artifacts in expense-reports-homegrown (qboBillId field, QBO API integration, category/project mappings to QBO) should be deprecated and removed. The financial-system integration fully replaces QBO.
+- **Rationale:** Per-line-item granularity is necessary because each expense has its own GL account, fund, amount, and date — financial-system needs to create individual GL entries per expense. Unlike timesheets (which aggregate hours into dollar totals by fund), expense items are already in dollars and each one represents a distinct financial event. Receipt and attachment data is an expense-reports operational concern, not a financial posting concern. QBO is being fully replaced by the in-house financial system; retaining QBO artifacts creates confusion and technical debt.
+- **Affects:** expense-reports-homegrown (INSERT per line item on approval, deprecate all QBO integration code and fields, rename projectId/projectName to fundingSourceId/fundingSourceName, add GL account selection field populated from financial-system reference tables). Financial-system staging table (must support per-line-item expense rows with GL account + fund). Chunk 3 (expense processing creates GL entries: DR expense account, CR Reimbursements Payable).
+
+### D-124: Employee Data Source of Truth — internal-app-registry-auth Owns, Others Read via DB
+- **Date:** 2026-02-13
+- **Decision:** internal-app-registry-auth (app-portal) is the single source of truth for all employee data, including PII (tax IDs, SSNs), compensation profiles (D-119, D-120), and withholding elections. New hires are set up in the app-portal. Financial-system and renewal-timesheets access employee data via read-only database access to the auth portal's employee/payroll tables — not via the REST API. The existing REST API (employee-payroll-data-spec.md) is deprecated in favor of direct database reads with restricted Postgres roles, consistent with D-118's database-mediated integration pattern. Neon's built-in encryption and access controls provide sufficient PII protection for RI's scale.
+- **Rationale:** D-118 established database-mediated as the integration pattern for internal apps. Applying the same pattern to employee data is simpler and more consistent than maintaining a separate REST API that isn't in production yet. Direct DB reads eliminate API code to build and maintain on both sides. The auth portal already has the data; giving consumers read-only access is the most direct path. Neon provides encryption at rest, TLS in transit, and role-based access — sufficient for a 2-5 person nonprofit.
+- **Affects:** internal-app-registry-auth (provision read-only Postgres roles for financial-system and renewal-timesheets on employee/payroll tables). financial-system (reads employee master data directly from auth portal DB for withholding calculations — no API client needed). renewal-timesheets (reads compensation type, hourly rate, exempt status directly from auth portal DB). employee-payroll-data-spec.md (deprecated — REST API no longer needed). Resolves OQ-001 from dependencies.md.
+
+### D-123: Ramp Integration — API with Daily Polling
+- **Date:** 2026-02-13
+- **Decision:** Financial-system integrates with Ramp via their REST API using daily scheduled polling (same cadence as Plaid bank sync per D-094). Transactions pulled from Ramp API land in the existing Ramp pending queue (D-021) for categorization before GL posting. Refund/reversal handling and other API-specific mechanics deferred to spec/build phase.
+- **Rationale:** API is cleaner than CSV export and Ramp provides developer API access. Daily polling matches the Plaid pattern (D-094) and is sufficient for RI's low transaction volume (est. 20-50/month). Webhooks add infrastructure complexity without meaningful benefit at this scale. Implementation details (authentication, pagination, refund representation) are build-phase concerns.
+- **Affects:** Chunk 8 (Ramp API client implementation). Chunk 3 (categorization queue and rule engine per D-095). Chunk 4 (bank rec cross-check per D-098).
+
+### D-125: Integration Error Handling — DB Constraints + Sync Failure Alerts
+- **Date:** 2026-02-13
+- **Decision:** Error handling for integrations follows two patterns: (1) Internal staging INSERTs rely on Postgres mechanisms — FK constraints catch invalid GL accounts/funds, unique constraints on (source_app, source_record_id) prevent duplicate submissions, database transactions ensure atomicity of financial-system processing (GL entry creation + status update). Source apps get immediate database errors on failed INSERTs and can surface them to users. (2) External API sync failures (Ramp, Plaid daily polling) trigger a dashboard notification and email alert. Failed syncs retry on the next daily poll — no data loss since transactions persist in the external system. Detailed error handling mechanics (retry strategies, dead letter patterns, specific error messages) deferred to spec/build phase.
+- **Rationale:** The database-mediated pattern (D-118) makes most error handling automatic — Postgres constraints and transactions handle integrity. External API failures are the only case needing explicit alerting, and dashboard + email is sufficient for a system where Jeff is the primary operator. Further error handling detail is implementation, not discovery.
+- **Affects:** Chunk 8 (staging table constraints, alert infrastructure). Chunk 6 (dashboard notification widget per D-113). Email delivery service (sync failure alerts).
+
+### D-126: Email Delivery — Postmark for Outbound
+- **Date:** 2026-02-13
+- **Decision:** Financial-system uses Postmark for all outbound email: donor acknowledgment letters (D-038) and operational alerts (D-125 sync failure notifications). Postmark is already used by renewal-timesheets for transactional email.
+- **Rationale:** Keeps it simple. Postmark is already in the ecosystem (renewal-timesheets uses it), reliable for transactional email, and RI's email volume is minimal (handful per month).
+- **Affects:** Chunk 2 (donor acknowledgment letter generation + delivery). Chunk 8 (sync failure alert emails). Deployment (Postmark API key in environment variables).
+
+### D-127: Depreciation Policy — Straight-Line, IRS Standard Lives, No Accelerated Methods
+- **Date:** 2026-02-13
+- **Decision:** RI uses straight-line depreciation at IRS-standard useful lives for all assets. No accelerated methods (200% DB, 150% DB). No Section 179 expensing. No bonus depreciation. This is an organizational-level policy position applied to all current and future assets.
+- **Rationale:** RI is a 501(c)(3) nonprofit exempt from federal income tax. The entire universe of accelerated depreciation options (Section 179, bonus depreciation, MACRS accelerated methods) exists as tax incentives to reduce taxable income — RI has no taxable income to reduce. Conservative depreciation (longest useful lives, straight-line) produces: (1) higher book value of assets = stronger balance sheet for funders and lenders, (2) better insurance basis documentation, (3) simpler accounting with predictable monthly entries, (4) no need to track annually changing acceleration rules. There is no benefit to RI from accelerating depreciation and positive benefit from keeping asset values higher longer.
+- **HTC exception:** When the Historic Tax Credit deal is structured (D-081), the for-profit investor partner may use accelerated depreciation for their tax benefit. That is the investor's accounting within the partnership/LLC, not RI's. RI's books use straight-line regardless.
+- **Affects:** Simplifies D-019 (depreciation automation — only straight-line needed). Simplifies D-080 (building components all use straight-line). Reduces scope of annual compliance calendar depreciation review to "did IRS change standard useful lives?" rather than "which acceleration method is optimal?"
+
+### D-128: AI Depreciation Assistant (D-020) Superseded by System-Wide AI Copilot
+- **Date:** 2026-02-13
+- **Decision:** The standalone AI Depreciation Assistant described in D-020 is superseded. There will be no bespoke depreciation AI feature. Instead, the depreciation setup form gets context-aware copilot support as part of the system-wide AI copilot pattern (D-129). The copilot on the depreciation/fixed asset form has access to: current form state, asset register, IRS publication search tools. For the building (the one complex asset), the copilot helps think through components and standard useful lives. For equipment/vehicles, it's a simple form with minimal copilot interaction needed.
+- **Rationale:** D-127 (straight-line only, no accelerated methods) eliminates most of the complexity that originally justified a dedicated AI depreciation assistant. With a fixed policy of "straight-line at IRS standard lives," depreciation setup reduces to: asset name, cost, date placed in service, asset type → lookup standard useful life → done. The remaining value of AI guidance (component identification for the building, standard useful life lookup) is better served by the general copilot pattern than a custom-built feature.
+- **What remains from D-020:** (1) The form model for asset setup (structured inputs, not conversational). (2) A sidebar copilot (per D-129) with page context + IRS search access. (3) Annual compliance calendar check for IRS rule changes (triggered by D-065 compliance calendar, executed by copilot with web search tools).
+- **Affects:** D-020 scope notes ("full discovery deferred") are now resolved — no further depreciation AI discovery needed. GL-P1-001 in spec is replaced by the copilot pattern. D-019 mechanical automation (monthly GL posting) unchanged.
+
+### D-129: System-Wide AI Copilot — Architectural Pattern
+- **Date:** 2026-02-13
+- **Decision:** Every screen in the financial-system UI includes a right-panel chatbot (AI copilot) with: (1) page-specific context (understands what the page is, its inputs, how data is constructed and shaped), (2) connections to relevant knowledge sources (varies by page), and (3) access to a configurable toolkit of capabilities. Rather than building bespoke AI features per domain (depreciation helper, transaction entry helper, categorization assistant), the system provides one copilot that adapts to context.
+- **Design approach:** The copilot does not receive page-specific hardcoded instructions. Instead, each page defines a "context package" that specifies: (a) what data/state to share with the copilot, (b) what tools/skills are available (e.g., IRS publication search, GL account lookup, vendor history), (c) what knowledge resources are relevant. The copilot uses general intelligence plus context to provide useful help. The list of available tools/resources grows over time as the system is built.
+- **Example context packages:**
+  - Fixed asset form: form state, asset register, IRS publication search, standard useful life lookup table
+  - Ramp categorization queue: transaction details, GL chart of accounts, categorization rule history, merchant patterns
+  - PO/vendor invoice: contract details, compliance warnings, budget remaining by fund
+  - Compliance calendar: current deadlines, web search for regulatory updates
+  - Bank reconciliation: unmatched items, matching rules, transaction history
+- **Tooling approach:** Tools are defined generically (e.g., "search IRS publications" implies web fetch or search capability, not a hardcoded URL). Spec for each page considers what context is relevant and what tooling the copilot needs. Tooling should be capability-based (web search, database query, document lookup) not implementation-specific.
+- **Cross-application access (v2):** In a future version, the copilot could access data across the full application family (timesheets, expense reports, payroll/people, auth portal). v1 scope: copilot operates within financial-system data only.
+- **Rationale:** Bespoke AI features (D-020 depreciation assistant, D-028 transaction entry assistant) are harder to build, maintain, and extend than a single copilot with configurable context. The copilot pattern scales: new pages get AI support by defining a context package, not by building a new AI feature. Users get consistent interaction (always a right-panel chat) rather than learning different AI interfaces per workflow.
+- **Affects:** Supersedes D-020 (AI Depreciation Assistant) via D-128. Supersedes D-028's AI Transaction Entry Assistant concept via D-130. Impacts every chunk's spec phase — each page/screen specification should include a "copilot context package" section defining what data, tools, and knowledge resources the copilot gets on that page.
+
+### D-130: AI Transaction Entry Assistant (D-028) Absorbed into Copilot Pattern
+- **Date:** 2026-02-13
+- **Decision:** The standalone AI Transaction Entry Assistant described in D-028 and elaborated in the Chunk 3 Session 5 Ramp categorization workflow and the dependencies.md "Deferred Cross-Chunk Features" section is absorbed into the system-wide copilot pattern (D-129). There will be no bespoke transaction entry AI feature. Instead, pages where transaction entry occurs (manual GL entry, Ramp categorization, bank feed matching, PO invoice processing) get copilot context packages with relevant tools: GL account suggestions, memo writing assistance, amortization schedule setup, vendor pattern matching, fund allocation guidance.
+- **Rationale:** The copilot pattern (D-129) provides the same capabilities with better architecture. The transaction entry assistant's value propositions — asking context-appropriate questions, writing detailed memos, setting up amortization/deferral schedules, handling edge cases — are all deliverable through a copilot with the right context package (transaction data, GL structure, historical patterns, amortization rules). Building this as a separate AI feature duplicates infrastructure and creates a different UX from the rest of the system.
+- **What remains from D-028:** (1) The GL structure (Prepaid Expenses, Accrued Expenses Payable, Deferred Revenue) is unchanged. (2) The principle of "simple GL accounts + detailed memos" is unchanged. (3) The copilot on transaction entry pages gets tools for memo generation, amortization calculation, and account suggestion — delivering the same user value through the general pattern.
+- **Chunk 3 impact:** Session 5 Ramp categorization workflow (AI auto-suggestions, user-defined rules, batch categorization) remains valid as the UX design for that page. The "AI" piece becomes the copilot's context on that page rather than a standalone feature. Rule engine and auto-suggestion logic are system features (not copilot features) that the copilot can explain and help configure.
+- **Affects:** D-028 scope notes updated. Dependencies.md "Deferred Cross-Chunk Features" section for AI Transaction Entry Assistant is resolved. Chunk 3 spec should reference copilot pattern (D-129) instead of standalone AI assistant.
+
+### D-131: Deployment Topology — Same Stack as Existing Apps (Vercel + Neon)
+- **Date:** 2026-02-13
+- **Decision:** Financial-system deploys on the same stack as the existing RI apps: Vercel for hosting and serverless functions, Neon (Vercel Postgres) for the database. No special infrastructure is required for the expanded scope. Scheduled jobs (daily Plaid sync per D-094, daily Ramp sync per D-123, monthly depreciation automation per D-019, compliance calendar reminders per D-065) run via Vercel's cron capability or equivalent. The AI copilot (D-129) connects to the Anthropic API via server-side proxy. Secrets (API keys for Anthropic, Plaid, Ramp, Postmark; database connection strings) are managed through standard environment variables. Cross-database access mechanics (how financial-system reads from auth portal's Neon DB, how source apps read/write financial-system's Neon DB per D-118/D-124) are implementation details to be resolved during spec/build — the integration pattern is decided, the Neon-specific connectivity approach is not.
+- **Rationale:** Nothing in the financial-system's scope (copilot, cross-DB reads, API polling, cron jobs) requires a fundamentally different hosting approach from the existing apps. Vercel + Neon handles all of it. The one area that needs implementation-phase attention is cross-Neon-project database connectivity — Neon projects are isolated by default, so the "restricted Postgres role" concept from D-118 may translate to cross-project connection strings rather than roles within a single cluster. This is a design option to explore during spec, not a discovery-level architectural decision.
+- **Affects:** All chunks (deployment target confirmed). Chunk 8 spec (must address Neon cross-project connectivity mechanics). No impact on any prior decisions.

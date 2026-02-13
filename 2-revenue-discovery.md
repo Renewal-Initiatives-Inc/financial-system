@@ -1,6 +1,6 @@
 # Chunk 2: Revenue Tracking / Donations & Grants — Discovery
 
-**Status:** ✅ Discovery Complete
+**Status:** ✅ Discovery Complete (2026-02-12 — All reviewer gaps closed)
 
 Recording incoming money — donations, grants, earned income. Tracking donor info, grant restrictions, acknowledgment letters. Supports public charity test calculations. Primary focus: Accounts Receivable & Rental Income Recognition.
 
@@ -14,11 +14,15 @@ Recording incoming money — donations, grants, earned income. Tracking donor in
 - Rent adjustment mechanisms
 
 **Completed:**
-- Q3: Donations & grants revenue recognition (D-034, D-035, D-036, D-037)
+- Q3: Donations & grants revenue recognition (D-034, D-035, D-036, D-037, D-046, D-047, D-050)
 - Q4: Public support test (D-039 — deferred to future CPA/990 filing)
 - Q5: Historic tax credit equity revenue recording (deferred to 2027+)
-- Q8: Program fees and earned income (D-037 — farm lease revenue)
+- Q8: Program fees and earned income (D-037 — farm lease revenue, D-048 — interest income)
 - Q9: Donor management needs (D-038 — donor tracking + IRS acknowledgment automation)
+- Q10: Conditional grant analysis (D-046 — refundable advance for matching/milestone grants)
+- Q11: Fundraising event bifurcation (D-047 — exchange vs. contribution split, quid pro quo disclosure)
+- Q12: AHP loan forgiveness conditions (D-049 — unconditional donation, no strings)
+- Q13: Pledge/promise-to-give mechanics (D-050 — simple tracking only, defer complex multi-year mechanics)
 
 **Deferred:**
 - Q6: Bad debt policy (deferred to Chunk 5)
@@ -33,15 +37,23 @@ Recording incoming money — donations, grants, earned income. Tracking donor in
 - **D-026:** AR Tracking Granularity — By-Tenant/Unit
 - **D-027:** Rent Adjustments & Forgiveness — Separate GL Accounts + Annotation
 
-**Grants/Contracts (2026-02-11):**
-- **D-034:** Grant Revenue Recognition — Revenue at Award Letter (both upfront and reimbursement models)
+**Grants/Contracts:**
+- **D-034:** Grant Revenue Recognition — Revenue at Award Letter (unconditional grants only)
+- **D-046:** Conditional Grant Revenue Recognition — Per-grant assessment; refundable advance for conditional grants with matching/milestone requirements
 - **D-035:** Grant/Contract Expense Attribution — Mandatory fund/grant coding for all expenses (timesheets, expense reports, Ramp)
 
-**Donations (2026-02-11):**
+**Donations:**
 - **D-036:** Donation Revenue Recognition — Immediate recognition for unrestricted and restricted donations
+- **D-047:** Fundraising Event Revenue Bifurcation — Exchange vs. contribution split with quid pro quo disclosure for payments >$75
+- **D-050:** Pledge/Promise-to-Give Mechanics — Simple near-term pledges only; defer multi-year PV/allowance mechanics
 
-**Earned Income (2026-02-11):**
+**Earned Income:**
 - **D-037:** Earned Income Recognition — Revenue when earned (farm lease, fee-for-service)
+- **D-048:** Interest Income Recognition — Investment income GL account, unrestricted revenue
+
+**Loan Forgiveness:**
+- **D-023:** AHP Loan Forgiveness — Treated as donation income, not equity adjustment
+- **D-049:** AHP Loan Forgiveness — Unconditional donation with no refundable advance or ongoing conditions
 
 ---
 
@@ -168,3 +180,35 @@ Recording incoming money — donations, grants, earned income. Tracking donor in
 - Must formalize policy per FASB ASC 958-605 for future GAAP compliance
 - Fund accounting (D-013) requires all revenue coded to funds
 - Net assets split (D-014) requires restricted vs. unrestricted classification
+
+---
+
+## Reviewer Feedback — Gap Closure (2026-02-12)
+
+External reviewer provided feedback on Chunk 2 discovery (earlier version). Key gaps identified and closed:
+
+1. **Conditional vs. Unconditional Grant Analysis** → CLOSED (D-046)
+   - Reviewer noted: D-034 "revenue at award" doesn't address grants with matching/cost-share requirements
+   - SARE grants typically have matching requirements — treating as unconditional would overstate revenue
+   - **Resolution:** D-046 adds per-grant assessment framework. Conditional grants → refundable advance until conditions met. Unconditional grants → revenue at award per D-034.
+
+2. **Fundraising Event Revenue Bifurcation** → CLOSED (D-047)
+   - Reviewer noted: May 2026 event needs FMV split (exchange vs. contribution) and quid pro quo disclosure for >$75 payments
+   - IRS penalty: $10/contribution (up to $5K/event) for missing disclosure
+   - **Resolution:** D-047 adds bifurcation policy and quid pro quo disclosure (integrated with D-038 donor receipt letters). Form 990 reporting deferred to Chunk 5.
+
+3. **Interest Income Classification** → CLOSED (D-048)
+   - Reviewer noted: Savings account earns interest; needs GL account and Form 990 classification
+   - Interest will be material as RI draws from AHP line of credit ($3.5M available)
+   - **Resolution:** D-048 adds Investment Income GL account. Interest on unrestricted cash = unrestricted revenue. Form 990 Line 3 reporting handled in Chunk 5.
+
+4. **AHP Loan Forgiveness Conditions** → CLOSED (D-049)
+   - Reviewer asked: Is forgiveness conditional (like PPP) or discretionary?
+   - Conditional forgiveness → refundable advance until conditions met
+   - **Resolution:** D-049 confirms forgiveness has no enduring financial conditions. Unconditional donation, no refundable advance, no strings. Funds are discretionary/unrestricted.
+
+5. **Pledge/Promise-to-Give Mechanics** → CLOSED (D-050)
+   - Reviewer noted: D-036 mentions "unconditional pledge" but no mechanics (present value, uncollectibles, GL accounts)
+   - Multi-year pledges require: PV discounting, allowance for uncollectibles, separate Pledges Receivable GL account
+   - **Resolution:** D-050 defers complex multi-year pledge mechanics until/unless signed binding commitments materialize. System supports simple Pledges Receivable for near-term committed donations (no PV discounting, no allowance). Multi-year pledges are unlikely given RI's fundraising approach; mechanics can be added retroactively if needed.
+

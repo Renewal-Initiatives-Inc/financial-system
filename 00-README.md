@@ -46,9 +46,14 @@ Each chunk follows the pattern: `N-name-discovery.md` → `N-name-spec.md` → `
 
 ## Current Status
 
-**Chunk 1**: Discovery complete (33 decisions finalized, spec-ready)
-**Chunk 2**: Discovery complete (7 new decisions: D-034 through D-039, spec-ready)
-**Chunks 3-8**: Not started
+**Chunk 1**: ✅ Discovery complete → Spec complete
+**Chunk 2**: ✅ Discovery complete (spec-ready)
+**Chunk 3**: ✅ Discovery complete (payroll restored to v1 per D-068)
+**Chunk 5**: ✅ Discovery complete (25 decisions: D-061 through D-085, spec-ready)
+**Chunk 6**: ✅ Discovery complete (17 decisions: D-054 through D-060, D-108 through D-117, spec-ready)
+**Chunk 8**: ✅ Discovery complete (14 decisions: D-118 through D-131, spec-ready)
+**Chunk 4**: 🔴 Not started
+**Chunk 7**: ✅ Discovery complete (7 decisions: D-086 through D-092, spec-ready)
 
 ## Key Inter-App Integrations
 
