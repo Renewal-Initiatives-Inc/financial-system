@@ -113,7 +113,7 @@ Each entry captures: what was decided, why, what alternatives were considered, a
 - **Date:** 2026-02-10
 - **Decision:** Employee master data (legal name, federal/state tax IDs, pay frequency, withholding elections) will be captured and maintained in `app-portal` (the shared auth system). The financial-system will consume this data via API when generating payroll entries. RI will not duplicate employee data in the financial-system.
 - **Rationale:** Single source of truth for employee records. app-portal already manages user accounts for all RI apps; extending it to capture payroll data is low overhead. Avoids sync headaches and duplication. Scales well if RI adds more apps in the future — all consume the same employee master. The "Add User" flow in auth system will be enhanced to capture: legal name, federal tax ID, state tax ID, pay frequency, withholding elections (federal tax, state tax, Social Security, Medicare, workers comp, 401k, HSA, other).
-- **Affects:** Chunk 1 (payroll GL structure) and Chunk 3 (payroll processing — how timesheets map to pay periods). Chunk 8 (Integration Layer — financial-system must query auth-system API for employee data). A separate spec will be created for app-portal enhancements (employee-payroll-data-spec.md).
+- **Affects:** Chunk 1 (payroll GL structure) and Chunk 3 (payroll processing — how timesheets map to pay periods). Chunk 8 (Integration Layer — financial-system reads employee data via direct DB access per D-124).
 
 ### D-018: Payroll GL Structure — Simple, No Functional Split at Transaction Level
 - **Date:** 2026-02-10

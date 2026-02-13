@@ -72,7 +72,7 @@ Before writing your chunk spec:
 - **Status:** ✅ Decided
 - **Impacts:** Chunk 3, Chunk 8
 - **What Chunk 3 needs:** Payroll entry generation depends on fetching employee data (name, tax IDs, withholding elections, pay frequency) from auth system via API.
-- **What Chunk 8 needs:** Must design/enhance app-portal API to provide employee data. Separate spec: employee-payroll-data-spec.md (TBD).
+- **What Chunk 8 needs:** Must design/enhance app-portal to provide employee data. Direct read-only DB access per D-124.
 
 ### D-018: Payroll GL — Single "Salaries & Wages" Account, Year-End Allocation
 - **Status:** ✅ Decided

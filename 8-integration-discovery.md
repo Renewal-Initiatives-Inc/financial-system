@@ -26,7 +26,6 @@ API contracts and data flows between financial-system and existing app ecosystem
 **3. app-portal → financial-system** (D-006, D-017)
 - Authentication/authorization (existing, working)
 - Employee payroll master data: read-only DB access (D-124)
-- REST API (employee-payroll-data-spec.md) deprecated — direct DB reads replace API calls
 - New People API fields needed: compensation_type, annual_salary, expected_annual_hours, exempt_status (D-119, D-120)
 
 **4. Ramp credit card → financial-system** (D-021)
