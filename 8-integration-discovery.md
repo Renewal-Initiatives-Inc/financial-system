@@ -23,7 +23,7 @@ API contracts and data flows between financial-system and existing app ecosystem
 - GL account + fund per line item; all QBO artifacts deprecated
 - Pivoting from QBO API to financial-system staging table
 
-**3. internal-app-registry-auth → financial-system** (D-006, D-017)
+**3. app-portal → financial-system** (D-006, D-017)
 - Authentication/authorization (existing, working)
 - Employee payroll master data: read-only DB access (D-124)
 - REST API (employee-payroll-data-spec.md) deprecated — direct DB reads replace API calls
