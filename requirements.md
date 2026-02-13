@@ -97,22 +97,38 @@ Non-negotiable rules enforced at database or application level. Violations are s
 |----|------------|----------|-----------|
 | DM-P0-019 | Fixed asset entity: name, description, acquisition_date, cost, salvage_value (default $0), useful_life_months, depreciation_method (always `straight_line` per D-127), date_placed_in_service, GL asset account, GL accumulated depreciation account, GL depreciation expense account, parent_asset_id (for building components), active flag. | P0 | D-019, D-080, D-127 |
 | DM-P0-020 | Component depreciation for the Easthampton building: parent asset with child components (structure 27.5yr, roof 20yr, HVAC 15yr, electrical 15-20yr, plumbing 15-20yr, windows 15-20yr, flooring 5-10yr). Component useful lives finalized at property closing. Single-item depreciation for all other assets (equipment 5-7yr, vehicles 5yr, furniture 7yr, computers 3-5yr). | P0 | D-080, D-127 |
+| DM-P0-030 | CIP-to-fixed-asset conversion wizard. When a structure is placed in service, system-assisted workflow: (1) select CIP sub-accounts/cost codes to convert, (2) allocate CIP balance across fixed asset components (for lodging: structure, roof, HVAC, etc.; barn and garage are single-item), (3) set useful life per component, (4) system generates reclassification JE (DR Building/component accounts, CR CIP sub-accounts) and creates fixed asset records with depreciation schedules. Conversion is reviewed before committing. | P0 | D-032, D-080 |
+| DM-P0-031 | Partial CIP conversion supported. Each structure (Lodging, Barn, Garage) may be placed in service independently. CIP balance may remain non-zero after a conversion — only the portion allocated to the converted structure is reclassified. Remaining CIP continues accumulating costs for structures still under construction. | P0 | D-032 |
+| DM-P0-032 | Three separate fixed assets for the Easthampton property: Lodging (component depreciation per DM-P0-020), Barn (single-item, 27.5yr), Garage (single-item, 27.5yr). Each is a top-level fixed asset with its own GL asset and accumulated depreciation accounts. | P0 | D-032, D-080 |
 
-### 2.7 Grants & Pledges
+### 2.7 Construction in Progress (CIP) Cost Structure
+
+| ID | Requirement | Priority | Decisions |
+|----|------------|----------|-----------|
+| DM-P0-026 | CIP tracked via five sub-accounts (children of a locked CIP parent): CIP - Hard Costs, CIP - Soft Costs, CIP - Reserves & Contingency, CIP - Developer Fee, CIP - Construction Interest. Every CIP transaction posts to a sub-account, never the parent. Balance sheet shows parent total with sub-account drill-down. | P0 | D-032 |
+| DM-P0-027 | CIP cost codes for CSI-level detail: each CIP transaction line may carry an optional `cip_cost_code` tag (e.g., "03 Concrete", "23 HVAC", "Architectural & Engineering Fees"). Cost codes are user-managed reference data (add/edit/deactivate). Used for drill-down reporting within CIP sub-accounts. Not a GL account — a metadata tag on the transaction line. | P0 | D-032 |
+| DM-P0-028 | CIP cost code inheritance: when a PO has a `cip_cost_code`, all invoices against that PO inherit the cost code automatically. The cost code is set once on PO creation and flows through to the GL entry when the invoice posts. | P0 | D-032 |
+| DM-P0-029 | CIP budget tracking: budget lines for CIP sub-accounts can be further broken down by cost code. Report #24 (Capital & Financing Budget Summary) shows budget vs. actual at both the sub-account level and the cost code level. | P0 | D-032, D-088 |
+| DM-P0-033 | Developer fee tracking. RI is both owner and developer (related party). Total fee ($827K) posts to CIP - Developer Fee. Portion paid in cash during construction: DR CIP - Developer Fee, CR Cash. Deferred portion (~$487K): DR CIP - Developer Fee, CR Deferred Developer Fee Payable (long-term liability). Deferred fee is subordinate to AHP loan and paid from surplus cash flow — no fixed schedule. Paydown: DR Deferred Developer Fee Payable, CR Cash. Related-party disclosure required in Notes to Financials. | P0 | D-032 |
+| DM-P0-034 | Each development funding source is a separate restricted fund. CIP transaction lines are coded to the fund that pays for the cost. Split-funded costs use multi-fund splits (D-051) — e.g., one invoice with two CIP lines coded to different funds. Fund-level reporting = per-funder reporting. | P0 | D-013, D-032 |
+| DM-P0-035 | MassSave rebates recorded as contra-CIP: DR Cash, CR CIP - Hard Costs (coded to MassSave Fund). Reduces CIP balance and therefore depreciation basis. Net asset value = gross cost minus rebates. | P0 | D-032 |
+| DM-P0-036 | Reserve accounts funded from development sources. Three restricted cash accounts: Operating Reserve, Replacement Reserve, Transition Reserve. Funded during construction via transfer from CIP - Reserves & Contingency to the corresponding restricted cash account: DR Restricted Cash - [Reserve], CR CIP - Reserves & Contingency (coded to the funder's fund). Post-construction, reserves are held and drawn down per funder requirements. | P0 | D-032 |
+
+### 2.8 Grants & Pledges
 
 | ID | Requirement | Priority | Decisions |
 |----|------------|----------|-----------|
 | DM-P0-021 | Grant entity: funder_id (vendor), amount, type (conditional/unconditional per D-046 assessment), conditions (text), start_date, end_date, fund_id, status. | P0 | D-034, D-046 |
 | DM-P0-022 | Pledge entity: donor_id, amount, expected_date, fund_id, status. Simple near-term tracking only. No PV discounting, no allowance for uncollectibles. | P0 | D-050 |
 
-### 2.8 Purchase Orders
+### 2.9 Purchase Orders
 
 | ID | Requirement | Priority | Decisions |
 |----|------------|----------|-----------|
-| DM-P0-023 | PO entity: vendor_id, description, contract_pdf_reference, total_amount, GL destination account (CIP or expense), fund_id, status (draft/active/completed/cancelled). Links to extracted milestones, payment terms, deliverables, covenants. | P0 | Session 4 |
+| DM-P0-023 | PO entity: vendor_id, description, contract_pdf_reference, total_amount, GL destination account (CIP or expense), fund_id, cip_cost_code (nullable — required when GL destination is a CIP sub-account, see DM-P0-026), status (draft/active/completed/cancelled). Links to extracted milestones, payment terms, deliverables, covenants. | P0 | Session 4, D-032 |
 | DM-P0-024 | Vendor invoices linked to POs. Three-way match: PO → invoice → payment. | P0 | Session 4 |
 
-### 2.9 Loan Tracking
+### 2.10 Loan Tracking
 
 | ID | Requirement | Priority | Decisions |
 |----|------------|----------|-----------|
@@ -227,7 +243,7 @@ Non-negotiable rules enforced at database or application level. Violations are s
 | ID | Requirement | Priority | Decisions |
 |----|------------|----------|-----------|
 | TXN-P0-038 | **Monthly depreciation.** System generates monthly entries per active asset/component: DR Depreciation Expense, CR Accumulated Depreciation. Straight-line only. Posts to General Fund. No depreciation on CIP. | P0 | D-019, D-127 |
-| TXN-P0-039 | **Monthly AHP interest accrual.** DR Interest Expense, CR Accrued Interest Payable. Rate configurable. True-up adjustment on rate change. Posts to General Fund. Annual payment (Dec 31) clears accrued interest. | P0 | D-011, D-022 |
+| TXN-P0-039 | **Monthly AHP interest accrual.** Two modes determined by construction status: **During construction** (any structure not yet placed in service): DR CIP - Construction Interest, CR Accrued Interest Payable. Capitalizes 100% of AHP interest to CIP per ASC 835-20. **Post-construction** (all structures placed in service): DR Interest Expense, CR Accrued Interest Payable. Posts to General Fund. Mode switches automatically when the last CIP conversion (DM-P0-030) is completed. Rate configurable. True-up adjustment on rate change. Annual payment (Dec 31) clears accrued interest. | P0 | D-011, D-022, DM-P0-026 |
 | TXN-P0-040 | **Restricted net asset releases.** Atomic with any expense posted to restricted fund (INV-007). | P0 | D-029 |
 | TXN-P0-041 | **Security deposit interest.** Automated annual calculation per tenant on tenancy anniversary: interest = deposit × rate (lesser of actual bank rate or 5%) for the year. DR Interest Expense, CR cash (or liability until paid). Per MA G.L. c. 186 § 15B — treble damages for non-compliance. | P0 | D-070 |
 | TXN-P0-054 | **Prepaid expense amortization.** When creating a prepaid expense (e.g., insurance), user specifies amortization start date, end date, and total amount. System auto-generates monthly amortization entries: DR [Expense Account], CR Prepaid Expenses, pro-rated across the coverage period. Amortization schedule runs automatically via cron. If a refund/reimbursement occurs on an amortized expense, system true-ups: remaining unamortized balance adjusted by refund amount, future monthly entries recalculated from that point forward. | P0 | D-028 |
@@ -402,7 +418,7 @@ All 29 reports ship at launch (D-059). Priority P0 for all.
 
 | # | Report | Key Features | Decisions |
 |---|--------|-------------|-----------|
-| 24 | Capital & Financing Budget Summary | Planned vs actual: loan draws, capital spending by fund, debt service. Separate from operating P&L. | D-088, D-111 |
+| 24 | Capital & Financing Budget Summary | Planned vs actual: loan draws, capital spending by fund, debt service. Separate from operating P&L. CIP section shows budget vs. actual at sub-account level (Hard Costs, Soft Costs, etc.) with drill-down to cost code level (CSI divisions, individual soft cost categories). | D-088, D-111, DM-P0-029 |
 
 **Payroll**
 
@@ -569,14 +585,26 @@ Bootstrapped at system creation. System-locked accounts cannot be deactivated or
 | Checking | Cash | Debit | No | — | Core |
 | Savings | Cash | Debit | No | — | Core |
 | Security Deposit Escrow | Cash | Debit | Yes | — | D-069 |
+| Restricted Cash - Operating Reserve | Cash | Debit | Yes | — | DM-P0-036 |
+| Restricted Cash - Replacement Reserve | Cash | Debit | Yes | — | DM-P0-036 |
+| Restricted Cash - Transition Reserve | Cash | Debit | Yes | — | DM-P0-036 |
 | Accounts Receivable | Current Asset | Debit | Yes | — | DM-P0-012 |
 | Grants Receivable | Current Asset | Debit | Yes | — | DM-P0-021 |
 | Pledges Receivable | Current Asset | Debit | No | — | DM-P0-022 |
 | Prepaid Expenses | Current Asset | Debit | Yes | — | TXN-P0-029 |
-| Construction in Progress | Fixed Asset | Debit | Yes | — | DM-P0-019 |
-| Building | Fixed Asset | Debit | Yes | — | DM-P0-019 |
+| Construction in Progress | Fixed Asset | Debit | Yes (parent, no direct posting) | — | DM-P0-019, DM-P0-026 |
+| CIP - Hard Costs | Fixed Asset | Debit | Yes | — | DM-P0-026 |
+| CIP - Soft Costs | Fixed Asset | Debit | Yes | — | DM-P0-026 |
+| CIP - Reserves & Contingency | Fixed Asset | Debit | Yes | — | DM-P0-026 |
+| CIP - Developer Fee | Fixed Asset | Debit | Yes | — | DM-P0-026 |
+| CIP - Construction Interest | Fixed Asset | Debit | Yes | — | DM-P0-026 |
+| Building - Lodging | Fixed Asset | Debit | Yes | — | DM-P0-019, DM-P0-032 |
+| Building - Barn | Fixed Asset | Debit | Yes | — | DM-P0-032 |
+| Building - Garage | Fixed Asset | Debit | Yes | — | DM-P0-032 |
 | Equipment | Fixed Asset | Debit | No | — | DM-P0-019 |
-| Accum. Depreciation - Building | Contra-Asset | Credit | Yes | — | DM-P0-019 |
+| Accum. Depreciation - Lodging | Contra-Asset | Credit | Yes | — | DM-P0-019, DM-P0-032 |
+| Accum. Depreciation - Barn | Contra-Asset | Credit | Yes | — | DM-P0-032 |
+| Accum. Depreciation - Garage | Contra-Asset | Credit | Yes | — | DM-P0-032 |
 | Accum. Depreciation - Equipment | Contra-Asset | Credit | No | — | DM-P0-019 |
 
 **Liabilities**
@@ -598,6 +626,7 @@ Bootstrapped at system creation. System-locked accounts cannot be deactivated or
 | Workers Comp Payable | Payroll | Credit | No | — | TXN-P0-031 |
 | 401(k) Withholding Payable | Payroll | Credit | No | — | TXN-P0-031 |
 | AHP Loan Payable | Long-Term | Credit | Yes | — | DM-P0-025 |
+| Deferred Developer Fee Payable | Long-Term | Credit | Yes | — | DM-P0-033 |
 | Accrued Interest Payable | Current | Credit | Yes | — | TXN-P0-039 |
 
 **Net Assets**
@@ -652,6 +681,10 @@ Bootstrapped at system creation. System-locked accounts cannot be deactivated or
 |------|------------|--------|--------|
 | General Fund | Unrestricted | Yes (default, cannot deactivate) | DM-P0-009 |
 | AHP Fund | Restricted | No | D-013 |
+| CPA Fund | Restricted | No | DM-P0-034 |
+| MassDev Fund | Restricted | No | DM-P0-034 |
+| HTC Equity Fund | Restricted | No | DM-P0-034 |
+| MassSave Fund | Restricted | No | DM-P0-034 |
 
 ### 9.3 GAAP Policies (Written Documentation)
 
@@ -662,6 +695,7 @@ These policies are organizational positions stored as system configuration, not 
 | Capitalization threshold | $2,500 per item/invoice (IRS de minimis safe harbor). Increases to $5,000 when audited financials required. | D-078 |
 | Bad debt | Direct write-off method (expense when uncollectible). Mandatory annotation: reason, collection efforts, authorization. Switch to allowance method when audit threshold reached. | D-079 |
 | Depreciation | Straight-line only. IRS standard useful lives. No accelerated methods, no Section 179, no bonus depreciation. Component for building, single-item for others. | D-080, D-127 |
+| Construction interest | 100% of AHP interest capitalized to CIP - Construction Interest during construction period (ASC 835-20). Capitalization ends when all structures are placed in service. No pro-rata reduction on partial PIS — full capitalization continues until final structure converted. | D-022, DM-P0-026 |
 | Functional allocation | Year-end per-GL-account percentage allocation to Program/Admin/Fundraising. Stored as metadata, not journal entries. | D-061 |
 | Revenue recognition | Accrual basis. Rental: when due. Unconditional grants: at award. Conditional grants: when conditions met. Donations: immediately. Earned income: when earned. | D-005, D-025, D-034, D-036, D-046 |
 
@@ -680,6 +714,7 @@ Items explicitly deferred with clear triggers for future mini-discovery:
 | Move-out security deposit return workflow | Tenants in units | Per-tenant tracking (D-069), compliance calendar | D-072 |
 | Schedule A / public support test calculation | After 5-year grace period (~FY2030) | Source type tagging on contributions (D-063) | D-039 |
 | Multi-year pledge PV discounting | Signed binding commitments materialize | Simple Pledges Receivable (D-050) | D-050 |
+| HTC equity milestone payment tracking | HTC deal structured and syndication terms finalized | HTC Equity Fund (D-034), fund accounting | — |
 
 ---
 

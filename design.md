@@ -51,9 +51,21 @@
                     │ transaction_id   │
                     │ account_id  ────►│ accounts
                     │ fund_id     ────►│ funds
+                    │ cip_cost_code_id ►│ cip_cost_codes (nullable)
                     │ debit            │
                     │ credit           │
                     │ memo             │
+                    └──────────────────┘
+
+                    ┌──────────────────┐
+                    │ cip_cost_codes   │
+                    ├──────────────────┤
+                    │ id               │
+                    │ code      (e.g., "23")
+                    │ name      (e.g., "HVAC")
+                    │ category  (hard_cost/soft_cost)
+                    │ active           │
+                    │ sort_order       │
                     └──────────────────┘
 ```
 
@@ -63,6 +75,7 @@
 - **Debit/credit as separate columns** (not a single signed amount). Eliminates sign confusion. Constraint: exactly one of debit/credit is non-null per line.
 - **Reversal chain**: `reversal_of_id` points from the reversing entry to the original. `reversed_by_id` points from the original to its reversal. Both nullable. This enables efficient queries: "show me the reversing entry for transaction X" and "has transaction X been reversed?"
 - **source_type enum**: MANUAL, TIMESHEET, EXPENSE_REPORT, RAMP, BANK_FEED, SYSTEM, FY25_IMPORT. Immutable provenance.
+- **CIP cost code on the line, not a GL account.** `cip_cost_code_id` is a nullable FK on `transaction_lines`. Only populated when the line's account is a CIP sub-account. For PO-originated transactions, the cost code is set on the PO and inherited by all invoice GL entries against that PO. The `cip_cost_codes` table is user-managed reference data (seeded with CSI divisions for hard costs and named categories for soft costs). CIP parent account is non-postable — all CIP debits go to one of the five sub-accounts.
 
 ### 2.2 Supporting Entities
 
@@ -91,11 +104,12 @@ fixed_assets                purchase_orders             grants
 ├─ cost                     ├─ total_amount             ├─ conditions
 ├─ salvage_value            ├─ gl_destination_account   ├─ start_date
 ├─ useful_life_months       ├─ fund_id                  ├─ end_date
-├─ depreciation_method      ├─ status                   ├─ fund_id
-├─ date_placed_in_service   ├─ extracted_milestones     ├─ status
-├─ gl_asset_account_id      ├─ extracted_terms          └─ created_at
-├─ gl_accum_depr_account_id ├─ extracted_covenants
-├─ gl_expense_account_id    └─ created_at               pledges
+├─ depreciation_method      ├─ cip_cost_code_id (FK)   ├─ fund_id
+├─ date_placed_in_service   ├─ status                   ├─ status
+├─ gl_asset_account_id      ├─ extracted_milestones     └─ created_at
+├─ gl_accum_depr_account_id ├─ extracted_terms
+├─ gl_expense_account_id    ├─ extracted_covenants      pledges
+├─ cip_conversion_id (FK)   └─ created_at
 ├─ parent_asset_id                                      ├─ id
 ├─ active                   invoices                    ├─ donor_id
 └─ created_at               ├─ id                       ├─ amount
@@ -106,7 +120,27 @@ fixed_assets                purchase_orders             grants
                             ├─ gl_entry_id
                             ├─ payment_status
                             └─ created_at
+
+cip_conversions
+├─ id
+├─ structure_name  (e.g., "Lodging", "Barn", "Garage")
+├─ placed_in_service_date
+├─ total_amount_converted
+├─ gl_transaction_id (FK — the reclassification JE)
+├─ created_by
+└─ created_at
+
+cip_conversion_lines
+├─ id
+├─ conversion_id (FK)
+├─ source_cip_account_id (FK — which CIP sub-account)
+├─ source_cost_code_id (FK, nullable)
+├─ target_fixed_asset_id (FK — created asset/component)
+├─ amount
+└─ created_at
 ```
+
+**CIP conversion flow:** The wizard reads the current CIP balance by sub-account and cost code, then the user allocates amounts to fixed asset components. On commit: (1) system creates `fixed_assets` records (with `cip_conversion_id` set), (2) generates a single reclassification JE (DR Building accounts, CR CIP sub-accounts), (3) records the conversion in `cip_conversions` + `cip_conversion_lines` for audit trail, (4) depreciation begins the following month for all newly created assets. Partial conversions leave unconverted CIP balances intact.
 
 ### 2.3 Bank Reconciliation Schema
 
@@ -402,7 +436,7 @@ Tech stack decisions finalized during `/tech-stack` phase.
 | Ramp sync | Daily | Vercel cron | Pull new Ramp transactions |
 | Staging processor | On INSERT or periodic | DB notification or cron | Process unprocessed staging records into GL entries |
 | Monthly depreciation | Monthly (1st) | Vercel cron | Generate depreciation entries for all active assets |
-| Monthly interest accrual | Monthly (last day) | Vercel cron | Generate AHP interest accrual entry |
+| Monthly interest accrual | Monthly (last day) | Vercel cron | Generate AHP interest accrual entry. During construction (any structure without PIS date): DR CIP - Construction Interest. Post-construction (all structures PIS): DR Interest Expense. Mode determined by checking `cip_conversions` — capitalization continues until all structures have a conversion record. |
 | Compliance reminders | Daily | Vercel cron | Check deadlines, send 30-day and 7-day Postmark emails |
 | Rent accrual | Monthly (1st) | Vercel cron | Generate rent receivable entries for all active tenants |
 | Prepaid amortization | Monthly (1st) | Vercel cron | Generate amortization entries for all active prepaid schedules (DR Expense, CR Prepaid) |
@@ -588,6 +622,9 @@ The dashboard home screen (D-113) is a composite of 5 report widgets, each runni
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
+| **CIP sub-accounts + cost codes** | Hybrid: 5 CIP sub-accounts (Hard Costs, Soft Costs, Reserves & Contingency, Developer Fee, Construction Interest) for balance sheet + optional `cip_cost_code` tag on transaction lines for CSI-level drill-down | Sub-accounts give balance sheet structure; cost codes give line-item reporting without account proliferation. Cost code set on PO, inherited by invoices. D-032. |
+| **CIP conversion** | Wizard-assisted, partial conversions allowed, separate assets per structure | Lodging/Barn/Garage placed in service independently. Wizard allocates CIP to components, generates reclassification JE + fixed asset records. `cip_conversions` table provides audit trail. DM-P0-030. |
+| **Construction interest capitalization** | 100% to CIP until last structure PIS, then 100% to expense | AHP loan exists entirely for the development. No pro-rata needed. Cron job checks `cip_conversions` for mode. ASC 835-20. |
 | **Fund on line vs header** | Line-level | D-051 multi-fund splits require per-line fund assignment |
 | **One staging table vs multiple** | One table with `record_type` + JSONB | Simpler schema, single processing pipeline, FK constraints work the same |
 | **Functional allocation storage** | Metadata table, not GL entries | Avoids polluting GL with allocation journal entries. Applied on-the-fly in reports. D-061. |
