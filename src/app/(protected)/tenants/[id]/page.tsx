@@ -1,5 +1,9 @@
 import { notFound } from 'next/navigation'
-import { getTenantById } from '../actions'
+import {
+  getTenantById,
+  getSecurityDepositReceipts,
+  getInterestPayments,
+} from '../actions'
 import { TenantDetailClient } from './tenant-detail-client'
 
 interface TenantDetailPageProps {
@@ -17,5 +21,16 @@ export default async function TenantDetailPage({
   const tenant = await getTenantById(tenantId)
   if (!tenant) notFound()
 
-  return <TenantDetailClient tenant={tenant} />
+  const [receipts, interestPayments] = await Promise.all([
+    getSecurityDepositReceipts(tenantId),
+    getInterestPayments(tenantId),
+  ])
+
+  return (
+    <TenantDetailClient
+      tenant={tenant}
+      receipts={receipts}
+      interestPayments={interestPayments}
+    />
+  )
 }

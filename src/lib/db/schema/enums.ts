@@ -129,3 +129,39 @@ export const payrollRunStatusEnum = pgEnum('payroll_run_status', [
   'CALCULATED',
   'POSTED',
 ])
+
+export const complianceDeadlineCategoryEnum = pgEnum('compliance_deadline_category', [
+  'tax',
+  'tenant',
+  'grant',
+  'budget',
+])
+
+export const complianceDeadlineRecurrenceEnum = pgEnum('compliance_deadline_recurrence', [
+  'annual',
+  'monthly',
+  'per_tenant',
+  'one_time',
+])
+
+export const complianceDeadlineStatusEnum = pgEnum('compliance_deadline_status', [
+  'upcoming',
+  'reminded',
+  'completed',
+])
+
+export const bankMatchTypeEnum = pgEnum('bank_match_type', [
+  'auto',
+  'manual',
+  'rule',
+])
+
+export const reconciliationStatusEnum = pgEnum('reconciliation_status', [
+  'in_progress',
+  'completed',
+])
+
+export const bankTransactionStatusEnum = pgEnum('bank_transaction_status', [
+  'pending',
+  'posted',
+])

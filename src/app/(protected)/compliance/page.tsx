@@ -1,8 +1,7 @@
-export default function CompliancePage() {
-  return (
-    <div>
-      <h1 className="text-2xl font-semibold tracking-tight">Compliance</h1>
-      <p className="text-muted-foreground mt-2">Compliance calendar will be built in Phase 17.</p>
-    </div>
-  )
+import { getComplianceDeadlines } from './actions'
+import { ComplianceCalendarClient } from './compliance-calendar-client'
+
+export default async function CompliancePage() {
+  const deadlines = await getComplianceDeadlines()
+  return <ComplianceCalendarClient initialDeadlines={deadlines} />
 }

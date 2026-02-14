@@ -3,7 +3,16 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Pencil, Save, X } from 'lucide-react'
+import {
+  ArrowLeft,
+  Pencil,
+  Save,
+  X,
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  DollarSign,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -25,10 +34,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { HelpTooltip } from '@/components/shared/help-tooltip'
-import { updateTenant, toggleTenantActive } from '../actions'
+import {
+  updateTenant,
+  toggleTenantActive,
+  collectDeposit,
+  completeReceipt,
+} from '../actions'
 import type { TenantRow } from '../actions'
+import type { securityDepositReceipts, securityDepositInterestPayments } from '@/lib/db/schema'
 import { toast } from 'sonner'
+
+type ReceiptRow = typeof securityDepositReceipts.$inferSelect
+type InterestPaymentRow = typeof securityDepositInterestPayments.$inferSelect
 
 const fundingLabels: Record<string, string> = {
   TENANT_DIRECT: 'Self-Pay',
@@ -44,6 +70,12 @@ const fundingColors: Record<string, string> = {
   MRVP: 'bg-green-100 text-green-800',
   SECTION_8: 'bg-orange-100 text-orange-800',
   OTHER_VOUCHER: 'bg-gray-100 text-gray-800',
+}
+
+const receiptLabels: Record<string, string> = {
+  collection_receipt: 'Collection Receipt',
+  bank_details_receipt: '30-Day Bank Details Receipt',
+  statement_of_condition: 'Statement of Condition',
 }
 
 function formatCurrency(value: string | null): string {
@@ -64,11 +96,22 @@ function formatDate(value: string | null): string {
   })
 }
 
-interface TenantDetailClientProps {
-  tenant: TenantRow
+function isDatePast(value: string | null): boolean {
+  if (!value) return false
+  return new Date(value) < new Date()
 }
 
-export function TenantDetailClient({ tenant }: TenantDetailClientProps) {
+interface TenantDetailClientProps {
+  tenant: TenantRow
+  receipts: ReceiptRow[]
+  interestPayments: InterestPaymentRow[]
+}
+
+export function TenantDetailClient({
+  tenant,
+  receipts,
+  interestPayments,
+}: TenantDetailClientProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [isEditing, setIsEditing] = useState(false)
@@ -88,14 +131,28 @@ export function TenantDetailClient({ tenant }: TenantDetailClientProps) {
     tenant.escrowBankRef ?? ''
   )
   const [depositDate, setDepositDate] = useState(tenant.depositDate ?? '')
-  const [interestRate, setInterestRate] = useState(
-    tenant.interestRate ?? ''
-  )
+  const [interestRate, setInterestRate] = useState(tenant.interestRate ?? '')
   const [statementOfConditionDate, setStatementOfConditionDate] = useState(
     tenant.statementOfConditionDate ?? ''
   )
   const [isConfirmDeactivateOpen, setIsConfirmDeactivateOpen] = useState(false)
+  const [isCollectDepositOpen, setIsCollectDepositOpen] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+
+  // Collect deposit dialog state
+  const [collectAmount, setCollectAmount] = useState('')
+  const [collectDate, setCollectDate] = useState(
+    new Date().toISOString().split('T')[0]
+  )
+  const [collectEscrowBank, setCollectEscrowBank] = useState('')
+
+  const hasDeposit =
+    tenant.securityDepositAmount &&
+    parseFloat(tenant.securityDepositAmount) > 0
+
+  const overdueReceipts = receipts.filter(
+    (r) => !r.completedDate && isDatePast(r.dueDate)
+  )
 
   const handleSave = () => {
     const newErrors: Record<string, string> = {}
@@ -204,6 +261,46 @@ export function TenantDetailClient({ tenant }: TenantDetailClientProps) {
     })
   }
 
+  const handleCollectDeposit = () => {
+    startTransition(async () => {
+      try {
+        const amount = parseFloat(collectAmount)
+        if (isNaN(amount) || amount <= 0) {
+          toast.error('Enter a valid deposit amount')
+          return
+        }
+        await collectDeposit(
+          tenant.id,
+          amount,
+          collectDate,
+          collectEscrowBank,
+          'system'
+        )
+        setIsCollectDepositOpen(false)
+        toast.success('Security deposit collected and GL entry created')
+        router.refresh()
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : 'Failed to collect deposit'
+        )
+      }
+    })
+  }
+
+  const handleCompleteReceipt = (receiptId: number) => {
+    startTransition(async () => {
+      try {
+        await completeReceipt(receiptId, tenant.id, 'system')
+        toast.success('Receipt marked complete')
+        router.refresh()
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : 'Failed to complete receipt'
+        )
+      }
+    })
+  }
+
   const cancelEdit = () => {
     setIsEditing(false)
     setFieldErrors({})
@@ -252,6 +349,21 @@ export function TenantDetailClient({ tenant }: TenantDetailClientProps) {
           </div>
         </div>
       </div>
+
+      {/* Compliance Alerts */}
+      {overdueReceipts.length > 0 && (
+        <div className="rounded-md border border-destructive bg-destructive/10 p-4">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+            <p className="text-sm font-medium text-destructive">
+              {overdueReceipts.length} overdue receipt(s):{' '}
+              {overdueReceipts
+                .map((r) => receiptLabels[r.receiptType] ?? r.receiptType)
+                .join(', ')}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Lease Details Card */}
       <Card>
@@ -404,10 +516,20 @@ export function TenantDetailClient({ tenant }: TenantDetailClientProps) {
 
       {/* Security Deposit Card */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-1">
             Security Deposit <HelpTooltip term="security-deposit" />
           </CardTitle>
+          {!hasDeposit && tenant.isActive && (
+            <Button
+              size="sm"
+              onClick={() => setIsCollectDepositOpen(true)}
+              data-testid="collect-deposit-btn"
+            >
+              <DollarSign className="mr-2 h-4 w-4" />
+              Collect Deposit
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="grid grid-cols-2 gap-4">
@@ -508,6 +630,112 @@ export function TenantDetailClient({ tenant }: TenantDetailClientProps) {
         </CardContent>
       </Card>
 
+      {/* Receipt Tracking Card */}
+      {receipts.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Receipt Tracking</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {receipts.map((receipt) => {
+                const isOverdue = !receipt.completedDate && isDatePast(receipt.dueDate)
+                const isComplete = !!receipt.completedDate
+
+                return (
+                  <div
+                    key={receipt.id}
+                    className="flex items-center justify-between rounded-md border p-3"
+                    data-testid={`receipt-${receipt.receiptType}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {isComplete ? (
+                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                      ) : isOverdue ? (
+                        <AlertTriangle className="h-5 w-5 text-destructive" />
+                      ) : (
+                        <Clock className="h-5 w-5 text-yellow-600" />
+                      )}
+                      <div>
+                        <p className="font-medium text-sm">
+                          {receiptLabels[receipt.receiptType] ??
+                            receipt.receiptType}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Due: {formatDate(receipt.dueDate)}
+                          {isComplete && ` | Completed: ${formatDate(receipt.completedDate)}`}
+                        </p>
+                      </div>
+                    </div>
+                    {!isComplete && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleCompleteReceipt(receipt.id)}
+                        disabled={isPending}
+                        data-testid={`complete-receipt-${receipt.receiptType}`}
+                      >
+                        Mark Complete
+                      </Button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Interest History Card */}
+      {interestPayments.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Interest Payment History</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Period</TableHead>
+                  <TableHead className="text-right">Deposit</TableHead>
+                  <TableHead className="text-right">Rate</TableHead>
+                  <TableHead className="text-right">Interest</TableHead>
+                  <TableHead>Paid</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {interestPayments.map((payment) => (
+                  <TableRow
+                    key={payment.id}
+                    data-testid={`interest-payment-${payment.id}`}
+                  >
+                    <TableCell>
+                      {formatDate(payment.periodStart)} - {formatDate(payment.periodEnd)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(payment.depositAmount)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {payment.interestRate
+                        ? `${(parseFloat(payment.interestRate) * 100).toFixed(2)}%`
+                        : '-'}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(payment.interestAmount)}
+                    </TableCell>
+                    <TableCell>
+                      {payment.paidAt
+                        ? formatDate(new Date(payment.paidAt).toISOString().split('T')[0])
+                        : 'Pending'}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Rent & AR Card (placeholder) */}
       <Card>
         <CardHeader>
@@ -541,6 +769,70 @@ export function TenantDetailClient({ tenant }: TenantDetailClientProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Collect Deposit Dialog */}
+      <Dialog
+        open={isCollectDepositOpen}
+        onOpenChange={setIsCollectDepositOpen}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Collect Security Deposit</DialogTitle>
+            <DialogDescription>
+              Collect security deposit for {tenant.name} (Unit{' '}
+              {tenant.unitNumber}). Maximum deposit is first month&apos;s rent (
+              {formatCurrency(tenant.monthlyRent)}) per MA G.L. c. 186 § 15B.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Deposit Amount</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={collectAmount}
+                onChange={(e) => setCollectAmount(e.target.value)}
+                placeholder="0.00"
+                data-testid="collect-deposit-amount"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Deposit Date</Label>
+              <Input
+                type="date"
+                value={collectDate}
+                onChange={(e) => setCollectDate(e.target.value)}
+                data-testid="collect-deposit-date"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Escrow Bank Reference</Label>
+              <Input
+                value={collectEscrowBank}
+                onChange={(e) => setCollectEscrowBank(e.target.value)}
+                placeholder="e.g., Rockland Trust #12345"
+                data-testid="collect-deposit-escrow"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsCollectDepositOpen(false)}
+              data-testid="collect-deposit-cancel-btn"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCollectDeposit}
+              disabled={isPending}
+              data-testid="collect-deposit-submit-btn"
+            >
+              Collect Deposit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Deactivation Confirmation Dialog */}
       <Dialog

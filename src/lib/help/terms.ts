@@ -278,6 +278,38 @@ export const helpTerms: Record<string, string> = {
 
   'employer-fica':
     'The employer\'s matching share of FICA taxes — 6.2% Social Security + 1.45% Medicare. Recorded as a separate GL entry: DR Salaries & Wages, CR Social Security/Medicare Payable.',
+
+  // --- Phase 12: Bank Reconciliation ---
+
+  'bank-reconciliation':
+    'Process of comparing bank statement transactions to GL entries to ensure they match and identify timing differences.',
+
+  'matching-rule':
+    'User-created rule that auto-matches future bank transactions to GL entries based on merchant name, amount, or other criteria.',
+
+  'outstanding-item':
+    'A GL entry (like an uncleared check) that has not yet appeared on the bank statement. Normal during reconciliation — resolves when the bank processes the transaction.',
+
+  'bank-originated-entry':
+    'A GL entry created directly from the bank reconciliation screen for items that appeared on the bank statement but have no corresponding GL entry (e.g., bank fees, interest credits).',
+
+  'trust-escalation':
+    'Matching model where the system suggests matches, the user confirms, and can create rules for future auto-matching. Each confirmation builds the system\'s ability to auto-match.',
+
+  'reconciliation-sign-off':
+    'Formal confirmation that bank reconciliation is complete. Records who reconciled, when, and the reconciled balance for audit purposes.',
+
+  'plaid-sync':
+    'Daily automated download of bank transactions via the Plaid API. Transactions arrive in the reconciliation workspace for matching to GL entries.',
+
+  'split-transaction':
+    'When a single bank transaction corresponds to multiple GL entries (e.g., a combined payment), it can be split into parts, each matched to a different GL entry.',
+
+  'gl-only-entry':
+    'A GL entry with no expected bank counterpart (e.g., depreciation, net asset releases, interest accrual). Automatically excluded from unmatched warnings.',
+
+  'pending-transaction':
+    'A bank transaction that has been authorized but not yet fully processed. Shown as informational in reconciliation but cannot be matched until posted.',
 }
 
 /** Get a help term by its slug. Returns undefined for unknown terms. */

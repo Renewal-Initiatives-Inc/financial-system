@@ -28,6 +28,15 @@ export * from './staging-records'
 export * from './payroll'
 export * from './purchase-orders'
 export * from './invoices'
+export * from './security-deposit-interest'
+export * from './compliance-deadlines'
+export * from './security-deposit-receipts'
+export * from './bank-accounts'
+export * from './bank-transactions'
+export * from './bank-matches'
+export * from './matching-rules'
+export * from './reconciliation-sessions'
+export * from './functional-allocations'
 
 // Re-import for relations definitions
 import { accounts } from './accounts'
@@ -54,6 +63,15 @@ import { purchaseOrders } from './purchase-orders'
 import { invoices } from './invoices'
 import { stagingRecords } from './staging-records'
 import { payrollRuns, payrollEntries } from './payroll'
+import { securityDepositInterestPayments } from './security-deposit-interest'
+import { complianceDeadlines } from './compliance-deadlines'
+import { securityDepositReceipts } from './security-deposit-receipts'
+import { bankAccounts } from './bank-accounts'
+import { bankTransactions } from './bank-transactions'
+import { bankMatches } from './bank-matches'
+import { matchingRules } from './matching-rules'
+import { reconciliationSessions } from './reconciliation-sessions'
+import { functionalAllocations } from './functional-allocations'
 
 // --- Relations ---
 
@@ -160,7 +178,11 @@ export const vendorsRelations = relations(vendors, ({ one, many }) => ({
   invoices: many(invoices),
 }))
 
-export const tenantsRelations = relations(tenants, () => ({}))
+export const tenantsRelations = relations(tenants, ({ many }) => ({
+  securityDepositInterestPayments: many(securityDepositInterestPayments),
+  securityDepositReceipts: many(securityDepositReceipts),
+  complianceDeadlines: many(complianceDeadlines),
+}))
 
 export const donorsRelations = relations(donors, ({ many }) => ({
   pledges: many(pledges),
@@ -382,6 +404,110 @@ export const payrollEntriesRelations = relations(
     glEmployerTransaction: one(transactions, {
       fields: [payrollEntries.glEmployerTransactionId],
       references: [transactions.id],
+    }),
+  })
+)
+
+export const securityDepositInterestPaymentsRelations = relations(
+  securityDepositInterestPayments,
+  ({ one }) => ({
+    tenant: one(tenants, {
+      fields: [securityDepositInterestPayments.tenantId],
+      references: [tenants.id],
+    }),
+    glTransaction: one(transactions, {
+      fields: [securityDepositInterestPayments.glTransactionId],
+      references: [transactions.id],
+    }),
+  })
+)
+
+export const complianceDeadlinesRelations = relations(
+  complianceDeadlines,
+  ({ one }) => ({
+    tenant: one(tenants, {
+      fields: [complianceDeadlines.tenantId],
+      references: [tenants.id],
+    }),
+  })
+)
+
+export const securityDepositReceiptsRelations = relations(
+  securityDepositReceipts,
+  ({ one }) => ({
+    tenant: one(tenants, {
+      fields: [securityDepositReceipts.tenantId],
+      references: [tenants.id],
+    }),
+  })
+)
+
+export const bankAccountsRelations = relations(
+  bankAccounts,
+  ({ one, many }) => ({
+    glAccount: one(accounts, {
+      fields: [bankAccounts.glAccountId],
+      references: [accounts.id],
+    }),
+    bankTransactions: many(bankTransactions),
+    reconciliationSessions: many(reconciliationSessions),
+  })
+)
+
+export const bankTransactionsRelations = relations(
+  bankTransactions,
+  ({ one, many }) => ({
+    bankAccount: one(bankAccounts, {
+      fields: [bankTransactions.bankAccountId],
+      references: [bankAccounts.id],
+    }),
+    matches: many(bankMatches),
+  })
+)
+
+export const bankMatchesRelations = relations(bankMatches, ({ one }) => ({
+  bankTransaction: one(bankTransactions, {
+    fields: [bankMatches.bankTransactionId],
+    references: [bankTransactions.id],
+  }),
+  glTransactionLine: one(transactionLines, {
+    fields: [bankMatches.glTransactionLineId],
+    references: [transactionLines.id],
+  }),
+  rule: one(matchingRules, {
+    fields: [bankMatches.ruleId],
+    references: [matchingRules.id],
+  }),
+  reconciliationSession: one(reconciliationSessions, {
+    fields: [bankMatches.reconciliationSessionId],
+    references: [reconciliationSessions.id],
+  }),
+}))
+
+export const matchingRulesRelations = relations(
+  matchingRules,
+  ({ many }) => ({
+    matches: many(bankMatches),
+  })
+)
+
+export const reconciliationSessionsRelations = relations(
+  reconciliationSessions,
+  ({ one, many }) => ({
+    bankAccount: one(bankAccounts, {
+      fields: [reconciliationSessions.bankAccountId],
+      references: [bankAccounts.id],
+    }),
+    matches: many(bankMatches),
+  })
+)
+
+export const functionalAllocationsRelations = relations(
+  functionalAllocations,
+  ({ one }) => ({
+    account: one(accounts, {
+      fields: [functionalAllocations.accountId],
+      references: [accounts.id],
     }),
   })
 )

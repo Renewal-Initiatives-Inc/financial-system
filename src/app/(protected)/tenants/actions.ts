@@ -3,7 +3,11 @@
 import { revalidatePath } from 'next/cache'
 import { eq, ilike, and, or } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { tenants } from '@/lib/db/schema'
+import {
+  tenants,
+  securityDepositReceipts,
+  securityDepositInterestPayments,
+} from '@/lib/db/schema'
 import {
   insertTenantSchema,
   updateTenantSchema,
@@ -11,6 +15,7 @@ import {
   type UpdateTenant,
 } from '@/lib/validators'
 import { logAudit } from '@/lib/audit/logger'
+import { collectSecurityDeposit } from '@/lib/security-deposits/collect'
 import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
 
 // --- Types ---
@@ -238,4 +243,67 @@ export async function toggleTenantActive(
 
   revalidatePath('/tenants')
   revalidatePath(`/tenants/${id}`)
+}
+
+// --- Security Deposit Actions ---
+
+export async function collectDeposit(
+  tenantId: number,
+  amount: number,
+  depositDate: string,
+  escrowBankRef: string,
+  userId: string
+): Promise<{ transactionId: number }> {
+  const result = await collectSecurityDeposit(
+    tenantId,
+    amount,
+    depositDate,
+    escrowBankRef,
+    userId
+  )
+
+  revalidatePath('/tenants')
+  revalidatePath(`/tenants/${tenantId}`)
+  revalidatePath('/compliance')
+  revalidatePath('/reports/security-deposit-register')
+  return result
+}
+
+export async function completeReceipt(
+  receiptId: number,
+  tenantId: number,
+  userId: string
+): Promise<void> {
+  const today = new Date().toISOString().split('T')[0]
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(securityDepositReceipts)
+      .set({ completedDate: today })
+      .where(eq(securityDepositReceipts.id, receiptId))
+
+    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+      userId,
+      action: 'updated',
+      entityType: 'security_deposit_receipt',
+      entityId: receiptId,
+      afterState: { completedDate: today },
+    })
+  })
+
+  revalidatePath(`/tenants/${tenantId}`)
+}
+
+export async function getSecurityDepositReceipts(tenantId: number) {
+  return db
+    .select()
+    .from(securityDepositReceipts)
+    .where(eq(securityDepositReceipts.tenantId, tenantId))
+}
+
+export async function getInterestPayments(tenantId: number) {
+  return db
+    .select()
+    .from(securityDepositInterestPayments)
+    .where(eq(securityDepositInterestPayments.tenantId, tenantId))
 }
