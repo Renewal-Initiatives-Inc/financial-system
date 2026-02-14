@@ -35,6 +35,19 @@ Financial-system reads employee data for **payroll calculations** and **user ide
 | `tax_id` (SSN) | encrypted (AES-256-GCM) | W-2 generation | TXN-P0-036 |
 | `address` | string | W-2 generation | TXN-P0-036 |
 | `active` | boolean | Filter for active employees only | — |
+| `is_officer` | boolean | Form 990 Part VII officer identification | 990 reporting |
+| `officer_title` | text (nullable) | e.g., "President & Executive Director" | 990 Part VII |
+| `board_member` | boolean | Form 990 Part VII director/trustee identification | 990 reporting |
+| `avg_hours_per_week` | decimal (nullable) | 990 Part VII requires hours per week | 990 Part VII |
+| `employer_health_premium` | decimal (nullable) | Annual employer-paid health insurance premium | 990 Part VII Col F |
+| `employer_retirement_contrib` | decimal (nullable) | Annual employer retirement plan contribution | 990 Part VII Col F |
+
+**990 Part VII compensation mapping (from Feb 2025 research):**
+- **Column D** (reportable comp) = greater of W-2 Box 1 or Box 5 → derived from payroll data (gross pay - pre-tax deductions). Our payroll engine already produces this.
+- **Column F** (other compensation) = `employer_health_premium` + `employer_retirement_contrib` from this table. These are annual amounts set during benefits enrollment. Must always be reported for officers regardless of amount.
+- **Employer FICA** is NOT officer compensation — it goes on Form 990 Part IX Line 10 as an org-level functional expense.
+- **Accountable plan reimbursements** (mileage, per diem) are "disregarded benefits" — not reported on Part VII at all.
+- Schedule J is triggered only if any person's total (Col D + E + F) exceeds $150K. Unlikely for RI at current scale.
 
 **Encryption note:** Tax IDs are AES-256-GCM encrypted in app-portal's DB. Encryption/decryption happens in app-portal's application layer. Financial-system reads the encrypted value and must have the `PEOPLE_ENCRYPTION_KEY` env var to decrypt at runtime. (D-132)
 
@@ -51,6 +64,12 @@ These fields need to be added to app-portal's employee/people table:
 - [ ] `expected_annual_hours` — integer, nullable (only for SALARIED)
 - [ ] `exempt_status` — enum: `EXEMPT` | `NON_EXEMPT`
 - [ ] `calculated_hourly_rate` — computed or stored decimal
+- [ ] `is_officer` — boolean, default false (Form 990 Part VII)
+- [ ] `officer_title` — text, nullable (e.g., "President & Executive Director")
+- [ ] `board_member` — boolean, default false (Form 990 Part VII)
+- [ ] `avg_hours_per_week` — decimal, nullable (Form 990 Part VII)
+- [ ] `employer_health_premium` — decimal, nullable (annual employer-paid health premium for 990 Col F)
+- [ ] `employer_retirement_contrib` — decimal, nullable (annual employer retirement contribution for 990 Col F)
 
 ### Must Verify (May Already Exist)
 
