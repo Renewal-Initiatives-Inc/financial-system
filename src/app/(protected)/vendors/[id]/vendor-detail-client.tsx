@@ -53,16 +53,41 @@ const entityTypeLabels: Record<string, string> = {
   GOVERNMENT: 'Government',
 }
 
+function formatCurrency(amount: string | number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(typeof amount === 'string' ? parseFloat(amount) : amount)
+}
+
+const poStatusColors: Record<string, string> = {
+  DRAFT: 'bg-gray-100 text-gray-800',
+  ACTIVE: 'bg-blue-100 text-blue-800',
+  COMPLETED: 'bg-green-100 text-green-800',
+  CANCELLED: 'bg-red-100 text-red-800',
+}
+
 interface VendorDetailClientProps {
   vendor: VendorDetail
   accountOptions: { id: number; name: string; code: string }[]
   fundOptions: { id: number; name: string }[]
+  purchaseOrders?: {
+    id: number
+    description: string
+    totalAmount: string
+    invoicedAmount: string
+    status: string
+    createdAt: Date
+  }[]
+  summary1099?: { totalPayments: number; threshold: number; isOver: boolean }
 }
 
 export function VendorDetailClient({
   vendor,
   accountOptions,
   fundOptions,
+  purchaseOrders = [],
+  summary1099,
 }: VendorDetailClientProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -451,6 +476,65 @@ export function VendorDetailClient({
         </CardContent>
       </Card>
 
+      {/* Purchase Orders Card */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-1">
+            Purchase Orders <HelpTooltip term="purchase-order" />
+          </CardTitle>
+          <Link href={`/expenses/purchase-orders?vendor=${vendor.id}`}>
+            <Button variant="outline" size="sm" data-testid="vendor-view-pos-btn">
+              View All
+            </Button>
+          </Link>
+        </CardHeader>
+        <CardContent>
+          {purchaseOrders.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No purchase orders for this vendor.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {purchaseOrders.map((po) => {
+                const remaining =
+                  parseFloat(po.totalAmount) - parseFloat(po.invoicedAmount)
+                return (
+                  <Link
+                    key={po.id}
+                    href={`/expenses/purchase-orders/${po.id}`}
+                    className="flex items-center justify-between rounded-md border p-3 hover:bg-muted/50 transition-colors"
+                    data-testid={`vendor-po-${po.id}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-sm">PO-{po.id}</span>
+                      <Badge
+                        variant="outline"
+                        className={poStatusColors[po.status] ?? ''}
+                      >
+                        {po.status}
+                      </Badge>
+                      <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                        {po.description}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4 text-sm">
+                      <span className="font-mono">
+                        {formatCurrency(po.totalAmount)}
+                      </span>
+                      <span
+                        className={`font-mono ${remaining < 0 ? 'text-red-600' : ''}`}
+                      >
+                        {formatCurrency(remaining)} remaining
+                      </span>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* 1099 Tracking Card */}
       <Card>
         <CardHeader>
@@ -458,11 +542,56 @@ export function VendorDetailClient({
             1099 Tracking <HelpTooltip term="1099-eligible" />
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            $0 — no payments recorded yet. Payment tracking available after
-            Phase 8.
-          </p>
+        <CardContent className="space-y-3">
+          {summary1099 ? (
+            <>
+              <div className="flex items-center gap-6">
+                <div>
+                  <Label className="text-muted-foreground">
+                    Total Paid ({new Date().getFullYear()})
+                  </Label>
+                  <p className="text-lg font-mono font-semibold">
+                    {formatCurrency(summary1099.totalPayments)}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">
+                    1099 Threshold
+                  </Label>
+                  <p className="text-lg font-mono">
+                    {formatCurrency(summary1099.threshold)}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Status</Label>
+                  <div>
+                    <Badge
+                      variant="outline"
+                      className={
+                        summary1099.isOver
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-green-100 text-green-800'
+                      }
+                    >
+                      {summary1099.isOver
+                        ? '1099 Required'
+                        : 'Below Threshold'}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+              {!vendor.is1099Eligible && summary1099.totalPayments > 0 && (
+                <p className="text-sm text-yellow-600">
+                  This vendor has payments but is not marked as 1099 eligible.
+                  Review entity type for exemption.
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No payment data available.
+            </p>
+          )}
         </CardContent>
       </Card>
 

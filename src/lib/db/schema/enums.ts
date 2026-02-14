@@ -91,3 +91,41 @@ export const contributionSourceTypeEnum = pgEnum('contribution_source_type', [
 export const depreciationMethodEnum = pgEnum('depreciation_method', [
   'STRAIGHT_LINE',
 ])
+
+export const grantTypeEnum = pgEnum('grant_type', [
+  'CONDITIONAL',
+  'UNCONDITIONAL',
+])
+
+export const grantStatusEnum = pgEnum('grant_status', [
+  'ACTIVE',
+  'COMPLETED',
+  'CANCELLED',
+])
+
+export const pledgeStatusEnum = pgEnum('pledge_status', [
+  'PLEDGED',
+  'RECEIVED',
+  'WRITTEN_OFF',
+])
+
+export const poStatusEnum = pgEnum('po_status', [
+  'DRAFT',
+  'ACTIVE',
+  'COMPLETED',
+  'CANCELLED',
+])
+
+export const invoicePaymentStatusEnum = pgEnum('invoice_payment_status', [
+  'PENDING',
+  'POSTED',
+  'PAYMENT_IN_PROCESS',
+  'MATCHED_TO_PAYMENT',
+  'PAID',
+])
+
+export const payrollRunStatusEnum = pgEnum('payroll_run_status', [
+  'DRAFT',
+  'CALCULATED',
+  'POSTED',
+])

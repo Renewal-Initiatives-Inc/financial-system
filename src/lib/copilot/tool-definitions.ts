@@ -129,6 +129,78 @@ export const getFundBalanceDefinition: CopilotToolDefinition = {
   },
 }
 
+export const govInfoSearchDefinition: CopilotToolDefinition = {
+  name: 'govInfoSearch',
+  description: `Search the official U.S. Government GovInfo database for Federal Register entries, IRC text, Treasury Regulations, and Public Laws. Use this to check for regulatory changes, new IRS guidance (revenue rulings, revenue procedures, treasury decisions, IRS notices), tax legislation, or to verify whether laws/regulations have been amended.
+
+Supports Lucene-style field operators:
+- agency:"Internal Revenue Service" — filter by agency
+- cfrcitation:(26 CFR 1.501) — find rules affecting a specific CFR section
+- publishdate:range(2025-01-01, 2025-12-31) — date range filter
+- section:rule | section:prorule | section:notice — FR document type
+
+Pre-built query templates are available for common compliance checks:
+- annualRateReview: SS wage base, Pub 15-T, withholding table updates
+- exemptOrgChanges: IRS actions affecting 501(c)(3) / tax-exempt orgs
+- form990Changes: Form 990 / 990-EZ / 990-T revisions
+- informationReturnChanges: 1099 threshold or reporting changes
+- taxLegislation: new public laws affecting the tax code
+- cfrCitationChanges: rulemaking touching a specific CFR section`,
+  input_schema: {
+    type: 'object',
+    properties: {
+      query: {
+        type: 'string',
+        description:
+          'Search query. Use field operators for precision (e.g., agency:"Internal Revenue Service" "revenue ruling" publishdate:range(2025-01-01,))',
+      },
+      collection: {
+        type: 'string',
+        enum: ['FR', 'USCODE', 'CFR', 'PLAW'],
+        description:
+          'Limit to a specific collection: FR (Federal Register — IRS rules/notices), USCODE (IRC text), CFR (Treasury Regulations), PLAW (Public Laws). Omit to search all.',
+      },
+      template: {
+        type: 'string',
+        enum: [
+          'annualRateReview',
+          'exemptOrgChanges',
+          'form990Changes',
+          'informationReturnChanges',
+          'taxLegislation',
+          'cfrCitationChanges',
+        ],
+        description:
+          'Use a pre-built query template instead of a raw query. Provide templateArgs for parameters.',
+      },
+      templateArgs: {
+        type: 'object',
+        properties: {
+          year: { type: 'number', description: 'Year for annualRateReview template' },
+          sinceDate: {
+            type: 'string',
+            description: 'Start date (YYYY-MM-DD) for change-tracking templates',
+          },
+          citation: {
+            type: 'string',
+            description: 'CFR citation for cfrCitationChanges template (e.g., "26 CFR 1.501")',
+          },
+        },
+        description: 'Arguments for the selected template',
+      },
+      packageId: {
+        type: 'string',
+        description:
+          'If provided, fetch details for a specific package/granule instead of searching. Use a packageId from a previous search result.',
+      },
+      granuleId: {
+        type: 'string',
+        description: 'Optional granule ID within a package (for more specific content)',
+      },
+    },
+  },
+}
+
 export const searchAuditLogDefinition: CopilotToolDefinition = {
   name: 'searchAuditLog',
   description:

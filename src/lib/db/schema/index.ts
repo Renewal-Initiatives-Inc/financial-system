@@ -21,6 +21,13 @@ export * from './cip-conversions'
 export * from './cip-conversion-lines'
 export * from './ahp-loan-config'
 export * from './prepaid-schedules'
+export * from './grants'
+export * from './pledges'
+export * from './annual-rate-config'
+export * from './staging-records'
+export * from './payroll'
+export * from './purchase-orders'
+export * from './invoices'
 
 // Re-import for relations definitions
 import { accounts } from './accounts'
@@ -41,6 +48,12 @@ import { fixedAssets } from './fixed-assets'
 import { cipConversions } from './cip-conversions'
 import { cipConversionLines } from './cip-conversion-lines'
 import { prepaidSchedules } from './prepaid-schedules'
+import { grants } from './grants'
+import { pledges } from './pledges'
+import { purchaseOrders } from './purchase-orders'
+import { invoices } from './invoices'
+import { stagingRecords } from './staging-records'
+import { payrollRuns, payrollEntries } from './payroll'
 
 // --- Relations ---
 
@@ -133,7 +146,7 @@ export const cashProjectionLinesRelations = relations(
   })
 )
 
-export const vendorsRelations = relations(vendors, ({ one }) => ({
+export const vendorsRelations = relations(vendors, ({ one, many }) => ({
   defaultAccount: one(accounts, {
     fields: [vendors.defaultAccountId],
     references: [accounts.id],
@@ -142,11 +155,42 @@ export const vendorsRelations = relations(vendors, ({ one }) => ({
     fields: [vendors.defaultFundId],
     references: [funds.id],
   }),
+  grants: many(grants),
+  purchaseOrders: many(purchaseOrders),
+  invoices: many(invoices),
 }))
 
 export const tenantsRelations = relations(tenants, () => ({}))
 
-export const donorsRelations = relations(donors, () => ({}))
+export const donorsRelations = relations(donors, ({ many }) => ({
+  pledges: many(pledges),
+}))
+
+export const grantsRelations = relations(grants, ({ one }) => ({
+  funder: one(vendors, {
+    fields: [grants.funderId],
+    references: [vendors.id],
+  }),
+  fund: one(funds, {
+    fields: [grants.fundId],
+    references: [funds.id],
+  }),
+}))
+
+export const pledgesRelations = relations(pledges, ({ one }) => ({
+  donor: one(donors, {
+    fields: [pledges.donorId],
+    references: [donors.id],
+  }),
+  fund: one(funds, {
+    fields: [pledges.fundId],
+    references: [funds.id],
+  }),
+  glTransaction: one(transactions, {
+    fields: [pledges.glTransactionId],
+    references: [transactions.id],
+  }),
+}))
 
 export const rampTransactionsRelations = relations(
   rampTransactions,
@@ -259,6 +303,84 @@ export const prepaidSchedulesRelations = relations(
     }),
     sourceTransaction: one(transactions, {
       fields: [prepaidSchedules.sourceTransactionId],
+      references: [transactions.id],
+    }),
+  })
+)
+
+export const purchaseOrdersRelations = relations(
+  purchaseOrders,
+  ({ one, many }) => ({
+    vendor: one(vendors, {
+      fields: [purchaseOrders.vendorId],
+      references: [vendors.id],
+    }),
+    glDestinationAccount: one(accounts, {
+      fields: [purchaseOrders.glDestinationAccountId],
+      references: [accounts.id],
+    }),
+    fund: one(funds, {
+      fields: [purchaseOrders.fundId],
+      references: [funds.id],
+    }),
+    cipCostCode: one(cipCostCodes, {
+      fields: [purchaseOrders.cipCostCodeId],
+      references: [cipCostCodes.id],
+    }),
+    invoices: many(invoices),
+  })
+)
+
+export const invoicesRelations = relations(invoices, ({ one }) => ({
+  purchaseOrder: one(purchaseOrders, {
+    fields: [invoices.purchaseOrderId],
+    references: [purchaseOrders.id],
+  }),
+  vendor: one(vendors, {
+    fields: [invoices.vendorId],
+    references: [vendors.id],
+  }),
+  glTransaction: one(transactions, {
+    fields: [invoices.glTransactionId],
+    references: [transactions.id],
+  }),
+}))
+
+export const stagingRecordsRelations = relations(
+  stagingRecords,
+  ({ one }) => ({
+    fund: one(funds, {
+      fields: [stagingRecords.fundId],
+      references: [funds.id],
+    }),
+    glAccount: one(accounts, {
+      fields: [stagingRecords.glAccountId],
+      references: [accounts.id],
+    }),
+    glTransaction: one(transactions, {
+      fields: [stagingRecords.glTransactionId],
+      references: [transactions.id],
+    }),
+  })
+)
+
+export const payrollRunsRelations = relations(payrollRuns, ({ many }) => ({
+  entries: many(payrollEntries),
+}))
+
+export const payrollEntriesRelations = relations(
+  payrollEntries,
+  ({ one }) => ({
+    payrollRun: one(payrollRuns, {
+      fields: [payrollEntries.payrollRunId],
+      references: [payrollRuns.id],
+    }),
+    glTransaction: one(transactions, {
+      fields: [payrollEntries.glTransactionId],
+      references: [transactions.id],
+    }),
+    glEmployerTransaction: one(transactions, {
+      fields: [payrollEntries.glEmployerTransactionId],
       references: [transactions.id],
     }),
   })

@@ -177,13 +177,53 @@ export async function toggleDonorActive(
   revalidatePath(`/donors/${id}`)
 }
 
+export type GivingGift = {
+  date: string
+  amount: string
+  memo: string
+  transactionId: number
+}
+
 export async function getDonorGivingSummary(donorId: number): Promise<{
   totalGiving: number
-  recentGifts: []
+  giftCount: number
+  recentGifts: GivingGift[]
 }> {
-  // Stub — returns $0 until Phase 7 builds donation recording
+  // Find donation transactions that reference this donor
+  // Donations are recorded via recordDonation which creates transactions with memo containing "Donation"
+  // We look for transactions linked to donation pledges or direct donations
+  const donorRecord = await getDonorById(donorId)
+  if (!donorRecord) {
+    return { totalGiving: 0, giftCount: 0, recentGifts: [] }
+  }
+
+  // Query pledges for this donor to get associated GL transactions
+  const { pledges } = await import('@/lib/db/schema')
+  const { desc } = await import('drizzle-orm')
+  const donorPledges = await db
+    .select()
+    .from(pledges)
+    .where(eq(pledges.donorId, donorId))
+    .orderBy(desc(pledges.createdAt))
+
+  const gifts: GivingGift[] = []
+  let totalGiving = 0
+
+  // Add pledges as gifts
+  for (const pledge of donorPledges) {
+    const amount = parseFloat(pledge.amount)
+    totalGiving += amount
+    gifts.push({
+      date: pledge.expectedDate ?? pledge.createdAt.toISOString().split('T')[0],
+      amount: pledge.amount,
+      memo: `Pledge - ${pledge.status}`,
+      transactionId: pledge.glTransactionId ?? 0,
+    })
+  }
+
   return {
-    totalGiving: 0,
-    recentGifts: [],
+    totalGiving: Math.round(totalGiving * 100) / 100,
+    giftCount: gifts.length,
+    recentGifts: gifts.slice(0, 10),
   }
 }

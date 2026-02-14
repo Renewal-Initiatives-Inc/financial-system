@@ -170,6 +170,114 @@ export const helpTerms: Record<string, string> = {
 
   'ahp-loan':
     'Affordable Housing Program loan from FHLBB. $3.5M credit facility. Interest accrues monthly, paid annually Dec 31. Available credit = limit - drawn. Per DM-P0-025.',
+
+  // --- Phase 7: Revenue Recording ---
+
+  'rent-accrual':
+    'Monthly recognition of rental income when due (1st of month). DR Accounts Receivable, CR Rental Income. System-generated via cron.',
+
+  'rent-proration':
+    'MA G.L. c. 186 § 4: daily rate = monthly rent / calendar days in month × days occupied. Required for move-in and move-out.',
+
+  'rent-adjustment':
+    'Adjustments to rental income: Proration (move-in/out), Hardship (reduced rent), Vacate (early termination). Each recorded in separate GL accounts with mandatory explanatory note.',
+
+  'grant-conditional':
+    'Revenue recognized only when conditions are met (ASC 958). Recorded as Refundable Advance (liability) until conditions satisfied.',
+
+  'grant-unconditional':
+    'Revenue recognized immediately at award (ASC 958). DR Grants Receivable, CR Grant Revenue.',
+
+  'refundable-advance':
+    'Liability account for conditional grant cash received before conditions are met. Reclassified to Grant Revenue when conditions satisfied.',
+
+  pledge:
+    'Written promise by a donor to contribute. Recognized immediately: DR Pledges Receivable, CR Donation Income. No PV discounting.',
+
+  'contribution-source-type':
+    'IRS classification for Schedule A public support test: Government, Public, or Related Party. Required on every contribution for future compliance.',
+
+  'unusual-grant':
+    'Per Reg. 1.509(a)-3(c)(4), excludable from Schedule A public support test numerator and denominator. Examples: one-time large gifts attracted by unusual events.',
+
+  'donor-acknowledgment':
+    'IRS-required written acknowledgment for donations >$250. Includes donor name, date, amount, and statement regarding goods/services provided.',
+
+  'in-kind-contribution':
+    'Non-cash contribution at fair market value. Three types: Goods (donated physical assets), Services (specialized services meeting ASC 958-605 3-part test), Facility Use.',
+
+  'earned-income':
+    'Revenue from exchange transactions (farm lease, fees). Classified as unrestricted. Schedule A Line 10a but not Line 1.',
+
+  'investment-income':
+    'Interest and investment returns on unrestricted cash. Classified as unrestricted revenue.',
+
+  'ahp-loan-forgiveness':
+    'AHP loan principal forgiven. Treated as unconditional donation: DR AHP Loan Payable, CR Donation Income. Permanently reduces maximum available credit.',
+
+  'grant-cash-receipt':
+    'Cash received on an unconditional grant receivable. DR Cash, CR Grants Receivable. Does not trigger new revenue — revenue was recognized at award.',
+
+  // --- Phase 8: Purchase Orders & Invoices ---
+
+  'purchase-order':
+    'A commitment to pay a vendor for goods or services. Tracks contract terms, budget capacity, and payment progress.',
+
+  invoice:
+    'A vendor\'s bill against a purchase order. Posting an invoice creates a GL entry (DR Expense or CIP, CR Accounts Payable).',
+
+  'payment-in-process':
+    'An invoice payment has been initiated outside the system (e.g., via UMass Five portal). The Plaid bank feed will pick up the debit for reconciliation.',
+
+  'outstanding-payables':
+    'All unpaid amounts owed — Accounts Payable (vendor invoices), Reimbursements Payable (employee expenses), and Credit Card Payable (Ramp).',
+
+  'po-compliance-warning':
+    'Warnings when PO milestones approach/pass deadlines, invoiced amounts approach/exceed budget, or covenant requirements are at risk.',
+
+  'contract-extraction':
+    'AI-assisted extraction of milestones, payment terms, and covenants from uploaded contract PDFs. Always review extracted data before saving.',
+
+  'cip-cost-code-inheritance':
+    'When a PO targets a CIP sub-account, its cost code automatically flows to every invoice posted against it.',
+
+  payroll:
+    'Monthly payroll processing. Reads approved timesheets, calculates withholdings (federal, MA state, FICA), and generates GL entries per employee.',
+
+  'payroll-run':
+    'A batch payroll calculation for a specific monthly pay period. Progresses through Draft → Calculated → Posted states.',
+
+  'gross-pay':
+    'Total compensation before any deductions. For salaried employees: annual salary ÷ expected annual hours × hours worked. For per-task employees: sum of task-code-rated earnings from timesheets.',
+
+  'net-pay':
+    'Take-home pay after all withholdings: gross pay minus federal tax, state tax, Social Security, and Medicare.',
+
+  'federal-withholding':
+    'Federal income tax withheld per IRS Publication 15-T percentage method. Based on W-4 filing status, pay frequency, and claimed adjustments.',
+
+  'ma-state-withholding':
+    'Massachusetts income tax withheld per DOR Circular M. 5% flat rate with 4% surtax on income over the annual threshold ($1,107,750 in 2026).',
+
+  fica: 'Federal Insurance Contributions Act taxes: Social Security (6.2% up to wage base) and Medicare (1.45%, no cap). Both employee and employer pay equal shares.',
+
+  'ss-wage-base':
+    'Annual Social Security wage base — the maximum earnings subject to Social Security tax. $184,500 for 2026 (SSA announcement). Once exceeded, no more SS tax is withheld for the year.',
+
+  'exempt-status':
+    'FLSA classification. EXEMPT employees receive straight-time pay regardless of hours. NON_EXEMPT employees receive 1.5× overtime pay for hours exceeding 40 per week.',
+
+  'compensation-type':
+    'PER_TASK employees are paid based on task code rates applied in renewal-timesheets. SALARIED employees use a pre-calculated hourly rate (annual salary ÷ expected annual hours).',
+
+  'fund-allocation-payroll':
+    "Payroll expenses are coded to the fund(s) specified on each timesheet entry. A single employee's pay can split across multiple funds if their timesheet hours span multiple funding sources.",
+
+  'annual-rate-config':
+    'System-wide table of year-specific rates: FICA percentages, SS wage base, MA tax rate, 1099 thresholds. Updated annually (October) when IRS/SSA announce next-year values.',
+
+  'employer-fica':
+    'The employer\'s matching share of FICA taxes — 6.2% Social Security + 1.45% Medicare. Recorded as a separate GL entry: DR Salaries & Wages, CR Social Security/Medicare Payable.',
 }
 
 /** Get a help term by its slug. Returns undefined for unknown terms. */

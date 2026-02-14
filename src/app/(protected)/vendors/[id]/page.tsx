@@ -1,5 +1,14 @@
 import { notFound } from 'next/navigation'
-import { getVendorById, getAccountOptions, getFundOptions } from '../actions'
+import {
+  getVendorById,
+  getAccountOptions,
+  getFundOptions,
+  getVendor1099Summary,
+} from '../actions'
+import {
+  getVendorPurchaseOrders,
+  getVendorPaymentSummary,
+} from '../../expenses/actions'
 import { VendorDetailClient } from './vendor-detail-client'
 
 interface VendorDetailPageProps {
@@ -14,11 +23,16 @@ export default async function VendorDetailPage({
 
   if (isNaN(vendorId)) notFound()
 
-  const [vendor, accountOptions, fundOptions] = await Promise.all([
-    getVendorById(vendorId),
-    getAccountOptions(),
-    getFundOptions(),
-  ])
+  const currentYear = new Date().getFullYear()
+
+  const [vendor, accountOptions, fundOptions, purchaseOrders, summary1099] =
+    await Promise.all([
+      getVendorById(vendorId),
+      getAccountOptions(),
+      getFundOptions(),
+      getVendorPurchaseOrders(vendorId),
+      getVendor1099Summary(vendorId, currentYear),
+    ])
 
   if (!vendor) notFound()
 
@@ -27,6 +41,8 @@ export default async function VendorDetailPage({
       vendor={vendor}
       accountOptions={accountOptions}
       fundOptions={fundOptions}
+      purchaseOrders={purchaseOrders}
+      summary1099={summary1099}
     />
   )
 }

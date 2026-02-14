@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/prepaid-amortization",
       "schedule": "0 6 1 * *"
+    },
+    {
+      "path": "/api/cron/rent-accrual",
+      "schedule": "0 6 1 * *"
     }
   ]
 }

@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/select'
 import { HelpTooltip } from '@/components/shared/help-tooltip'
 import { updateDonor, toggleDonorActive } from '../actions'
-import type { DonorRow } from '../actions'
+import type { DonorRow, GivingGift } from '../actions'
 import { toast } from 'sonner'
 
 const typeLabels: Record<string, string> = {
@@ -56,9 +56,14 @@ function formatDate(value: string | null): string {
 
 interface DonorDetailClientProps {
   donor: DonorRow
+  givingSummary: {
+    totalGiving: number
+    giftCount: number
+    recentGifts: GivingGift[]
+  }
 }
 
-export function DonorDetailClient({ donor }: DonorDetailClientProps) {
+export function DonorDetailClient({ donor, givingSummary }: DonorDetailClientProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [isEditing, setIsEditing] = useState(false)
@@ -290,17 +295,59 @@ export function DonorDetailClient({ donor }: DonorDetailClientProps) {
         </CardContent>
       </Card>
 
-      {/* Giving History Card (placeholder) */}
+      {/* Giving History Card */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-1">
             Giving History <HelpTooltip term="donor" />
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Giving history available after Phase 7.
-          </p>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label className="text-muted-foreground">Total Giving</Label>
+              <p className="text-lg font-medium">
+                {new Intl.NumberFormat('en-US', {
+                  style: 'currency',
+                  currency: 'USD',
+                }).format(givingSummary.totalGiving)}
+              </p>
+            </div>
+            <div>
+              <Label className="text-muted-foreground">Gift Count</Label>
+              <p className="text-lg font-medium">{givingSummary.giftCount}</p>
+            </div>
+          </div>
+          {givingSummary.recentGifts.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Recent Gifts</p>
+              {givingSummary.recentGifts.map((gift, i) => (
+                <div
+                  key={i}
+                  className="flex justify-between text-sm border-b pb-2"
+                >
+                  <span>{gift.memo}</span>
+                  <span className="text-muted-foreground">
+                    {new Intl.NumberFormat('en-US', {
+                      style: 'currency',
+                      currency: 'USD',
+                    }).format(parseFloat(gift.amount))}{' '}
+                    &middot; {gift.date}
+                  </span>
+                </div>
+              ))}
+              <Link
+                href="/revenue/donations"
+                className="text-sm text-primary hover:underline"
+              >
+                View all donations
+              </Link>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No giving history recorded yet.
+            </p>
+          )}
         </CardContent>
       </Card>
 

@@ -1,6 +1,7 @@
 import { handleTaxLawSearch } from './tools/tax-law-search'
 import { handleRegulationLookup } from './tools/regulation-lookup'
 import { handleNonprofitExplorerLookup } from './tools/nonprofit-explorer'
+import { handleGovInfoSearch } from './tools/govinfo-search'
 import { handleSearchTransactions } from './tools/search-transactions'
 import { handleSearchAccounts } from './tools/search-accounts'
 import { handleGetAccountBalance } from './tools/get-account-balance'
@@ -13,6 +14,7 @@ const toolHandlers: Record<string, ToolHandler> = {
   taxLawSearch: handleTaxLawSearch as ToolHandler,
   regulationLookup: handleRegulationLookup as ToolHandler,
   nonprofitExplorerLookup: handleNonprofitExplorerLookup as ToolHandler,
+  govInfoSearch: handleGovInfoSearch as ToolHandler,
   searchTransactions: handleSearchTransactions as ToolHandler,
   searchAccounts: handleSearchAccounts as ToolHandler,
   getAccountBalance: handleGetAccountBalance as ToolHandler,

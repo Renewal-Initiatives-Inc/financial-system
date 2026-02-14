@@ -9,6 +9,7 @@ import { seedAccounts } from './accounts'
 import { seedFunds } from './funds'
 import { seedCipCostCodes } from './cip-cost-codes'
 import { seedAhpLoanConfig } from './ahp-loan-config'
+import { seedAnnualRates } from './annual-rates'
 
 async function seed() {
   const connectionString = process.env.DATABASE_URL
@@ -110,6 +111,26 @@ async function seed() {
   } else {
     console.log('  AHP loan config already exists, skipping')
   }
+
+  // --- Seed Annual Rate Config ---
+  console.log('Seeding annual rate config...')
+
+  for (const rate of seedAnnualRates) {
+    const existing = await db
+      .select({ id: schema.annualRateConfig.id })
+      .from(schema.annualRateConfig)
+      .where(
+        eq(schema.annualRateConfig.configKey, rate.configKey)
+      )
+      .limit(1)
+
+    // Simple check: if any rate with this key exists, skip all (idempotent)
+    if (existing.length === 0) {
+      await db.insert(schema.annualRateConfig).values(rate)
+    }
+  }
+
+  console.log(`  Seeded ${seedAnnualRates.length} annual rates`)
 
   console.log('\nSeed complete!')
 }

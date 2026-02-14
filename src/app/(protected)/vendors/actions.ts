@@ -1,9 +1,9 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { eq, ilike, and, sql } from 'drizzle-orm'
+import { eq, ilike, and, sql, inArray } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { vendors, accounts, funds } from '@/lib/db/schema'
+import { vendors, accounts, funds, invoices } from '@/lib/db/schema'
 import {
   insertVendorSchema,
   updateVendorSchema,
@@ -261,14 +261,29 @@ export async function getVendor1099Summary(
   vendorId: number,
   year: number
 ): Promise<{ totalPayments: number; threshold: number; isOver: boolean }> {
-  // Stub — returns $0 until Phase 8 builds vendor invoices
-  // When Phase 8 ships, this will sum transaction_lines where
-  // vendorId matches and date falls within the calendar year
   const threshold = get1099Threshold(year)
+  const yearStart = `${year}-01-01`
+  const yearEnd = `${year}-12-31`
+
+  const [result] = await db
+    .select({
+      total: sql<string>`COALESCE(SUM(${invoices.amount}), 0)`,
+    })
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.vendorId, vendorId),
+        inArray(invoices.paymentStatus, ['MATCHED_TO_PAYMENT', 'PAID']),
+        sql`${invoices.invoiceDate} >= ${yearStart}`,
+        sql`${invoices.invoiceDate} <= ${yearEnd}`
+      )
+    )
+
+  const totalPayments = parseFloat(result?.total ?? '0')
   return {
-    totalPayments: 0,
+    totalPayments,
     threshold,
-    isOver: false,
+    isOver: totalPayments >= threshold,
   }
 }
 

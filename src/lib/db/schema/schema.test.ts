@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { seedAccounts } from '../seed/accounts'
 import { seedFunds } from '../seed/funds'
 import { seedCipCostCodes } from '../seed/cip-cost-codes'
+import { grants } from './grants'
+import { pledges } from './pledges'
+import { grantTypeEnum, grantStatusEnum, pledgeStatusEnum } from './enums'
 
 describe('Seed data integrity', () => {
   // --- Account counts ---
@@ -184,5 +187,52 @@ describe('Seed data integrity', () => {
     for (let i = 1; i < soft.length; i++) {
       expect(soft[i].sortOrder!).toBeGreaterThan(soft[i - 1].sortOrder!)
     }
+  })
+})
+
+describe('Grants table schema', () => {
+  it('has expected columns', () => {
+    const columns = Object.keys(grants)
+    expect(columns).toContain('id')
+    expect(columns).toContain('funderId')
+    expect(columns).toContain('amount')
+    expect(columns).toContain('type')
+    expect(columns).toContain('conditions')
+    expect(columns).toContain('startDate')
+    expect(columns).toContain('endDate')
+    expect(columns).toContain('fundId')
+    expect(columns).toContain('status')
+    expect(columns).toContain('isUnusualGrant')
+    expect(columns).toContain('createdAt')
+    expect(columns).toContain('updatedAt')
+  })
+})
+
+describe('Pledges table schema', () => {
+  it('has expected columns', () => {
+    const columns = Object.keys(pledges)
+    expect(columns).toContain('id')
+    expect(columns).toContain('donorId')
+    expect(columns).toContain('amount')
+    expect(columns).toContain('expectedDate')
+    expect(columns).toContain('fundId')
+    expect(columns).toContain('status')
+    expect(columns).toContain('glTransactionId')
+    expect(columns).toContain('createdAt')
+    expect(columns).toContain('updatedAt')
+  })
+})
+
+describe('Revenue enums', () => {
+  it('grantTypeEnum has correct values', () => {
+    expect(grantTypeEnum.enumValues).toEqual(['CONDITIONAL', 'UNCONDITIONAL'])
+  })
+
+  it('grantStatusEnum has correct values', () => {
+    expect(grantStatusEnum.enumValues).toEqual(['ACTIVE', 'COMPLETED', 'CANCELLED'])
+  })
+
+  it('pledgeStatusEnum has correct values', () => {
+    expect(pledgeStatusEnum.enumValues).toEqual(['PLEDGED', 'RECEIVED', 'WRITTEN_OFF'])
   })
 })

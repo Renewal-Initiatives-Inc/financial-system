@@ -65,5 +65,5 @@ export const editTransactionSchema = z.object({
 })
 
 export type TransactionLine = z.infer<typeof transactionLineSchema>
-export type InsertTransaction = z.infer<typeof insertTransactionSchema>
+export type InsertTransaction = z.input<typeof insertTransactionSchema>
 export type EditTransaction = z.infer<typeof editTransactionSchema>

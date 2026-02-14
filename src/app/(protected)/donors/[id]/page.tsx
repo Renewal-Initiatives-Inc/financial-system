@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { getDonorById } from '../actions'
+import { getDonorById, getDonorGivingSummary } from '../actions'
 import { DonorDetailClient } from './donor-detail-client'
 
 interface DonorDetailPageProps {
@@ -14,8 +14,11 @@ export default async function DonorDetailPage({
 
   if (isNaN(donorId)) notFound()
 
-  const donor = await getDonorById(donorId)
+  const [donor, givingSummary] = await Promise.all([
+    getDonorById(donorId),
+    getDonorGivingSummary(donorId),
+  ])
   if (!donor) notFound()
 
-  return <DonorDetailClient donor={donor} />
+  return <DonorDetailClient donor={donor} givingSummary={givingSummary} />
 }
