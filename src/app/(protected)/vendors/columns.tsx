@@ -17,6 +17,16 @@ const w9Labels: Record<string, string> = {
   NOT_REQUIRED: 'Not Required',
 }
 
+const entityTypeLabels: Record<string, string> = {
+  INDIVIDUAL: 'Individual',
+  SOLE_PROPRIETOR: 'Sole Proprietor',
+  LLC: 'LLC',
+  S_CORP: 'S-Corp',
+  C_CORP: 'C-Corp',
+  PARTNERSHIP: 'Partnership',
+  GOVERNMENT: 'Government',
+}
+
 export const vendorColumns: ColumnDef<VendorRow, unknown>[] = [
   {
     accessorKey: 'name',
@@ -30,7 +40,7 @@ export const vendorColumns: ColumnDef<VendorRow, unknown>[] = [
     cell: ({ row }) => {
       const type = row.getValue('entityType') as string | null
       return type ? (
-        <Badge variant="outline">{type}</Badge>
+        <Badge variant="outline">{entityTypeLabels[type] ?? type}</Badge>
       ) : (
         <span className="text-muted-foreground">-</span>
       )

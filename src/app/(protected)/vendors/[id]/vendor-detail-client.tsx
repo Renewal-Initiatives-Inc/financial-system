@@ -43,6 +43,16 @@ const w9Labels: Record<string, string> = {
   NOT_REQUIRED: 'Not Required',
 }
 
+const entityTypeLabels: Record<string, string> = {
+  INDIVIDUAL: 'Individual',
+  SOLE_PROPRIETOR: 'Sole Proprietor',
+  LLC: 'LLC',
+  S_CORP: 'S-Corp',
+  C_CORP: 'C-Corp',
+  PARTNERSHIP: 'Partnership',
+  GOVERNMENT: 'Government',
+}
+
 interface VendorDetailClientProps {
   vendor: VendorDetail
   accountOptions: { id: number; name: string; code: string }[]
@@ -182,7 +192,7 @@ export function VendorDetailClient({
           </h1>
           <div className="mt-1 flex items-center gap-2">
             {vendor.entityType && (
-              <Badge variant="outline">{vendor.entityType}</Badge>
+              <Badge variant="outline">{entityTypeLabels[vendor.entityType] ?? vendor.entityType}</Badge>
             )}
             <Badge variant={vendor.isActive ? 'default' : 'secondary'}>
               {vendor.isActive ? 'Active' : 'Inactive'}
@@ -266,17 +276,17 @@ export function VendorDetailClient({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="">None</SelectItem>
-                    <SelectItem value="individual">Individual</SelectItem>
-                    <SelectItem value="sole_proprietor">Sole Proprietor</SelectItem>
-                    <SelectItem value="llc">LLC</SelectItem>
-                    <SelectItem value="s_corp">S-Corp</SelectItem>
-                    <SelectItem value="c_corp">C-Corp</SelectItem>
-                    <SelectItem value="partnership">Partnership</SelectItem>
-                    <SelectItem value="government">Government</SelectItem>
+                    <SelectItem value="INDIVIDUAL">Individual</SelectItem>
+                    <SelectItem value="SOLE_PROPRIETOR">Sole Proprietor</SelectItem>
+                    <SelectItem value="LLC">LLC</SelectItem>
+                    <SelectItem value="S_CORP">S-Corp</SelectItem>
+                    <SelectItem value="C_CORP">C-Corp</SelectItem>
+                    <SelectItem value="PARTNERSHIP">Partnership</SelectItem>
+                    <SelectItem value="GOVERNMENT">Government</SelectItem>
                   </SelectContent>
                 </Select>
               ) : (
-                <p>{vendor.entityType || '-'}</p>
+                <p>{vendor.entityType ? (entityTypeLabels[vendor.entityType] ?? vendor.entityType) : '-'}</p>
               )}
             </div>
             <div>

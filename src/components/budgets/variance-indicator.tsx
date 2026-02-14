@@ -7,7 +7,7 @@ interface VarianceIndicatorProps {
   dollarVariance: number
   percentVariance: number | null
   severity: 'normal' | 'warning' | 'critical'
-  showDollar?: boolean
+  isDollarShown?: boolean
   testId?: string
 }
 
@@ -27,7 +27,7 @@ export function VarianceIndicator({
   dollarVariance,
   percentVariance,
   severity,
-  showDollar = true,
+  isDollarShown = true,
   testId = 'variance-indicator',
 }: VarianceIndicatorProps) {
   const formattedDollar = new Intl.NumberFormat('en-US', {
@@ -41,7 +41,7 @@ export function VarianceIndicator({
 
   return (
     <div className="flex items-center gap-2" data-testid={testId}>
-      {showDollar && (
+      {isDollarShown && (
         <span
           className={cn(
             'text-sm font-mono',

@@ -25,13 +25,13 @@ import { createVendor } from './actions'
 import { toast } from 'sonner'
 
 const ENTITY_TYPES = [
-  { value: 'individual', label: 'Individual' },
-  { value: 'sole_proprietor', label: 'Sole Proprietor' },
-  { value: 'llc', label: 'LLC' },
-  { value: 's_corp', label: 'S-Corp' },
-  { value: 'c_corp', label: 'C-Corp' },
-  { value: 'partnership', label: 'Partnership' },
-  { value: 'government', label: 'Government' },
+  { value: 'INDIVIDUAL', label: 'Individual' },
+  { value: 'SOLE_PROPRIETOR', label: 'Sole Proprietor' },
+  { value: 'LLC', label: 'LLC' },
+  { value: 'S_CORP', label: 'S-Corp' },
+  { value: 'C_CORP', label: 'C-Corp' },
+  { value: 'PARTNERSHIP', label: 'Partnership' },
+  { value: 'GOVERNMENT', label: 'Government' },
 ] as const
 
 interface CreateVendorDialogProps {

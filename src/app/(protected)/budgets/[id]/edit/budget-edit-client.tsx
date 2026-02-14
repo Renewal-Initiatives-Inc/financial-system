@@ -375,7 +375,7 @@ export function BudgetEditClient({ budget, accounts, funds }: BudgetEditClientPr
                       amounts={line.monthlyAmounts as number[]}
                       onChange={(amounts) => handleMonthlyAmountsChange(line.id, amounts)}
                       lockedMonths={isDraft ? 0 : currentMonth}
-                      editable={line.spreadMethod === 'CUSTOM'}
+                      isEditable={line.spreadMethod === 'CUSTOM'}
                     />
                   </TableCell>
                   <TableCell>

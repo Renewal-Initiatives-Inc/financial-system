@@ -12,7 +12,7 @@ interface MonthlyAmountsEditorProps {
   amounts: number[]
   onChange: (amounts: number[]) => void
   lockedMonths?: number // Months 1..lockedMonths are locked (1-indexed)
-  editable?: boolean
+  isEditable?: boolean
   testId?: string
 }
 
@@ -20,7 +20,7 @@ export function MonthlyAmountsEditor({
   amounts,
   onChange,
   lockedMonths = 0,
-  editable = true,
+  isEditable = true,
   testId = 'monthly-amounts',
 }: MonthlyAmountsEditorProps) {
   const handleChange = (index: number, value: string) => {
@@ -43,7 +43,7 @@ export function MonthlyAmountsEditor({
               step="0.01"
               value={amounts[i] ?? 0}
               onChange={(e) => handleChange(i, e.target.value)}
-              disabled={!editable || isLocked}
+              disabled={!isEditable || isLocked}
               className={cn(
                 'h-7 text-xs text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none',
                 isLocked && 'bg-muted text-muted-foreground'
