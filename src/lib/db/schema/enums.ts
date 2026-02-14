@@ -40,3 +40,44 @@ export const auditActionEnum = pgEnum('audit_action', [
   'imported',
   'posted',
 ])
+
+export const budgetStatusEnum = pgEnum('budget_status', ['DRAFT', 'APPROVED'])
+
+export const spreadMethodEnum = pgEnum('spread_method', [
+  'EVEN',
+  'SEASONAL',
+  'ONE_TIME',
+  'CUSTOM',
+])
+
+export const projectionLineTypeEnum = pgEnum('projection_line_type', [
+  'INFLOW',
+  'OUTFLOW',
+])
+
+export const w9StatusEnum = pgEnum('w9_status', [
+  'COLLECTED',
+  'PENDING',
+  'NOT_REQUIRED',
+])
+
+export const fundingSourceTypeEnum = pgEnum('funding_source_type', [
+  'TENANT_DIRECT',
+  'VASH',
+  'MRVP',
+  'SECTION_8',
+  'OTHER_VOUCHER',
+])
+
+export const donorTypeEnum = pgEnum('donor_type', [
+  'INDIVIDUAL',
+  'CORPORATE',
+  'FOUNDATION',
+  'GOVERNMENT',
+])
+
+export const contributionSourceTypeEnum = pgEnum('contribution_source_type', [
+  'GOVERNMENT',
+  'PUBLIC',
+  'RELATED_PARTY',
+])

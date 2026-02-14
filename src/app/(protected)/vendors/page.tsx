@@ -1,8 +1,18 @@
-export default function VendorsPage() {
+import { getVendors, getAccountOptions, getFundOptions } from './actions'
+import { VendorsClient } from './vendors-client'
+
+export default async function VendorsPage() {
+  const [vendors, accountOptions, fundOptions] = await Promise.all([
+    getVendors(),
+    getAccountOptions(),
+    getFundOptions(),
+  ])
+
   return (
-    <div>
-      <h1 className="text-2xl font-semibold tracking-tight">Vendors</h1>
-      <p className="text-muted-foreground mt-2">Vendor management will be built in Phase 6.</p>
-    </div>
+    <VendorsClient
+      initialVendors={vendors}
+      accountOptions={accountOptions}
+      fundOptions={fundOptions}
+    />
   )
 }

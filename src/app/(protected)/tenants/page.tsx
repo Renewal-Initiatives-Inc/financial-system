@@ -1,8 +1,7 @@
-export default function TenantsPage() {
-  return (
-    <div>
-      <h1 className="text-2xl font-semibold tracking-tight">Tenants</h1>
-      <p className="text-muted-foreground mt-2">Tenant management will be built in Phase 6.</p>
-    </div>
-  )
+import { getTenants } from './actions'
+import { TenantsClient } from './tenants-client'
+
+export default async function TenantsPage() {
+  const tenants = await getTenants()
+  return <TenantsClient initialTenants={tenants} />
 }

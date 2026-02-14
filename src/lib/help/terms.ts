@@ -89,6 +89,41 @@ export const helpTerms: Record<string, string> = {
 
   'percentage-split':
     'Convenience feature for multi-fund allocations. Enter fund percentages that sum to 100%, and the system calculates dollar amounts.',
+
+  // --- Phase 6: Vendors, Tenants, Donors ---
+
+  vendor:
+    'A supplier or contractor that provides goods or services to the organization. Vendors are tracked for payment history and IRS 1099-NEC reporting.',
+
+  '1099-eligible':
+    'A vendor eligible for IRS Form 1099-NEC reporting. When calendar-year payments to an eligible vendor exceed $600, a 1099-NEC must be filed (IRC § 6041A).',
+
+  'w9-status':
+    'Tracking status for IRS Form W-9 (Request for Taxpayer Identification Number). Must be collected from 1099-eligible vendors before year-end to file 1099-NEC forms.',
+
+  'entity-type':
+    'Vendor classification (individual, LLC, S-corp, C-corp, partnership, government). Determines 1099 reporting requirements — corporations are generally exempt (IRC § 6041A(d)).',
+
+  tenant:
+    'An individual or household occupying a unit in the property. Tracked for lease terms, rent collection, funding source, and security deposit compliance.',
+
+  'funding-source-type':
+    'The payment source for tenant rent: tenant-direct (self-pay), VASH (VA Supportive Housing), MRVP (MA Rental Voucher Program), Section 8 (HUD Housing Choice Voucher), or other voucher program.',
+
+  'security-deposit':
+    'Refundable deposit held in a separate interest-bearing escrow account per MA G.L. c. 186 § 15B. Maximum is first month\'s rent. Must earn interest at lesser of actual bank rate or 5%.',
+
+  'tenancy-anniversary':
+    'Annual anniversary of the tenant\'s move-in date. Triggers security deposit interest payment obligation under MA G.L. c. 186 § 15B. Non-compliance carries treble damages.',
+
+  'escrow-bank-ref':
+    'Reference to the separate interest-bearing bank account holding security deposits. MA law requires deposits be held in a Massachusetts bank, separate from operating funds.',
+
+  donor:
+    'An individual, corporation, foundation, or government entity making charitable contributions. Tracked for giving history and IRS-required acknowledgment letters (IRC § 170(f)(8)).',
+
+  'donor-type':
+    'Classification of contribution source: individual, corporate, foundation, or government. Affects Schedule A public support test (IRC § 509(a)) — the 2% threshold applies to ALL donors.',
 }
 
 /** Get a help term by its slug. Returns undefined for unknown terms. */
