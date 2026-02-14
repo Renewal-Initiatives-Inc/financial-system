@@ -52,6 +52,13 @@ The following MCP servers are configured for Claude Code during development (not
 
 These help Claude Code answer questions about RI's tax status, validate design decisions against real nonprofit data, and look up comparable organizations during planning and development. They run via stdio transport and require no API keys.
 
+**Usage patterns discovered (Feb 2025 testing):**
+- **ProPublica search** works best with short single-word queries (e.g., "housing") — multi-word queries often return 0 results. EIN-based lookups (`get_organization`, `analyze_nonprofit_financials`, `get_organization_filings`) are reliable and return rich data
+- **ProPublica PDFs** are the richest data source — the API returns financial totals but not Part IX functional breakdowns. Download 990 PDFs via `get_most_recent_pdf` and read them for line-item detail
+- **Charity MCP** is best for quick verification — `charity-lookup` confirms EIN/status instantly, `public-charity-check` validates tax-deductible eligibility
+- **Validated comparable orgs for RI:** Falcon Housing Corp (04-3538884, closest match — single MA property, $578K rev, $3.3M assets), Pioneer Valley Habitat (04-3049506, $1.2M rev, active fundraising), Valley CDC (22-2906466, $4.2M rev — where RI could grow)
+- **Completed research:** Functional allocation defaults for Phase 17 wizard — extracted Part IX data from all three comps to ground the Program/M&G/Fundraising smart defaults in real 990 filings rather than generic benchmarks
+
 ---
 
 ## 3. Phase 1: Project Scaffolding & Dev Environment
@@ -223,7 +230,7 @@ These help Claude Code answer questions about RI's tax status, validate design d
 
 **Tasks:**
 
-1. Define `grants` table: id, funder_id (FK vendors), amount, type (enum: conditional, unconditional), conditions (text), start_date, end_date, fund_id (FK), status, created_at, updated_at
+1. Define `grants` table: id, funder_id (FK vendors), amount, type (enum: conditional, unconditional), conditions (text), start_date, end_date, fund_id (FK), status, is_unusual_grant (boolean, default false — per Reg. 1.509(a)-3(c)(4), excludable from Schedule A public support test numerator and denominator), created_at, updated_at
 2. Define `pledges` table: id, donor_id (FK), amount, expected_date, fund_id (FK), status, created_at, updated_at
 3. Run migrations
 4. Build rent accrual system:
@@ -234,7 +241,7 @@ These help Claude Code answer questions about RI's tax status, validate design d
 6. Build grant revenue recording:
     - Unconditional grants: form to record award (DR Grants Receivable, CR Grant Revenue, coded to restricted fund). Cash receipt form (DR Cash, CR Grants Receivable) (TXN-P0-008)
     - Conditional grants: record as refundable advance (DR Cash, CR Refundable Advance). Condition-met trigger to recognize revenue (DR Refundable Advance, CR Grant Revenue) (TXN-P0-009)
-7. Build donation recording form: amount, donor selector, fund selector, contribution source type tag (government/public/related_party per DM-P0-018). Posts: DR Cash or Pledges Receivable, CR Donation Income (TXN-P0-010)
+7. Build donation recording form: amount, donor selector, fund selector, contribution source type tag (government/public/related_party per DM-P0-018), is_unusual_grant checkbox (hidden unless grant context — per Reg. 1.509(a)-3(c)(4)). Posts: DR Cash or Pledges Receivable, CR Donation Income (TXN-P0-010). **Public support test note (from MCP research Feb 2025):** The 3-category source_type is sufficient for Schedule A data capture. The 2% threshold test (Schedule A Part II Line 5) applies to ALL donors, not just related_party — per-donor totals available via donor_id linkage. Rental income routes to Schedule A Line 10a (Total Support denominator) but NOT Line 1 (Public Support numerator), which will pressure RI's ratio post-construction
 8. Build donor acknowledgment letter trigger (TXN-P0-011): on donation entry >$250, auto-send via Postmark template. Include donor name, date, amount, no-goods-or-services statement. Store Postmark template with Heather's signature image and letterhead
 9. Build pledge recording form (TXN-P0-016): donor, amount, expected date, fund. Posts: DR Pledges Receivable, CR Donation Income
 10. Build earned income recording form (TXN-P0-013): amount, description, account selector (filtered to revenue accounts). Posts: DR Cash/AR, CR revenue account. Defaults to unrestricted fund
@@ -549,16 +556,31 @@ These help Claude Code answer questions about RI's tax status, validate design d
     - Section 5: Recent activity — last 10 transactions posted. Links to Report #18
 2. Each dashboard section is a lightweight version of its full report query. Auto-refresh via SWR with revalidation on tab focus
 3. Build compliance calendar system (`src/lib/compliance/`):
-    - Seed all compliance deadlines per SYS-P0-009: 990 filing (May 15), Form PC (May 15), quarterly 941/M-941, W-2 deadline (Jan 31), 1099-NEC (Jan 31), budget cycle milestones (Sept-Dec), insurance renewals, per-tenant security deposit anniversaries, annual board meeting items
+    - Seed all compliance deadlines per SYS-P0-009: 990 filing (May 15), Form PC (May 15), quarterly 941/M-941, W-2 deadline (Jan 31), 1099-NEC (Jan 31), budget cycle milestones (Sept-Dec), insurance renewals, per-tenant security deposit anniversaries, annual board meeting items, public support trajectory review (~FY2028 — as rental income enters Total Support denominator on Schedule A Line 10a but not Public Support numerator Line 1, RI's public support percentage will decline post-construction; proactive review ensures ratio stays above 33⅓% threshold per IRC § 509(a))
     - Recurrence engine: generate upcoming instances from annual/monthly/per-tenant recurrence patterns
     - Status tracking: upcoming → reminded → completed
 4. Build compliance reminder email system (SYS-P0-008): daily cron checks deadlines, sends Postmark emails at 30-day and 7-day marks. Mark reminder_30d_sent and reminder_7d_sent flags
 5. Build functional allocation wizard (`/compliance/functional-allocation`) per TXN-P0-046, TXN-P0-047:
     - Year-end per-GL-account allocation to Program / Management & General / Fundraising
     - Percentages must sum to 100% per account
-    - Smart defaults: suggest from last year's percentages, account type patterns, user-defined permanent rules
     - Wizard-style UI, one account at a time with progress indicator
     - Stored as metadata in `functional_allocations` table — no GL journal entries
+    - **Three-tier smart default system** (highest priority wins):
+      1. **Permanent rules:** User marks an allocation as "permanent" — it auto-fills every year and skips the wizard. For accounts like Depreciation (always 100% Program), this eliminates annual busywork
+      2. **Prior-year percentages** (year 2+): Copy last year's allocations as starting point
+      3. **Account sub-type defaults** (year 1 or new accounts): Seed defaults keyed off `sub_type` so new accounts inherit their category's default automatically
+    - **Seed defaults by sub-type** (`src/lib/compliance/functional-defaults.ts`), grounded in MCP research of comparable MA housing nonprofits' 990 Part IX filings (Feb 2025 — Falcon Housing Corp, Pioneer Valley Habitat, Valley CDC):
+      - `Property Ops` → 100% Program / 0% M&G / 0% Fundraising (mark permanent). Rationale: property taxes, insurance, utilities, repairs, landscaping are direct program costs. All three comparable orgs allocate 96-100% of property costs to program
+      - `Non-Cash` → 100% Program / 0% M&G / 0% Fundraising (mark permanent). Rationale: depreciation is direct program cost. All three comps agree
+      - `Financial` → 100% Program / 0% M&G / 0% Fundraising (mark permanent). Rationale: AHP loan interest is property debt. Valley CDC allocates 100% of $265K interest to program
+      - `Payroll` → 70% Program / 25% M&G / 5% Fundraising. Rationale: blended rate — Heather's ED/Bookkeeper role weights toward M&G more than a pure-ED split, other staff mostly program. Pioneer Valley splits ED comp at 53/16/31; RI's lower fundraising activity justifies less fundraising weight
+      - `Operating` → 80% Program / 20% M&G / 0% Fundraising. Rationale: catch-all for misc operating costs. Lean toward program per comparable org patterns
+    - **Benchmark comparison panel:** After Heather completes allocations, show RI's total Program/M&G/Fundraising percentages alongside peer benchmarks:
+      - Falcon Housing Corp (EIN 04-3538884): 75.6% / 24.4% / 0.0% — closest comp, single MA property, no staff, rent-funded
+      - Pioneer Valley Habitat (EIN 04-3049506): 78.0% / 9.6% / 12.3% — active fundraising model
+      - Valley CDC (EIN 22-2906466): 85.2% / 14.5% / 0.3% — multi-property, government-funded
+      - Industry benchmark: 65-75% program minimum (watchdog guidance). Common default: 65/25/10
+      - Flag if RI's program percentage falls below 65% or above 90% — both are outliers worth reviewing with the CPA
 6. Build W-2 generation (TXN-P0-036): aggregate per-employee annual data (boxes 1-6, 16-17). Use pdf-lib to fill official W-2 PDF template with pixel-precise field placement. Preview before generation (Report #27 data)
 7. Build 1099-NEC preparation (TXN-P0-023): auto-track vendor payments by calendar year, flag $600+ threshold, W-9 collection tracking, data export (CSV), PDF 1099-NEC form generation via pdf-lib. Add TaxBandits API integration (`src/lib/integrations/taxbandits.ts`) as optional IRS e-filing path: W-9 collection via email (`request_w9_by_email`), 1099-NEC validation (`validate_1099_nec`), and IRS e-file submission (`create_1099_nec`). TaxBandits also exposes a remote MCP server (https://developer.taxbandits.com/docs/mcp/) for conversational tax filing if the copilot (Phase 18) needs to invoke it. Resolves open question Q19 from company_facts.md
 8. Build filing progression awareness (SYS-P0-010): auto-compute which 990 form type RI must file based on real-time GL data — no manual configuration needed. Thresholds: 990-N (gross receipts ≤$50K), 990-EZ (gross receipts <$200K AND total assets <$500K), Full 990 (either threshold exceeded). **Key finding from MCP research (Feb 2025):** CIP counts as total assets on Form 990 Part X Line 10 (Schedule D Part VI Line 1e "Other"). RI will trigger Full 990 during construction — the moment CIP soft costs (architecture, engineering, legal, development consulting) push total assets past $500K — not at property PIS date. Comparable org: Falcon Housing Corp (EIN 04-3538884, E. Longmeadow) files Full 990 with similar profile ($578K revenue, $3.3M total assets driven by property). Sub-tasks:
@@ -567,7 +589,7 @@ These help Claude Code answer questions about RI's tax status, validate design d
     - 990 officer compensation data (Report #21): Part VII requires officer name, title, avg hours/week, Column D (= greater of W-2 Box 1 or Box 5, sourced from payroll data), Column F (= employer-paid health premiums + retirement contributions per person, sourced from app-portal employee profile). Employer FICA is NOT officer compensation — it goes on Part IX Line 10 as org expense
 9. Build quarterly 941/M-941 data export (TXN-P0-037): formatted to match form line items from Report #29 data
 10. Build board pack generation workflow (RPT-P0-007): Heather manually selects reports, system generates combined PDF. No automated distribution
-11. Write unit tests: compliance deadline recurrence generation, functional allocation percentage validation, W-2 box calculations
+11. Write unit tests: compliance deadline recurrence generation, functional allocation percentage validation (sums to 100%), functional allocation default resolution (permanent rule > prior-year > sub-type default), benchmark outlier flagging (<65% or >90% program), W-2 box calculations
 12. Write E2E test: verify dashboard loads with all 5 sections, verify compliance reminder sends (mock Postmark)
 
 **Deliverable:** Dashboard home screen with all 5 sections. Compliance calendar with automated Postmark reminders. Functional allocation wizard. W-2 and 1099-NEC PDF generation. Board pack assembly.
@@ -600,7 +622,7 @@ These help Claude Code answer questions about RI's tax status, validate design d
 6. Build context package for Ramp categorization: transaction details, GL chart of accounts, categorization rule history, merchant pattern data. Tools: account suggestion, merchant pattern lookup. Knowledge: existing categorization rules, UBIT guidance from Pub 598 (flag if expense could relate to unrelated business activity)
 7. Build context package for PO/vendor invoice: contract details, PO compliance status, budget remaining by fund. Tools: budget query, `taxLawSearch`. Knowledge: covenant terms from PO, IRC § 263A capitalization rules (relevant for CIP-coded invoices), 1099 reporting thresholds
 8. Build context package for bank reconciliation: unmatched items, matching rules, transaction history. Tools: transaction history search. Knowledge: matching rules documentation
-9. Build context package for compliance calendar: current deadlines, upcoming filings. Tools: `taxLawSearch`, `regulationLookup`. Knowledge: filing requirements with statutory references (IRC § 6033 for 990 filing, MA AG Form PC rules, IRC § 6721/6722 penalty rules for late filing), MA tenant law (G.L. c. 186 for security deposit deadlines)
+9. Build context package for compliance calendar: current deadlines, upcoming filings, functional allocation wizard state. Tools: `taxLawSearch`, `regulationLookup`, `nonprofitExplorerLookup` (with `includeBenchmarks: true` — enables copilot to answer "how does our allocation compare to similar orgs?"). Knowledge: filing requirements with statutory references (IRC § 6033 for 990 filing, MA AG Form PC rules, IRC § 6721/6722 penalty rules for late filing), MA tenant law (G.L. c. 186 for security deposit deadlines), functional allocation defaults and comparable org benchmarks
 10. Build context package for transaction entry: current form state, recent transactions, chart of accounts. Tools: account lookup, recent transaction search, `taxLawSearch`. Knowledge: GAAP policies, ASC 958 fund accounting rules, donor acknowledgment thresholds (IRC § 170(f)(8) — $250+ requires written ack; quid pro quo disclosure required for $75+ contributions) (SYS-P0-004 — replaces standalone transaction assistant D-130)
 11. Build context package for reports: current report data, filter state. Tools: drill-down queries, comparison queries, `nonprofitExplorerLookup`. Knowledge: report definitions, Form 990 Part IX functional expense classification rules, public support test calculation guidance (IRC § 509(a), 26 CFR 1.509(a)-3)
 12. Build context package for dashboard: all dashboard section data. Tools: report navigation, transaction lookup. Knowledge: system overview

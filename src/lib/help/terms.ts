@@ -62,6 +62,33 @@ export const helpTerms: Record<string, string> = {
 
   'audit-trail':
     'Every data mutation is logged with who, what, when, before-state, and after-state. The audit log is append-only with no update or delete operations (INV-012).',
+
+  'journal-entry':
+    'A manual double-entry transaction recording. Every entry must balance: total debits must equal total credits (INV-001).',
+
+  debit:
+    'An entry on the left side of a ledger. Debits increase assets and expenses, decrease liabilities, net assets, and revenue.',
+
+  credit:
+    'An entry on the right side of a ledger. Credits increase liabilities, net assets, and revenue, decrease assets and expenses.',
+
+  'source-type':
+    'Indicates how a transaction entered the system: MANUAL (user-created), SYSTEM (auto-generated), TIMESHEET, EXPENSE_REPORT, RAMP, BANK_FEED, or FY25_IMPORT.',
+
+  'voided-transaction':
+    'A transaction excluded from all GL calculations and financial statements. Retained in audit trail with VOID badge. Cannot be unvoided — create a new entry instead.',
+
+  'reversed-transaction':
+    'A transaction corrected by creating an equal-and-opposite reversing entry. Both original and reversal remain visible. Used for matched transactions that cannot be edited in place.',
+
+  'transaction-status':
+    'Visual indicators: Active (normal), Voided (excluded from GL), Reversed (correction applied), System-Generated (auto-created, immutable).',
+
+  'line-memo':
+    'Optional note on an individual transaction line, providing detail beyond the transaction-level memo.',
+
+  'percentage-split':
+    'Convenience feature for multi-fund allocations. Enter fund percentages that sum to 100%, and the system calculates dollar amounts.',
 }
 
 /** Get a help term by its slug. Returns undefined for unknown terms. */
