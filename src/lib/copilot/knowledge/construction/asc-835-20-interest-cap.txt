@@ -1,0 +1,43 @@
+Source: ASC 835-20 — Interest: Capitalization of Interest; SFAS 34
+
+ASC 835-20 — Interest Capitalization During Construction
+
+OVERVIEW
+Interest costs incurred during the acquisition, construction, or production of qualifying assets should be capitalized as part of the cost of the asset, rather than expensed.
+
+QUALIFYING ASSETS (835-20-15-5)
+- Assets being constructed for the entity's own use
+- Assets intended for sale or lease that are constructed as discrete projects
+- NOT: inventories routinely produced, assets ready for use, land not being developed
+
+CAPITALIZATION PERIOD
+Begins when ALL three conditions are met:
+1. Expenditures for the asset have been made
+2. Activities necessary to prepare the asset for intended use are in progress
+3. Interest cost is being incurred
+
+Ends when the asset is substantially complete and ready for intended use (PIS date).
+
+AMOUNT TO CAPITALIZE
+- Avoidable interest: interest that theoretically could have been avoided if construction expenditures had not been made
+- Cannot exceed actual interest incurred during the period
+- Computed using weighted-average accumulated expenditures × appropriate interest rate
+
+INTEREST RATE
+- Specific borrowing rate: if funds borrowed specifically for construction, use that rate first
+- Weighted-average rate: for additional expenditures beyond specific borrowings, use weighted-average rate on other outstanding borrowings
+
+DISCLOSURE
+Must disclose:
+- Total interest cost incurred during the period
+- Amount capitalized
+- Amount expensed
+
+RI-SPECIFIC CONTEXT
+RI's construction project involves the AHP loan ($3.5M at below-market rate). During construction:
+- Interest on AHP loan is capitalized to CIP (Construction in Progress)
+- Interest is allocated across CIP cost codes proportionally
+- At PIS date, capitalized interest becomes part of the building cost basis
+- Post-PIS date, AHP loan interest is expensed (program service expense)
+
+The system tracks capitalized vs. expensed interest through the GL engine. CIP cost codes categorize interest as SOFT_COST.

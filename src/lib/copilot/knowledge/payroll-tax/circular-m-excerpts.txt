@@ -1,0 +1,44 @@
+Source: Massachusetts Circular M — Income Tax Withholding Tables (2025)
+
+Massachusetts State Income Tax Withholding
+
+TAX RATE
+Massachusetts has a flat income tax rate: 5.00% (effective TY2024+)
+Note: MA passed a "millionaire's tax" (4% surtax on income over $1M) effective TY2023, but this does not affect withholding for typical nonprofit employees.
+
+WITHHOLDING COMPUTATION
+1. Determine gross wages for pay period
+2. Subtract exemption amount based on pay frequency and exemptions claimed on Form M-4
+3. Multiply taxable wages by 5.00%
+4. Result is state income tax to withhold
+
+FORM M-4 (Massachusetts Employee's Withholding Exemption Certificate)
+- Similar to federal W-4 but simpler
+- Claims personal exemptions (single: 1, married: 2, head of household: 1)
+- Additional exemptions for blindness and age 65+
+- Each exemption reduces taxable wages by exemption amount per pay period
+
+EXEMPTION AMOUNTS (2025, per pay period):
+Weekly: $16.90 per exemption
+Biweekly: $33.80 per exemption
+Semimonthly: $36.60 per exemption
+Monthly: $73.30 per exemption
+
+DEPOSIT REQUIREMENTS
+- Due date: 15th of following month (for most small employers)
+- If withholding > $100/month: semi-monthly deposits
+- Electronic filing required for employers withholding > $50,000/year
+- MassTaxConnect portal for filing and payments
+
+FORM M-941 (Massachusetts Employer's Quarterly Return)
+Due: same dates as federal Form 941
+Reports: total wages, MA income tax withheld, withholding liability schedule
+
+PFML (Paid Family and Medical Leave)
+- Employer contribution rate: set annually by DFML
+- Split between employer and employee per law
+- Reported on Form PFML-1 (quarterly)
+- Applies to all employers with 25+ covered individuals
+
+RI-SPECIFIC CONTEXT
+RI is a small MA employer (2-5 employees). Monthly withholding deposits are likely sufficient. Must file Form M-941 quarterly via MassTaxConnect. PFML contributions may apply depending on covered individual count (includes 1099 contractors in the count).

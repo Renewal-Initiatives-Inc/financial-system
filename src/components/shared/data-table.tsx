@@ -92,7 +92,7 @@ export function DataTable<TData, TValue>({
                   data-state={row.getIsSelected() && 'selected'}
                   className={onRowClick ? 'cursor-pointer hover:bg-muted/50' : ''}
                   onClick={() => onRowClick?.(row.original)}
-                  data-testid={testIdPrefix ? `${testIdPrefix}-table-row-${row.index}` : undefined}
+                  data-testid={testIdPrefix ? `${testIdPrefix}-table-row-${row.index}` : 'table-row'}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
@@ -109,7 +109,7 @@ export function DataTable<TData, TValue>({
                 <TableCell
                   colSpan={columns.length}
                   className="h-24 text-center"
-                  data-testid={testIdPrefix ? `${testIdPrefix}-table-empty` : undefined}
+                  data-testid={testIdPrefix ? `${testIdPrefix}-table-empty` : 'empty-state'}
                 >
                   {emptyMessage}
                 </TableCell>

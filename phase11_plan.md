@@ -345,16 +345,22 @@ getConstructionStatus(): Promise<{ isConstructionComplete: boolean; structuresCo
   - Currently: Lodging, Barn, Garage are the 3 structures
   - Return list of converted structure names for audit
 
-calculateMonthlyInterest(loanConfig: AhpLoanConfig): number
-  - Monthly interest = currentDrawnAmount * (currentInterestRate / 12)
-  - Returns monthly interest amount (2 decimal places)
+calculatePeriodInterest(loanConfig: AhpLoanConfig, periodStartDate: string, periodEndDate: string): number
+  - Uses Actual/365 day-count convention per AHP loan agreement
+  - Interest = currentDrawnAmount * currentInterestRate * (daysInPeriod / 365)
+  - daysInPeriod = difference in calendar days between periodStartDate and periodEndDate
+  - Returns interest amount (2 decimal places)
   - Returns 0 if drawnAmount is 0
+  - NOTE: Do NOT use rate/12 — the loan specifies Actual/365, which produces
+    different amounts per month (28-31 days). At $2M drawn @ 4.75%,
+    February = $7,287.67, March = $8,068.49 — a $780.82 difference.
 
 generateInterestAccrualEntry(asOfDate: string, userId: string): Promise<InterestAccrualResult>
   - Read AHP loan config
   - If drawnAmount = 0, skip (no interest to accrue)
   - Check construction status
-  - Calculate monthly interest
+  - Determine period: from last accrual date (or rate effective date) to asOfDate
+  - Calculate interest using Actual/365: drawnAmount * rate * (days / 365)
   - Skip if already accrued for this month (check existing SYSTEM transactions)
   - Create GL entry via createTransaction():
     - sourceType: 'SYSTEM'
@@ -372,7 +378,11 @@ generateInterestAccrualEntry(asOfDate: string, userId: string): Promise<Interest
 ```
 
 **Key business rules:**
-- 100% capitalized during construction per ASC 835-20 (TXN-P0-039)
+- 100% capitalized during construction per ASC 835-20 (TXN-P0-039).
+    Rationale: AHP draws are reimbursement-based — 100% of loan proceeds fund
+    qualifying CIP expenditures. WAAE ≈ drawn amount, so avoidable interest = total
+    interest. If loan structure changes (e.g., draws fund non-CIP operating costs),
+    this assumption must be revisited with a proper WAAE calculation.
 - Mode switches automatically when last CIP conversion completed
 - Posts to General Fund
 - Rate from ahp_loan_config singleton
@@ -484,7 +494,7 @@ executeCipConversion(input: CipConversionInput, userId: string): Promise<CipConv
 - Partial conversion supported (DM-P0-031) — only allocated amounts reclassified
 - Each structure independent (Lodging, Barn, Garage)
 - Lodging gets component depreciation (structure, roof, HVAC, etc.)
-- Barn and Garage are single-item (27.5yr)
+- Barn and Garage are single-item (40yr GAAP building shell estimate)
 - Reclassification JE: DR Building accounts, CR CIP sub-accounts
 - Fixed assets created with depreciation schedules starting next month
 - Conversion checked by interest accrual engine for mode switching
@@ -804,14 +814,15 @@ Server component — fetch CIP balances, accounts, converted structures.
 - Support partial allocation (can select less than full balance per DM-P0-031)
 
 ### Step 3: Allocate to Components
-- **If Lodging:** Show allocation table with predefined component rows:
-  - Structure (default 27.5yr / 330 months)
-  - Roof (default 20yr / 240 months)
-  - HVAC (default 15yr / 180 months)
-  - Electrical (default 17.5yr / 210 months)
-  - Plumbing (default 17.5yr / 210 months)
-  - Windows (default 17.5yr / 210 months)
-  - Flooring (default 7.5yr / 90 months)
+- **If Lodging:** Show allocation table with predefined component rows using GAAP estimated
+  useful lives (NOT MACRS tax lives — see ASC 360-10-35 / ASC 958-360-35, 2 CFR 200.436):
+  - Structure (default 40yr / 480 months) — per Federal Reserve FAM; Community Vision NFP guidance
+  - Roof (default 25yr / 300 months) — depends on material; slate/tile longer, asphalt shorter
+  - HVAC (default 20yr / 240 months) — per Federal Reserve FAM (building services systems)
+  - Electrical (default 25yr / 300 months) — building services systems, long-lived
+  - Plumbing (default 25yr / 300 months) — building services systems, long-lived
+  - Windows (default 25yr / 300 months) — historic building, well-maintained
+  - Flooring (default 10yr / 120 months) — varies by material (carpet 5-7yr, hardwood/tile 15yr+)
   - User can add/remove component rows
   - Each row: component name, amount (editable), useful life months (editable)
   - GL accounts pre-filled: Asset → Building - Lodging (1600), Accum Depr → 1800, Expense → 5200
@@ -819,7 +830,7 @@ Server component — fetch CIP balances, accounts, converted structures.
 - **If Barn or Garage:** Single row, single-item allocation:
   - Name: "Barn" / "Garage"
   - Amount: total from Step 2
-  - Useful life: 330 months (27.5yr)
+  - Useful life: 480 months (40yr) — GAAP building shell estimate
   - GL accounts: Building - Barn (1610) / Building - Garage (1620), Accum Depr → 1810/1820, Expense → 5200
 
 ### Step 4: Review
@@ -900,8 +911,8 @@ New terms to add:
 
 | Term | Content |
 |------|---------|
-| depreciation | Systematic allocation of a fixed asset's cost over its useful life. RI uses straight-line method per D-127: (cost - salvage) ÷ useful life months. Per IRS Pub 946 and IRC § 168. |
-| useful-life | The estimated number of months an asset will provide economic benefit. Building structures: 27.5yr (330mo), Roof: 20yr, HVAC/MEP: 15-20yr, Flooring: 5-10yr, Equipment: 5-7yr. Per IRS Pub 946. |
+| depreciation | Systematic allocation of a fixed asset's cost over its useful life. RI uses straight-line method per D-127: (cost - salvage) ÷ useful life months. Per ASC 360-10-35 / ASC 958-360-35 (GAAP for nonprofits). MACRS tax lives (IRC § 168) do NOT apply — they are for computing taxable income, which 501(c)(3)s generally do not have. |
+| useful-life | Management's best estimate of the period an asset will provide economic benefit, per ASC 360-10-35 / 2 CFR 200.436. GAAP defaults: Building structure: 40yr (480mo), Roof: 20-25yr, HVAC/MEP: 20yr, Electrical/Plumbing/Windows: 20-25yr, Flooring: 5-15yr, Equipment: 5-10yr. These are longer than MACRS tax lives because they reflect actual expected use, not accelerated tax recovery periods. |
 | net-book-value | An asset's cost minus accumulated depreciation. Represents the remaining undepreciated balance on the books. |
 | salvage-value | Estimated residual value of an asset at the end of its useful life. RI defaults to $0 for all fixed assets per D-127. |
 | date-placed-in-service | The date an asset begins being used for its intended purpose. Depreciation starts the month following PIS date. For CIP conversions, this is the date the structure is ready for occupancy. |
@@ -935,7 +946,7 @@ Assets (parent)
 **File:** `src/lib/assets/depreciation.test.ts` (new)
 
 Tests:
-1. **Straight-line calculation:** asset with $120,000 cost, $0 salvage, 330 months → $363.64/month
+1. **Straight-line calculation:** asset with $120,000 cost, $0 salvage, 480 months (40yr GAAP building) → $250.00/month
 2. **Salvage value:** asset with $10,000 cost, $1,000 salvage, 60 months → $150.00/month
 3. **Accumulated depreciation:** 12 months elapsed → 12 × monthly amount
 4. **Fully depreciated:** accumulated = depreciable basis → skip
@@ -951,7 +962,7 @@ Tests:
 2. **Post-construction mode:** all 3 structures converted → DR Interest Expense
 3. **Partial conversion:** 2 of 3 converted → still construction mode
 4. **Zero drawn amount:** skip, no entry generated
-5. **Monthly calculation:** $100,000 drawn at 3% → $250/month
+5. **Actual/365 calculation:** $100,000 drawn at 3%, March (31 days) → $100,000 × 0.03 × 31/365 = $254.79; Feb (28 days) → $230.14
 6. **Idempotency:** already accrued for month → skip
 
 **File:** `src/lib/assets/cip-conversion.test.ts` (new)

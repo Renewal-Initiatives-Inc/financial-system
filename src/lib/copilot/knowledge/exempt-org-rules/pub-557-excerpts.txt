@@ -1,0 +1,37 @@
+Source: IRS Publication 557 — Tax-Exempt Status for Your Organization (Rev. Jan 2024)
+
+Key Excerpts for Nonprofit Operations
+
+APPLICATION FOR RECOGNITION (Chapter 3)
+- Form 1023 for full application; Form 1023-EZ for small organizations (gross receipts <= $50,000 and assets <= $250,000)
+- Must be filed within 27 months of formation to get retroactive exemption
+- User fee: $600 (Form 1023), $275 (Form 1023-EZ)
+
+ANNUAL FILING REQUIREMENTS (Chapter 4)
+- Form 990: gross receipts >= $200,000 OR total assets >= $500,000
+- Form 990-EZ: gross receipts < $200,000 AND total assets < $500,000
+- Form 990-N (e-postcard): gross receipts normally <= $50,000
+- Due date: 15th day of 5th month after fiscal year end (November 15 for June FY)
+- Automatic revocation: failure to file for 3 consecutive years
+
+REQUIRED DISCLOSURES
+- Annual returns (Form 990/990-EZ) available for public inspection
+- Application for exemption (Form 1023/1024) available for public inspection
+- Must provide copies upon request (same-day for in-person, 30 days for written)
+- May direct requesters to IRS website for electronic copies
+
+GOVERNANCE
+- Conflict of interest policy: not legally required but IRS asks about it on Form 990 Part VI
+- Board independence: Form 990 asks about independent voting members
+- Compensation review: IRS expects review process for officer/key employee compensation
+- Document retention policy: asked about on Form 990 Part VI
+
+STATE REQUIREMENTS — MASSACHUSETTS
+- Must register with MA Attorney General's Non-Profit Organizations/Public Charities Division
+- Annual filing: Form PC (Public Charities Annual Report)
+- Due date: same as federal return (4.5 months after FY end)
+- Must file even if exempt from federal filing
+- Registration required before soliciting charitable contributions in MA
+
+RI-SPECIFIC CONTEXT
+RI likely files Form 990-EZ during early years (assets under $500K before property development). Once the property is placed in service with $3.5M+ in assets, RI will need to file the full Form 990. This transition triggers new reporting requirements including Schedule A (public support), Schedule D (supplemental financial statements), and potentially Schedule L (transactions with interested persons).

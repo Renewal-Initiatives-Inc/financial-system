@@ -41,7 +41,8 @@ export function AppSidebar() {
                     <SidebarMenuButton asChild isActive={isActive}>
                       <Link
                         href={item.href}
-                        data-testid={`sidebar-nav-${item.href.replace('/', '') || 'dashboard'}`}
+                        className={item.indent ? 'pl-6' : ''}
+                        data-testid={`sidebar-nav-${item.href.replace(/\//g, '-').replace(/^-/, '') || 'dashboard'}`}
                       >
                         <item.icon className="h-4 w-4" />
                         <span>{item.label}</span>

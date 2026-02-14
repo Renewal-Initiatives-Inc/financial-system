@@ -1,0 +1,46 @@
+Source: IRC § 170(f)(8); IRS Publication 1771
+
+Donor Acknowledgment Requirements
+
+WRITTEN ACKNOWLEDGMENT (§ 170(f)(8))
+Required for any single contribution of $250 or more. The acknowledgment must contain:
+
+1. Name of the organization
+2. Amount of cash contribution, AND/OR description (but not value) of non-cash contribution
+3. Statement of whether organization provided goods or services in exchange
+4. If goods/services provided: description and good faith estimate of value
+5. If only intangible religious benefits: statement to that effect
+
+TIMING
+"Contemporaneous" means the donor must obtain the acknowledgment by the EARLIER of:
+- The date the tax return is filed, or
+- The due date (including extensions) for filing the return
+
+Best practice: issue acknowledgments by January 31 for prior-year gifts.
+
+QUID PRO QUO DISCLOSURE (§ 6115)
+If a donor makes a payment exceeding $75 that is partly a contribution and partly for goods/services:
+- Organization must provide written disclosure
+- Must inform donor that deductible amount is limited to excess over value of goods/services
+- Must provide good faith estimate of goods/services value
+- Penalty: $10 per failure, up to $5,000 per fundraising event
+
+EXCEPTIONS (no acknowledgment required):
+- Government grants and contracts (these are not "contributions" under § 170)
+- Goods/services of insubstantial value (2025: $12.90 or less, or goods bearing org's name with cost <= $64.70)
+- Membership benefits: annual dues of $75 or less with only token benefits
+
+NON-CASH CONTRIBUTIONS
+- Organization provides description only (NOT value) on acknowledgment
+- Donor determines FMV and reports on Form 8283 (for > $500)
+- Over $5,000: donor must get qualified appraisal
+- Organization signs Section B of Form 8283 for non-cash over $5,000
+
+FORM 8282 (DONEE INFORMATION RETURN)
+If organization sells/disposes of donated property within 3 years:
+- Must file Form 8282 within 125 days of disposition
+- Applies to items valued at > $5,000 on donor's Form 8283
+- Reports sale price/disposition method
+
+RI-SPECIFIC CONTEXT
+RI receives mostly government grants (not subject to donor acknowledgment rules) and individual/corporate donations. For individual/corporate gifts of $250+, the system should support generating annual donor acknowledgment letters. The donors table tracks contact information needed for these letters.

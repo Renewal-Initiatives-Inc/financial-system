@@ -1,0 +1,53 @@
+Source: IRS Publication 946 — How To Depreciate Property (2024 Edition)
+
+Useful Life Tables and Depreciation Rates
+
+RESIDENTIAL RENTAL PROPERTY (Table A-6)
+- Recovery period: 27.5 years
+- Method: Straight-line
+- Convention: Mid-month
+- Monthly rate: 3.636% (1/27.5) for full year
+- First year: prorate based on month placed in service
+
+MONTHLY DEPRECIATION PERCENTAGES (first year, by month placed in service):
+Month 1:  3.485%    Month 7:  1.970%
+Month 2:  3.182%    Month 8:  1.667%
+Month 3:  2.879%    Month 9:  1.364%
+Month 4:  2.576%    Month 10: 1.061%
+Month 5:  2.273%    Month 11: 0.758%
+Month 6:  1.970%    Month 12: 0.455%
+
+Years 2-27: 3.636% per year
+Year 28: remainder (varies by PIS month)
+
+PERSONAL PROPERTY — 5-YEAR (Table A-1, 200% DB/HY)
+Year 1: 20.00%   Year 4: 11.52%
+Year 2: 32.00%   Year 5: 11.52%
+Year 3: 19.20%   Year 6: 5.76%
+
+PERSONAL PROPERTY — 7-YEAR (Table A-1, 200% DB/HY)
+Year 1: 14.29%   Year 5: 8.93%
+Year 2: 24.49%   Year 6: 8.92%
+Year 3: 17.49%   Year 7: 8.93%
+Year 4: 12.49%   Year 8: 4.46%
+
+LAND IMPROVEMENTS — 15-YEAR (Table A-1, 150% DB/HY)
+Year 1: 5.00%    Year 9:  5.91%
+Year 2: 9.50%    Year 10: 5.90%
+Year 3: 8.55%    Year 11: 5.91%
+Year 4: 7.70%    Year 12: 5.90%
+Year 5: 6.93%    Year 13: 5.91%
+Year 6: 6.23%    Year 14: 5.90%
+Year 7: 5.90%    Year 15: 5.91%
+Year 8: 5.90%    Year 16: 2.95%
+
+COMPONENT ALLOCATION
+At PIS date, total cost must be allocated among components:
+1. Land (not depreciable — typically 10-20% of total for residential)
+2. Building (27.5-year)
+3. Land improvements (15-year)
+4. Personal property (5 or 7-year)
+Cost segregation study may optimize allocation but is less relevant for tax-exempt entities.
+
+RI-SPECIFIC CONTEXT
+RI's CIP (Construction in Progress) accumulates costs during development. At PIS date, CIP is converted to fixed asset components using cost code categories (HARD_COST, SOFT_COST) as a starting point for allocation. The system tracks depreciation by component after conversion.

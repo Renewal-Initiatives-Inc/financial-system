@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { AppTopBar } from '@/components/layout/app-top-bar'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
+import { CopilotWrapper } from '@/components/copilot/copilot-wrapper'
 import { ReactNode } from 'react'
 
 export default async function ProtectedLayout({ children }: { children: ReactNode }) {
@@ -14,7 +15,9 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
       <AppSidebar />
       <SidebarInset>
         <AppTopBar user={session.user} />
-        <main className="flex-1 px-4 py-6 md:px-6">{children}</main>
+        <CopilotWrapper userId={session.user.id}>
+          <main className="flex-1 px-4 py-6 md:px-6">{children}</main>
+        </CopilotWrapper>
       </SidebarInset>
     </SidebarProvider>
   )

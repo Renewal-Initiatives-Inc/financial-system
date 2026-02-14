@@ -17,6 +17,7 @@ import { DataTable } from '@/components/shared/data-table'
 import { accountColumns } from './columns'
 import { CreateAccountDialog } from './create-account-dialog'
 import { AccountTree } from './account-tree'
+import { CopilotContextSetter } from '@/components/copilot/copilot-context-setter'
 import type { AccountRow } from './actions'
 
 interface AccountsClientProps {
@@ -46,6 +47,7 @@ export function AccountsClient({ initialAccounts }: AccountsClientProps) {
 
   return (
     <div className="space-y-4">
+      <CopilotContextSetter pageId="accounts" />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">
           Chart of Accounts

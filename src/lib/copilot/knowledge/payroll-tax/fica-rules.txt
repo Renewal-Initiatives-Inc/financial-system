@@ -1,0 +1,51 @@
+Source: IRC §§ 3101, 3111, 3121; IRS Publication 15 (Circular E)
+
+FICA Taxes — Social Security and Medicare
+
+SOCIAL SECURITY (OASDI)
+- Employee rate: 6.2%
+- Employer rate: 6.2% (matched)
+- Combined rate: 12.4%
+- Wage base (2025): $176,100 (indexed annually)
+- Wages above the base are NOT subject to Social Security tax
+
+MEDICARE (HI)
+- Employee rate: 1.45%
+- Employer rate: 1.45% (matched)
+- Combined rate: 2.9%
+- No wage base limit — all wages subject to Medicare
+
+ADDITIONAL MEDICARE TAX (§ 3101(b)(2))
+- Rate: 0.9% (employee only, not employer-matched)
+- Threshold: wages exceeding $200,000 (single), $250,000 (MFJ), $125,000 (MFS)
+- Employer must begin withholding when wages paid exceed $200,000 regardless of filing status
+
+TOTAL FICA RATES (2025):
+Employee: 6.2% + 1.45% = 7.65% (plus 0.9% Additional Medicare if applicable)
+Employer: 6.2% + 1.45% = 7.65%
+Combined: 15.3%
+
+FICA EXEMPTIONS FOR NONPROFITS
+- 501(c)(3) organizations are NOT exempt from FICA (changed in 1984)
+- Exception: services performed by students for the school/university they attend (§ 3121(b)(10))
+- Exception: ministers who filed Form 4361 opting out of self-employment tax
+- RI has no FICA exemptions — standard rules apply
+
+EMPLOYER OBLIGATIONS
+1. Withhold employee share from each paycheck
+2. Pay employer match
+3. Deposit taxes per deposit schedule (monthly or semi-weekly)
+4. Report on Form 941 (quarterly)
+5. Annual Form W-2 to employees and Form W-3 to SSA
+6. Due date for W-2: January 31
+
+FUTA (Federal Unemployment Tax) — IRC § 3301
+- Rate: 6.0% on first $7,000 of wages per employee
+- Credit for state unemployment taxes: up to 5.4%
+- Effective FUTA rate (with full state credit): 0.6%
+- Annual Form 940 due January 31
+- 501(c)(3) organizations EXEMPT from FUTA (§ 3306(c)(8))
+  - Instead: reimburse state for actual unemployment claims (reimbursable employer)
+
+RI-SPECIFIC CONTEXT
+RI is exempt from FUTA as a 501(c)(3) but must still pay FICA. As a reimbursable employer for unemployment, RI reimburses MA DUA for actual unemployment claims rather than paying SUTA premiums. This can be advantageous for small, stable employers but poses risk if an employee is terminated.

@@ -1,0 +1,43 @@
+Source: ASC 958-720; Form 990 Part IX Instructions; AICPA Guide for NFP Entities
+
+Functional Expense Allocation
+
+GAAP REQUIREMENT (ASC 958-720)
+Voluntary health and welfare organizations must present a Statement of Functional Expenses. Other nonprofits are encouraged but not required. Form 990 Part IX requires all filers to report expenses by function.
+
+THREE FUNCTIONAL CATEGORIES:
+1. Program Services — activities that fulfill the organization's mission
+   - For RI: housing operations, property maintenance, tenant services, construction
+2. Management & General (M&G) — overall organizational management, finance, admin
+   - Includes: accounting, legal, board activities, insurance, general office
+3. Fundraising — activities to generate contributions
+   - Includes: solicitation costs, donor cultivation, fundraising events
+
+ALLOCATION METHODS
+Expenses that serve a single function are directly assigned. Expenses that serve multiple functions must be allocated using a reasonable methodology:
+
+1. Direct identification: expense clearly serves one function
+2. Time-and-effort studies: allocate based on staff time logs
+3. Square footage: allocate occupancy costs by program space usage
+4. Headcount: allocate shared costs by number of staff per function
+5. Salary allocation: allocate benefits and payroll taxes based on salary allocation
+
+FORM 990 PART IX
+Reports expenses by natural classification (rows) and functional allocation (columns):
+- Column A: Total
+- Column B: Program services
+- Column C: Management & general
+- Column D: Fundraising
+
+Must describe method used in Schedule O if not obvious.
+
+JOINT COST ALLOCATION (ASC 958-720-45)
+Activities that include both program and fundraising content (e.g., direct mail with educational content and a solicitation) may allocate costs between program and fundraising IF all three criteria are met:
+1. Purpose criterion: would the activity have been conducted even without the fundraising component?
+2. Audience criterion: is the audience selected based on program need (not donor capacity)?
+3. Content criterion: does the activity include program content that would accomplish the mission?
+
+If all three criteria NOT met, all costs are charged to fundraising.
+
+RI-SPECIFIC CONTEXT
+RI's primary program is affordable housing. Most expenses (property operations, maintenance, utilities, depreciation) are directly assignable to program services. Salary and office costs require allocation between program and M&G based on time studies or reasonable estimates.

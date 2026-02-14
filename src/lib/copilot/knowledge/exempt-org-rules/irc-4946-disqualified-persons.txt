@@ -1,0 +1,29 @@
+Source: IRC § 4946; Treas. Reg. § 53.4946-1
+
+IRC § 4946 — Disqualified Persons
+
+DEFINITION
+A "disqualified person" with respect to a private foundation includes:
+1. Substantial contributors — cumulative gifts > $5,000 AND > 2% of total contributions received (per § 507(d)(2))
+2. Foundation managers — board members, officers, trustees
+3. Family members of (1) and (2) — spouse, ancestors, children, grandchildren, great-grandchildren, and their spouses. NOTE: Siblings are NOT included per § 4946(d).
+4. 20%+ owners of entities that are substantial contributors
+5. 35%+ controlled corporations, partnerships, or trusts
+
+PRIMARY RELEVANCE
+The § 4946 disqualified person concept is primarily relevant to:
+1. Private foundations — Chapter 42 excise taxes (self-dealing § 4941, excess business holdings § 4943, jeopardizing investments § 4944, taxable expenditures § 4945)
+2. § 509(a)(2) organizations — Schedule A Part III Line 7a exclusion of disqualified person contributions
+
+APPLICATION TO 170(b)(1)(A)(vi) ORGANIZATIONS (RI's classification)
+Schedule A Part II (which RI files) has NO disqualified person exclusion. Part II uses a universal 2% cap (Line 5) that applies to ALL donors equally.
+
+The ONLY place § 4946 appears in Part II is an AGGREGATION RULE: contributions from persons related under § 4946(a)(1)(C)-(G) (family members, 20%+ entity owners, 35%+ controlled entities) are treated as made by one person for purposes of the 2% cap.
+
+This means:
+- NO `is_disqualified_person` field is needed on the donors table
+- The future data model need (~FY2030) is a donor relationship/family group feature for aggregation
+- The `contribution_source_type` tag (GOVERNMENT/PUBLIC/RELATED_PARTY) is sufficient for current needs
+
+SCHEDULE L RELEVANCE
+The disqualified person concept IS relevant for Schedule L (Transactions With Interested Persons) disclosure on Form 990. If RI files a full Form 990 (not 990-EZ), Part IV Questions 25-28 ask about loans, grants, business transactions with "interested persons" (which uses a similar but not identical definition to § 4946).

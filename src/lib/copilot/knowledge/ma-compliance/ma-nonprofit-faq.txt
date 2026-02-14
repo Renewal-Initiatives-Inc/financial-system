@@ -1,0 +1,46 @@
+Source: mass.gov — Nonprofit Organizations FAQ; MA Secretary of State
+
+Massachusetts Nonprofit Compliance FAQ
+
+CORPORATE FILINGS (Secretary of State)
+Q: What annual filings does a MA nonprofit need?
+A: Annual Report with the Secretary of the Commonwealth, due on the anniversary of incorporation. Filing fee: $15. Filed online via Corporations Division website.
+
+Q: What happens if we miss the annual report?
+A: Corporation may be administratively dissolved. Can be revived by filing late reports and paying back fees, but dissolution can affect tax-exempt status and create legal complications.
+
+STATE TAX EXEMPTIONS
+Q: Is RI exempt from MA state income tax?
+A: Yes. 501(c)(3) organizations are exempt from MA corporate excise tax (Form 63). File Form 3ABC for property tax exemption.
+
+Q: Is RI exempt from MA sales tax?
+A: Yes, with a valid ST-2 certificate (exempt purchaser certificate). Must be renewed every 5 years. Covers purchases of tangible personal property and taxable services for organizational use. Does NOT cover meals, motor vehicles, or room occupancy.
+
+Q: Is RI exempt from property tax?
+A: Potentially. Must file Form 3ABC annually with the local assessor by March 1. The property must be owned by and used for the charitable purpose. If property generates rental income, the exemption may be partial or denied depending on the municipality's interpretation.
+
+EMPLOYMENT LAW
+Q: What employment laws apply to RI?
+A: MA employment laws generally apply regardless of nonprofit status:
+- Minimum wage: $15.00/hour (2025)
+- Overtime: 1.5x for hours over 40/week
+- Paid Family Medical Leave (PFML)
+- Earned sick time: 1 hour per 30 hours worked (up to 40 hours/year)
+- Workers' compensation insurance required
+- Unemployment insurance (reimbursable basis for 501(c)(3)s)
+
+FUNDRAISING
+Q: Does RI need to register to solicit donations?
+A: Yes. Must register with AG's office before soliciting charitable contributions. Form PC annual filing serves as renewal. If using professional fundraisers, additional registration required.
+
+GOVERNANCE
+Q: What governance documents does MA require?
+A: Articles of Organization (filed with Secretary of State), Bylaws (internal), and Conflict of Interest Policy (recommended by IRS, asked about on Form 990). Board must have at least 3 members (per MA nonprofit corporation law, G.L. c. 180).
+
+RI-SPECIFIC CONTEXT
+RI is a MA domestic nonprofit corporation. Key compliance dates:
+- Secretary of State Annual Report: anniversary of incorporation
+- Form PC: November 15 (for June 30 FY)
+- Form 990/990-EZ: November 15 (for June 30 FY)
+- Form 3ABC: March 1 (property tax exemption)
+- ST-2 renewal: every 5 years

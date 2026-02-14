@@ -1,0 +1,53 @@
+Source: Massachusetts Attorney General's Office — Form PC Instructions
+
+Form PC — Public Charities Annual Report
+
+OVERVIEW
+All public charities registered in Massachusetts must file Form PC annually with the Attorney General's Non-Profit Organizations/Public Charities Division. This is in ADDITION to federal Form 990 filing.
+
+WHO MUST FILE
+- Any organization soliciting or receiving contributions in Massachusetts
+- Any organization holding assets for charitable purposes in Massachusetts
+- Exemptions: religious organizations, educational institutions (certain), organizations with gross revenue under $5,000 (may file short form)
+
+FILING REQUIREMENTS
+Tier 1 (gross revenue < $200K and total assets < $500K):
+- Form PC Short Form
+- Financial statements (may be unaudited)
+- Copy of IRS Form 990 or 990-EZ
+
+Tier 2 (gross revenue $200K-$500K):
+- Form PC Long Form
+- Financial statements reviewed by independent CPA
+- Copy of IRS Form 990
+
+Tier 3 (gross revenue > $500K):
+- Form PC Long Form
+- Financial statements audited by independent CPA
+- Copy of IRS Form 990
+
+DUE DATE
+Same as federal return: 4.5 months after fiscal year end
+- June 30 FY → November 15
+- Extensions available (file extension request with AG office)
+
+REQUIRED INFORMATION
+Part A: Organization information (name, EIN, address, officers)
+Part B: Financial information
+  - Revenue by source (contributions, program service, investment, other)
+  - Expenses by function (program, management, fundraising)
+  - Assets, liabilities, net assets
+Part C: Governance
+  - Board composition and meetings
+  - Conflict of interest policy
+  - Compensation review process
+Part D: Professional fundraiser information (if applicable)
+
+REGISTRATION
+- Initial registration: Form 1 (Registration Statement)
+- Annual renewal: Form PC serves as renewal
+- $150 registration fee (may be waived for small organizations)
+- Failure to register: may result in cease-and-desist order for solicitation
+
+RI-SPECIFIC CONTEXT
+RI is currently in Tier 1 (pre-construction, small revenue). Once the property is placed in service and assets exceed $500K, RI moves to Tier 2 or 3, requiring CPA review or audit. The system should track filing deadlines and produce the financial data needed for Form PC.

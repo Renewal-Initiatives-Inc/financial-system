@@ -1,0 +1,53 @@
+Source: IRC § 509(a); Treas. Reg. § 1.509(a)-3; Schedule A Part II
+
+Public Support Test Monitoring
+
+OVERVIEW
+RI must maintain public charity status by meeting the 33-1/3% public support test on Schedule A Part II. This requires ongoing monitoring of the public support ratio.
+
+THE TEST
+Public Support (Line 6) / Total Support (Line 11) >= 33.33%
+
+PUBLIC SUPPORT INCLUDES:
+- Government grants (Line 3) — full credit, no per-donor cap
+- Public contributions (Line 1) — subject to universal 2% cap
+
+TOTAL SUPPORT INCLUDES:
+- All public support
+- Membership fees (Line 2)
+- Investment income (Line 4)
+- Net UBI (Line 5)
+- Tax revenues (Line 6 of Section B)
+- Program service revenue (Line 10a) — critical: includes RENTAL INCOME
+
+THE 2% CAP (Line 5)
+- Applies to ALL donors on Line 1 (not just related parties)
+- Calculate: 2% × Total Support (Line 11)
+- For each donor: excess over 2% threshold is excluded from public support
+- Aggregation rule: related persons per § 4946(a)(1)(C)-(G) combined as one donor
+
+UNUSUAL GRANT EXCLUSION (Reg. 1.509(a)-3(c)(4))
+An unusually large grant can be excluded from both numerator and denominator if:
+1. Attracted by publicly supported programs (not personal relationships)
+2. Unusually large relative to normal support
+3. Would adversely affect public support status
+4. No material restriction on use
+5. From disinterested party
+Useful safety valve if one large grant would distort the ratio.
+
+RI RISK TIMELINE:
+- FY2025-2028 (construction): mostly government grants → ratio strong
+- FY2028+ (operations): rental income enters denominator (Line 10a)
+  - Rental income is program service revenue, NOT public support
+  - Government grants may decrease (construction complete)
+  - Public support percentage will decline naturally
+- FY2030 (estimated): first real test after 5-year grace period
+  - If below 33.33%, check facts-and-circumstances test (10% floor)
+  - Consider: increase public solicitation, seek government operating grants
+
+MONITORING RECOMMENDATIONS:
+1. Track public support ratio annually (even if not yet required)
+2. Maintain contribution source type tags (GOVERNMENT/PUBLIC/RELATED_PARTY)
+3. Model future ratios when planning revenue mix
+4. Begin diversifying funding sources before FY2030
+5. Consider unusual grant exclusion if applicable

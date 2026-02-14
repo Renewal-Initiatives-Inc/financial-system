@@ -1,0 +1,50 @@
+Source: IRS Form 990 Instructions (2024); Form 990 Schedule A, D, L
+
+Form 990 — Return of Organization Exempt From Income Tax
+
+FILING THRESHOLDS
+- Form 990: gross receipts >= $200,000 OR total assets >= $500,000
+- Form 990-EZ: gross receipts < $200,000 AND total assets < $500,000
+- Form 990-N (e-postcard): gross receipts normally <= $50,000
+
+PART IX — STATEMENT OF FUNCTIONAL EXPENSES
+Key line items for RI:
+Line 1: Grants and similar amounts paid
+Line 5: Compensation of current officers, directors
+Line 7: Other salaries and wages
+Line 8: Pension/retirement plan contributions
+Line 9: Other employee benefits
+Line 10: Payroll taxes
+Line 11: Fees for services (legal, accounting, lobbying, investment management, other)
+Line 13: Office expenses
+Line 14: Information technology
+Line 15: Royalties
+Line 16: Occupancy
+Line 17: Travel
+Line 18: Payments of travel for officials
+Line 19: Conferences, conventions, meetings
+Line 20: Interest
+Line 21: Payments to affiliates
+Line 22: Depreciation, depletion, amortization
+Line 23: Insurance
+Line 24: Other expenses (up to 6 categories)
+Line 25: Total functional expenses
+Columns: (A) Total, (B) Program services, (C) Management & general, (D) Fundraising
+
+PART X — BALANCE SHEET
+Line 1-16: Assets
+Line 17-25: Liabilities
+Line 27: Net assets without donor restrictions
+Line 28: Net assets with donor restrictions
+Line 29: Total net assets
+Line 33: Total liabilities and net assets
+
+SCHEDULES
+Schedule A: Public Charity Status and Public Support (required for all 501(c)(3))
+Schedule B: Schedule of Contributors (confidential, not public)
+Schedule D: Supplemental Financial Statements
+Schedule L: Transactions with Interested Persons
+Schedule O: Supplemental Information (narrative explanations)
+
+RI-SPECIFIC CONTEXT
+RI currently qualifies for Form 990-EZ. Post-property development (assets > $500K), RI will file the full Form 990. The system maps account types and sub-types to Form 990 Part IX line numbers via the form990Line field on the accounts table.

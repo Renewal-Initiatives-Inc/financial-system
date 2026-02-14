@@ -1,0 +1,20 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/ramp-sync",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/depreciation",
+      "schedule": "0 6 1 * *"
+    },
+    {
+      "path": "/api/cron/interest-accrual",
+      "schedule": "0 6 28 * *"
+    },
+    {
+      "path": "/api/cron/prepaid-amortization",
+      "schedule": "0 6 1 * *"
+    }
+  ]
+}

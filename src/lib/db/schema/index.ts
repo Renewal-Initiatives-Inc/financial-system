@@ -14,6 +14,13 @@ export * from './budgets'
 export * from './budget-lines'
 export * from './cash-projections'
 export * from './cash-projection-lines'
+export * from './ramp-transactions'
+export * from './categorization-rules'
+export * from './fixed-assets'
+export * from './cip-conversions'
+export * from './cip-conversion-lines'
+export * from './ahp-loan-config'
+export * from './prepaid-schedules'
 
 // Re-import for relations definitions
 import { accounts } from './accounts'
@@ -28,6 +35,12 @@ import { cashProjectionLines } from './cash-projection-lines'
 import { vendors } from './vendors'
 import { tenants } from './tenants'
 import { donors } from './donors'
+import { rampTransactions } from './ramp-transactions'
+import { categorizationRules } from './categorization-rules'
+import { fixedAssets } from './fixed-assets'
+import { cipConversions } from './cip-conversions'
+import { cipConversionLines } from './cip-conversion-lines'
+import { prepaidSchedules } from './prepaid-schedules'
 
 // --- Relations ---
 
@@ -134,3 +147,119 @@ export const vendorsRelations = relations(vendors, ({ one }) => ({
 export const tenantsRelations = relations(tenants, () => ({}))
 
 export const donorsRelations = relations(donors, () => ({}))
+
+export const rampTransactionsRelations = relations(
+  rampTransactions,
+  ({ one }) => ({
+    glAccount: one(accounts, {
+      fields: [rampTransactions.glAccountId],
+      references: [accounts.id],
+    }),
+    fund: one(funds, {
+      fields: [rampTransactions.fundId],
+      references: [funds.id],
+    }),
+    glTransaction: one(transactions, {
+      fields: [rampTransactions.glTransactionId],
+      references: [transactions.id],
+    }),
+    categorizationRule: one(categorizationRules, {
+      fields: [rampTransactions.categorizationRuleId],
+      references: [categorizationRules.id],
+    }),
+  })
+)
+
+export const categorizationRulesRelations = relations(
+  categorizationRules,
+  ({ one }) => ({
+    glAccount: one(accounts, {
+      fields: [categorizationRules.glAccountId],
+      references: [accounts.id],
+    }),
+    fund: one(funds, {
+      fields: [categorizationRules.fundId],
+      references: [funds.id],
+    }),
+  })
+)
+
+export const fixedAssetsRelations = relations(fixedAssets, ({ one, many }) => ({
+  parent: one(fixedAssets, {
+    fields: [fixedAssets.parentAssetId],
+    references: [fixedAssets.id],
+    relationName: 'assetHierarchy',
+  }),
+  children: many(fixedAssets, { relationName: 'assetHierarchy' }),
+  glAssetAccount: one(accounts, {
+    fields: [fixedAssets.glAssetAccountId],
+    references: [accounts.id],
+  }),
+  glAccumDeprAccount: one(accounts, {
+    fields: [fixedAssets.glAccumDeprAccountId],
+    references: [accounts.id],
+  }),
+  glExpenseAccount: one(accounts, {
+    fields: [fixedAssets.glExpenseAccountId],
+    references: [accounts.id],
+  }),
+  cipConversion: one(cipConversions, {
+    fields: [fixedAssets.cipConversionId],
+    references: [cipConversions.id],
+  }),
+}))
+
+export const cipConversionsRelations = relations(
+  cipConversions,
+  ({ one, many }) => ({
+    lines: many(cipConversionLines),
+    glTransaction: one(transactions, {
+      fields: [cipConversions.glTransactionId],
+      references: [transactions.id],
+    }),
+  })
+)
+
+export const cipConversionLinesRelations = relations(
+  cipConversionLines,
+  ({ one }) => ({
+    conversion: one(cipConversions, {
+      fields: [cipConversionLines.conversionId],
+      references: [cipConversions.id],
+    }),
+    sourceCipAccount: one(accounts, {
+      fields: [cipConversionLines.sourceCipAccountId],
+      references: [accounts.id],
+    }),
+    sourceCostCode: one(cipCostCodes, {
+      fields: [cipConversionLines.sourceCostCodeId],
+      references: [cipCostCodes.id],
+    }),
+    targetFixedAsset: one(fixedAssets, {
+      fields: [cipConversionLines.targetFixedAssetId],
+      references: [fixedAssets.id],
+    }),
+  })
+)
+
+export const prepaidSchedulesRelations = relations(
+  prepaidSchedules,
+  ({ one }) => ({
+    glExpenseAccount: one(accounts, {
+      fields: [prepaidSchedules.glExpenseAccountId],
+      references: [accounts.id],
+    }),
+    glPrepaidAccount: one(accounts, {
+      fields: [prepaidSchedules.glPrepaidAccountId],
+      references: [accounts.id],
+    }),
+    fund: one(funds, {
+      fields: [prepaidSchedules.fundId],
+      references: [funds.id],
+    }),
+    sourceTransaction: one(transactions, {
+      fields: [prepaidSchedules.sourceTransactionId],
+      references: [transactions.id],
+    }),
+  })
+)

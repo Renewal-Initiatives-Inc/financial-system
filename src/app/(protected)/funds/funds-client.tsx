@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { DataTable } from '@/components/shared/data-table'
 import { fundColumns } from './columns'
 import { CreateFundDialog } from './create-fund-dialog'
+import { CopilotContextSetter } from '@/components/copilot/copilot-context-setter'
 import type { FundWithBalance } from './actions'
 
 interface FundsClientProps {
@@ -19,6 +20,7 @@ export function FundsClient({ initialFunds }: FundsClientProps) {
 
   return (
     <div className="space-y-4">
+      <CopilotContextSetter pageId="funds" />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Funds</h1>
         <Button onClick={() => setCreateOpen(true)} data-testid="create-fund-btn">

@@ -1,8 +1,18 @@
-export default function AssetsPage() {
+import { getFixedAssets, getAccountOptions, getFundOptions } from './actions'
+import { AssetListClient } from './asset-list-client'
+
+export default async function AssetsPage() {
+  const [assets, accountOptions, fundOptions] = await Promise.all([
+    getFixedAssets(),
+    getAccountOptions(),
+    getFundOptions(),
+  ])
+
   return (
-    <div>
-      <h1 className="text-2xl font-semibold tracking-tight">Assets</h1>
-      <p className="text-muted-foreground mt-2">Fixed asset management will be built in Phase 11.</p>
-    </div>
+    <AssetListClient
+      initialAssets={assets}
+      accountOptions={accountOptions}
+      fundOptions={fundOptions}
+    />
   )
 }

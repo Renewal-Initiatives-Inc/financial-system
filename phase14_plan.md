@@ -1,626 +1,341 @@
 # Phase 14: Budgeting & Cash Projection — Execution Plan
 
-**Phase dependency:** Phase 4 (Chart of Accounts & Fund Management UI)
-**Parallel with:** Phases 7-13 (independent domain)
-**Source:** implementation_plan.md Section 16, design.md Section 2.4, requirements.md Section 6
+**Phase:** 14 of 22
+**Depends on:** Phase 4 (Chart of Accounts & Fund Management) — **verified complete**
+**Branch:** `phase-14-budgeting` (from `main`)
+**Estimated scope:** Completion & hardening — core infrastructure already built in Phase 6 bundle
 
 ---
 
-## Pre-Flight Checks
+## Current State Assessment
 
-Before starting, verify Phase 3 deliverables are working:
+Phase 14's infrastructure was scaffolded during the Phase 6 implementation. The following layers are **already built and functional**:
 
-- [ ] GL engine creates transactions successfully (`src/lib/gl/engine.ts`)
-- [ ] Accounts and funds tables are seeded with all 69 accounts and 6 funds
-- [ ] Audit logger is operational (`src/lib/audit/logger.ts`)
-- [ ] Transaction lines with fund coding work correctly
-- [ ] Database migrations run cleanly (`npx drizzle-kit push`)
+| Layer | Status | Files |
+|-------|--------|-------|
+| Database schema (4 tables + enums) | Done | `src/lib/db/schema/{budgets,budget-lines,cash-projections,cash-projection-lines,enums}.ts` |
+| Spread calculation engine | Done + tested | `src/lib/budget/spread.ts` + `spread.test.ts` |
+| Variance calculation engine | Done + tested | `src/lib/budget/variance.ts` + `variance.test.ts` |
+| Cash projection engine | Done (shallow tests) | `src/lib/budget/projection.ts` + `projection.test.ts` |
+| CRUD queries with audit logging | Done | `src/lib/budget/queries.ts` |
+| Zod validation schemas | Done + tested | `src/lib/validators/{budgets,cash-projections}.ts` + `budgets.test.ts` |
+| Server actions (budget + projection) | Done | `src/app/(protected)/budgets/actions.ts`, `cash-projection/actions.ts` |
+| Budget list page | Done | `budgets-client.tsx` |
+| Budget creation page | Done | `new/page.tsx` |
+| Budget edit page (inline table) | Done | `[id]/edit/budget-edit-client.tsx` |
+| Budget review page (variance) | Done | `[id]/budget-review-client.tsx` |
+| Cash projection page | Done | `cash-projection/cash-projection-client.tsx` |
+| Reusable components | Done | `src/components/budgets/{variance-indicator,spread-mode-selector,monthly-amounts-editor}.tsx` |
+| Compliance milestones | Done | `src/lib/budget/compliance.ts` |
+
+**What remains:** Gaps in CIP budget drill-down, grant budget multi-year support, help tooltips, E2E tests, and several edge cases/polish items identified below.
 
 ---
 
-## Step 1: Database Schema — Budget Tables
+## Tasks
 
-**Files to create:**
-- `src/lib/db/schema/budgets.ts`
-- `src/lib/db/schema/budget-lines.ts`
-- `src/lib/db/schema/cash-projections.ts`
-- `src/lib/db/schema/cash-projection-lines.ts`
+### Task 1: CIP Budget Drill-Down by Cost Code (DM-P0-029, BDG-P0-003)
+
+**Why:** The implementation plan specifically requires "budget vs actual at sub-account level with drill-down to cost code level." This is critical for Report #24 and not yet built.
+
+**Files to create/modify:**
+- `src/lib/budget/cip-budget.ts` — New query functions for CIP budget vs actual at cost-code level
+- `src/app/(protected)/budgets/[id]/budget-review-client.tsx` — Add CIP drill-down section below the main variance table
+
+**Subtasks:**
+1. Create `getCIPBudgetVsActual(budgetId, fundId?)` in `cip-budget.ts`:
+   - Query budget lines where account is a CIP sub-account (Hard Costs, Soft Costs, Reserves, Developer Fee, Construction Interest)
+   - Query GL actuals grouped by `cip_cost_code_id` on `transaction_lines` for those CIP accounts
+   - Return: sub-account → cost codes → budget vs actual with variance
+2. Add a collapsible "CIP Budget Detail" section to the budget review page that:
+   - Shows CIP sub-account totals (budget vs actual)
+   - Expands each sub-account to show cost-code-level breakdown
+   - Uses existing `VarianceIndicator` component for coloring
+3. Handle the case where no CIP budget lines exist (hide the section entirely)
+
+**Tests:**
+- Unit test: `cip-budget.test.ts` — CIP variance calculation with cost code grouping, empty CIP data returns empty array
+
+---
+
+### Task 2: Grant Budget Multi-Year Support (BDG-P0-009)
+
+**Why:** Grant budgets span fiscal years. Currently budget lines are constrained to a single fiscal year's budget. Need to enable fund-level budget tracking across FYs.
 
 **Files to modify:**
-- `src/lib/db/schema/enums.ts` — add `budgetStatusEnum`, `spreadMethodEnum`, `projectionLineTypeEnum`
-- `src/lib/db/schema/index.ts` — export new tables + relations
+- `src/app/(protected)/budgets/[id]/edit/budget-edit-client.tsx` — Add visual indicator for fund-level budget totals
+- `src/app/(protected)/budgets/[id]/budget-review-client.tsx` — Add cross-year grant budget context
 
-### 1a. New Enums (`enums.ts`)
+**Subtasks:**
+1. Add `getGrantBudgetSummary(fundId)` query in `src/lib/budget/queries.ts`:
+   - Sum budget lines across all fiscal years for a given restricted fund
+   - Return: total budgeted, total actual spent, remaining
+2. When viewing a restricted fund's budget lines, show a context banner: "Grant total: $X budgeted across FY2026-FY2028 | $Y spent | $Z remaining"
+3. No schema changes needed — multi-year is already supported by having budget_lines per fiscal year per fund
 
-```
-budgetStatusEnum: 'DRAFT' | 'APPROVED'
-spreadMethodEnum: 'EVEN' | 'SEASONAL' | 'ONE_TIME' | 'CUSTOM'
-projectionLineTypeEnum: 'INFLOW' | 'OUTFLOW'
-```
-
-### 1b. `budgets` Table
-
-Per design.md Section 2.4:
-
-| Column | Type | Notes |
-|--------|------|-------|
-| id | serial PK | |
-| fiscalYear | integer | e.g. 2026. UNIQUE — one active budget per FY (BDG-P0-005) |
-| status | budgetStatusEnum | DRAFT or APPROVED |
-| createdBy | varchar(255) | User who created |
-| createdAt | timestamp | |
-| updatedAt | timestamp | |
-
-Index on `fiscalYear` (unique).
-
-### 1c. `budget_lines` Table
-
-Per design.md Section 2.4 and BDG-P0-001:
-
-| Column | Type | Notes |
-|--------|------|-------|
-| id | serial PK | |
-| budgetId | integer FK → budgets | |
-| accountId | integer FK → accounts | GL account |
-| fundId | integer FK → funds | Fund dimension |
-| annualAmount | numeric(15,2) | Total annual budget for this account×fund |
-| spreadMethod | spreadMethodEnum | EVEN, SEASONAL, ONE_TIME, CUSTOM |
-| monthlyAmounts | jsonb | 12-element array [Jan..Dec], each a number |
-| createdAt | timestamp | |
-| updatedAt | timestamp | |
-
-UNIQUE constraint on `(budgetId, accountId, fundId)` — one line per account per fund per budget.
-Index on `budgetId`.
-
-**Design note:** `monthlyAmounts` is a JSON array of 12 numbers. For EVEN spread, each = annualAmount/12. For SEASONAL, user sets weights. For ONE_TIME, one month has the full amount. For CUSTOM, user sets each month directly. The application layer calculates monthly amounts from the spread method + annual amount.
-
-### 1d. `cash_projections` Table
-
-| Column | Type | Notes |
-|--------|------|-------|
-| id | serial PK | |
-| fiscalYear | integer | |
-| asOfDate | date | When projection was created/updated |
-| createdBy | varchar(255) | |
-| createdAt | timestamp | |
-| updatedAt | timestamp | |
-
-### 1e. `cash_projection_lines` Table
-
-| Column | Type | Notes |
-|--------|------|-------|
-| id | serial PK | |
-| projectionId | integer FK → cash_projections | |
-| month | integer | 1-12 |
-| sourceLabel | varchar(255) | e.g. "Rent Income", "Grant Draws", "AHP Interest" |
-| autoAmount | numeric(15,2) | System-calculated from budget or 3-month avg |
-| overrideAmount | numeric(15,2) nullable | User manual override |
-| overrideNote | text nullable | Explanation for override |
-| lineType | projectionLineTypeEnum | INFLOW or OUTFLOW |
-| sortOrder | integer | Display ordering |
-| createdAt | timestamp | |
-
-Index on `projectionId`.
-
-### 1f. Relations (add to `index.ts`)
-
-- budget → many budget_lines
-- budget_line → one account, one fund, one budget
-- cash_projection → many cash_projection_lines
-
-### 1g. Migration
-
-Run `npx drizzle-kit generate` then `npx drizzle-kit push` to deploy schema.
-
-**Acceptance criteria:**
-- All 4 tables created in dev DB
-- UNIQUE constraint on budgets.fiscalYear enforced
-- UNIQUE constraint on budget_lines.(budgetId, accountId, fundId) enforced
-- FK constraints to accounts and funds work correctly
+**Tests:**
+- Unit test in `queries.test.ts`: grant budget summary across 2 fiscal years
 
 ---
 
-## Step 2: Zod Validators
+### Task 3: Budget Fiscal Year from Budget Record (Bug Fix)
 
-**Files to create:**
-- `src/lib/validators/budgets.ts`
-- `src/lib/validators/cash-projections.ts`
+**Why:** The variance engine currently uses `new Date().getFullYear()` for actuals date range instead of the budget's fiscal year. This would break if reviewing a past or future year's budget.
 
 **Files to modify:**
-- `src/lib/validators/index.ts` — re-export new validators
+- `src/lib/budget/variance.ts` — `getBudgetVsActual()` should accept and use fiscal year from the budget record
 
-### 2a. Budget Validators (`budgets.ts`)
+**Subtasks:**
+1. Add `fiscalYear` parameter to `getBudgetVsActual(budgetId, month?, fundId?)`
+2. Fetch the budget record to get its `fiscalYear` (or accept as parameter)
+3. Use `fiscalYear` instead of `new Date().getFullYear()` for date range calculation
+4. Update `src/app/(protected)/budgets/actions.ts` `getBudgetVarianceAction` to pass fiscal year
 
-```typescript
-// insertBudgetSchema
-- fiscalYear: z.number().int().min(2025).max(2100)
-- status: z.enum(['DRAFT', 'APPROVED']).default('DRAFT')
-- createdBy: z.string().min(1)
-
-// insertBudgetLineSchema
-- budgetId: z.number().int().positive()
-- accountId: z.number().int().positive()
-- fundId: z.number().int().positive()
-- annualAmount: z.number().multipleOf(0.01)  // can be negative for contra accounts
-- spreadMethod: z.enum(['EVEN', 'SEASONAL', 'ONE_TIME', 'CUSTOM'])
-- monthlyAmounts: z.array(z.number()).length(12)
-  .refine(arr => arr matches spread method rules)
-
-// updateBudgetLineSchema
-- annualAmount: optional
-- spreadMethod: optional
-- monthlyAmounts: optional (with recalc validation)
-
-// Spread validation refinements:
-// - EVEN: each month ≈ annualAmount / 12 (within rounding)
-// - SEASONAL: sum of months = annualAmount
-// - ONE_TIME: exactly one month non-zero, equals annualAmount
-// - CUSTOM: sum of months = annualAmount
-```
-
-### 2b. Cash Projection Validators (`cash-projections.ts`)
-
-```typescript
-// insertCashProjectionSchema
-- fiscalYear: z.number().int()
-- asOfDate: z.string().date()
-- createdBy: z.string().min(1)
-
-// insertCashProjectionLineSchema
-- projectionId: z.number().int().positive()
-- month: z.number().int().min(1).max(12)
-- sourceLabel: z.string().min(1).max(255)
-- autoAmount: z.number().multipleOf(0.01)
-- overrideAmount: z.number().multipleOf(0.01).nullable().optional()
-- overrideNote: z.string().nullable().optional()
-  .refine: if overrideAmount set, overrideNote required
-- lineType: z.enum(['INFLOW', 'OUTFLOW'])
-- sortOrder: z.number().int()
-```
-
-**Acceptance criteria:**
-- Spread method validation enforces sum = annualAmount
-- ONE_TIME validates exactly one non-zero month
-- Override note required when override amount provided
+**Tests:**
+- Update `variance.test.ts`: verify date range uses budget FY, not current year
 
 ---
 
-## Step 3: Budget Business Logic
+### Task 4: Cash Projection — Starting Cash Row & AHP Context (BDG-P0-008, Report #15)
 
-**Files to create:**
-- `src/lib/budget/spread.ts` — spread calculation functions
-- `src/lib/budget/variance.ts` — variance calculation against GL actuals
-- `src/lib/budget/projection.ts` — cash projection auto-fill logic
-- `src/lib/budget/queries.ts` — budget data access queries
-- `src/lib/budget/index.ts` — re-exports
-
-### 3a. Spread Calculator (`spread.ts`)
-
-Functions:
-- `calculateEvenSpread(annualAmount: number): number[]` — divide by 12, handle rounding (last month absorbs remainder)
-- `calculateSeasonalSpread(annualAmount: number, weights: number[]): number[]` — distribute by weight proportions, must sum to annualAmount
-- `calculateOneTimeSpread(annualAmount: number, targetMonth: number): number[]` — full amount in one month, zeros elsewhere
-- `validateCustomSpread(monthlyAmounts: number[], annualAmount: number): boolean` — verify sum matches
-- `recalculateSpread(method: SpreadMethod, annualAmount: number, params?: { weights?: number[], targetMonth?: number }): number[]` — dispatcher
-
-### 3b. Variance Calculator (`variance.ts`)
-
-Functions:
-- `calculateVariance(actual: number, budget: number): { dollarVariance: number, percentVariance: number | null, severity: 'normal' | 'warning' | 'critical' }` — dollar and percentage variance, severity per RPT-P0-005 (>10% = warning/yellow, >25% = critical/red)
-- `getActualsForPeriod(accountId: number, fundId: number, startDate: string, endDate: string): Promise<number>` — query GL transaction lines, sum debits - credits (adjusted for normal balance direction), excluding voided transactions
-- `getBudgetVsActual(budgetId: number, month?: number, fundId?: number): Promise<BudgetVarianceRow[]>` — returns array of { accountId, accountName, accountCode, fundId, fundName, budgetAmount, actualAmount, dollarVariance, percentVariance, severity }
-
-**Variance calculation logic:**
-- For revenue accounts (normal balance = Credit): actual = sum(credits) - sum(debits)
-- For expense accounts (normal balance = Debit): actual = sum(debits) - sum(credits)
-- Dollar variance = actual - budget (positive = over budget for expenses, under target for revenue)
-- Percent variance = (actual - budget) / budget * 100 (null if budget = 0)
-- Severity: abs(percentVariance) > 25 → critical, abs(percentVariance) > 10 → warning, else normal
-- **Phase 17 cross-reference:** The same severity thresholds and color scheme apply to the functional allocation wizard's benchmark comparison panel (outlier flagging at <65% or >90% program allocation). The `variance-indicator` component (Step 5) should be designed for reuse in both contexts.
-
-### 3c. Cash Projection Auto-Fill (`projection.ts`)
-
-Functions:
-- `generateProjectionLines(startMonth: number, budgetId?: number): Promise<CashProjectionLine[]>` — for 3 months ahead:
-  1. Try budget data first for each revenue/expense account
-  2. Fall back to average of last 3 months actuals if no budget line
-  3. Group into inflow/outflow categories
-  4. Include: rent income, grant draws, other revenue (inflows); payables, AHP interest, capital spending (outflows)
-  5. Starting cash = current bank balance (placeholder until Plaid integration in Phase 12)
-- `getStartingCash(): Promise<number>` — sum of all cash-type account balances from GL
-- `getThreeMonthActualAverage(accountId: number, fundId: number): Promise<number>` — average monthly actual over last 3 months
-
-### 3d. Budget Queries (`queries.ts`)
-
-Functions:
-- `createBudget(input: InsertBudget): Promise<Budget>` — create budget, audit log
-- `getBudget(id: number): Promise<Budget>` — single budget with lines
-- `getBudgetByFiscalYear(year: number): Promise<Budget | null>` — lookup by FY
-- `getBudgetList(): Promise<Budget[]>` — all budgets
-- `createBudgetLine(input: InsertBudgetLine): Promise<BudgetLine>` — create line, audit log
-- `updateBudgetLine(id: number, updates: UpdateBudgetLine, userId: string): Promise<BudgetLine>` — update line, enforce mid-year lock, audit log
-- `deleteBudgetLine(id: number, userId: string): Promise<void>` — remove line, audit log
-- `updateBudgetStatus(id: number, status: 'DRAFT' | 'APPROVED', userId: string): Promise<Budget>` — status change, audit log
-- `getBudgetForMonth(fiscalYear: number, month: number, fundId?: number): Promise<BudgetLineWithAmount[]>` — returns budget amounts for a specific month, optionally filtered by fund
-- `createCashProjection(input: InsertCashProjection): Promise<CashProjection>` — create projection record
-- `saveCashProjectionLines(projectionId: number, lines: InsertCashProjectionLine[]): Promise<void>` — upsert lines
-
-**Mid-year revision logic (BDG-P0-005):**
-- Determine current month
-- When updating a budget line, lock monthly amounts for months ≤ current month
-- Only future months are editable
-- Implementation: `updateBudgetLine` checks if any locked months are being changed
-
-**Acceptance criteria:**
-- Even spread produces 12 equal amounts (±$0.01 rounding)
-- Seasonal spread distributes proportionally to weights
-- One-time spread places full amount in single month
-- Custom spread validates sum = annual amount
-- Variance correctly handles revenue vs expense normal balance
-- Color thresholds: >10% = yellow, >25% = red
-- Mid-year lock prevents editing past months
-- Cash projection auto-fills from budget, falls back to 3-month average
-
----
-
-## Step 4: Server Actions
-
-**Files to create:**
-- `src/app/(protected)/budgets/actions.ts` — server actions for budget CRUD
-- `src/app/(protected)/budgets/cash-projection/actions.ts` — server actions for projection
-
-### 4a. Budget Actions
-
-```typescript
-'use server'
-// createBudgetAction(formData) — create new budget for fiscal year
-// saveBudgetLineAction(formData) — create or update a budget line
-// deleteBudgetLineAction(lineId) — remove a budget line
-// approveBudgetAction(budgetId) — move from DRAFT to APPROVED
-// getBudgetDataAction(budgetId, month?, fundId?) — fetch budget with variance data
-```
-
-Each action:
-1. Authenticate via `auth()`
-2. Validate input via Zod schema
-3. Call budget query function
-4. Return result or error
-
-### 4b. Cash Projection Actions
-
-```typescript
-'use server'
-// generateProjectionAction(fiscalYear) — auto-fill 3-month projection
-// saveProjectionAction(projectionId, lines) — save overrides
-// getProjectionAction(projectionId) — fetch projection with lines
-```
-
----
-
-## Step 5: Budget UI Pages
-
-**Files to create:**
-- `src/app/(protected)/budgets/page.tsx` — budget list (replace placeholder)
-- `src/app/(protected)/budgets/new/page.tsx` — create budget
-- `src/app/(protected)/budgets/[id]/page.tsx` — budget review (variance view)
-- `src/app/(protected)/budgets/[id]/edit/page.tsx` — budget line entry/editing
-- `src/app/(protected)/budgets/cash-projection/page.tsx` — 3-month projection
-- `src/components/budgets/budget-line-table.tsx` — TanStack Table for budget entry
-- `src/components/budgets/spread-mode-selector.tsx` — spread method picker + config
-- `src/components/budgets/variance-indicator.tsx` — color-coded variance badge
-- `src/components/budgets/monthly-amounts-editor.tsx` — 12-month amount grid
-- `src/components/budgets/cash-projection-table.tsx` — projection table with overrides
-
-### 5a. Budget List Page (`/budgets`)
-
-Replace existing placeholder. TanStack Table showing:
-- Fiscal year
-- Status badge (Draft / Approved)
-- Created by
-- Created date
-- Total budget amount (sum of all lines)
-- "New Budget" button
-
-### 5b. Create Budget Page (`/budgets/new`)
-
-Simple form:
-- Fiscal year selector (dropdown of available years — reject if year already has budget)
-- Status defaults to DRAFT
-- On submit: create budget, redirect to edit page
-
-### 5c. Budget Line Entry Page (`/budgets/[id]/edit`)
-
-This is the primary budget entry interface. TanStack Table where:
-
-**Layout:**
-- Fund filter dropdown at top (optional — "All Funds" default, or filter to single fund)
-- Account type tabs or filter: Revenue / Expense / Capital (CIP + fixed assets)
-- Table: rows = GL accounts, organized by type
-
-**Table columns:**
-- Account code
-- Account name
-- Fund name
-- Annual amount (editable input)
-- Spread method (dropdown: Even / Seasonal / One-Time / Custom)
-- 12 monthly columns (Jan–Dec) — auto-calculated from spread, editable for Custom
-- Actions (delete line)
-
-**Behavior:**
-- "Add Line" button opens selector: pick GL account + fund → creates new budget line
-- Changing annual amount auto-recalculates monthly columns per spread method
-- Changing spread method recalculates monthly columns
-- For SEASONAL: additional UI to set monthly weights (sliders or percentage inputs)
-- For ONE_TIME: month picker to select which month gets the full amount
-- For CUSTOM: all 12 months are directly editable, annual amount = sum
-- Mid-year revision: months ≤ current month are greyed out / non-editable (BDG-P0-005)
-- Auto-save on blur or debounced input (avoid explicit save button per line)
-- "Approve Budget" button (changes status DRAFT → APPROVED)
-
-**Account type filtering (BDG-P0-003):**
-- Revenue accounts + Expense accounts = operating budget
-- CIP sub-accounts + fixed asset accounts = capital budget
-- AHP-related accounts = financing budget
-- No separate field needed — account type determines category
-
-### 5d. Budget Review Page (`/budgets/[id]`)
-
-Read-only variance view. TanStack Table:
-- Account code, account name, fund
-- Budget amount (monthly or YTD depending on period selector)
-- Actual amount (from GL)
-- Dollar variance
-- Percent variance
-- Severity indicator (green / yellow / red per RPT-P0-005)
-
-**Controls:**
-- Period selector: individual month or Year-to-Date
-- Fund filter
-- "Edit Budget" button → navigate to edit page
-
-### 5e. Cash Projection Page (`/budgets/cash-projection`)
-
-Per BDG-P0-008 and Report #15:
-
-**Layout:**
-- 3 monthly columns (next 3 months)
-- Row groups: Starting Cash, Inflows, Outflows, Ending Cash
-
-**Inflow rows:** Rent income, Grant draws, Other revenue, Budget inflows
-**Outflow rows:** Outstanding payables, Budget outflows, AHP interest, Capital spending
-
-**Per row, per month:**
-- Auto amount (system-calculated, grey/italic)
-- Override amount (editable input, bold when set)
-- Override note (expandable text, required when override entered)
-
-**Footer:**
-- AHP available credit (informational context)
-- Save button
-- "Generate" button to re-run auto-fill
-
-### 5f. CIP Budget View
-
-Within the budget review page, when filtering to CIP accounts:
-- Show budget vs actual at sub-account level (Hard Costs, Soft Costs, etc.)
-- Drill-down to cost code level within each sub-account (DM-P0-029)
-- This requires joining budget_lines to cip_cost_codes (optional — budget lines are at account×fund level; cost code drill-down shows actuals by cost code against the sub-account budget)
-
-**Implementation note:** CIP budget drill-down to cost code level shows GL actuals grouped by cip_cost_code_id against the budget line for the CIP sub-account. Budget lines themselves don't have cost codes — the drill-down is on the actuals side.
-
----
-
-## Step 6: Compliance Calendar Integration
+**Why:** The implementation plan specifies "Starting cash" as the first row and "AHP available credit as context." Neither is currently displayed.
 
 **Files to modify:**
-- Budget-related compliance deadlines should be noted for Phase 17 (Compliance Calendar). For now, add constants/config that Phase 17 can consume.
+- `src/lib/budget/projection.ts` — `getStartingCash()` already exists
+- `src/app/(protected)/budgets/cash-projection/cash-projection-client.tsx` — Add starting cash row and AHP context
+- `src/app/(protected)/budgets/cash-projection/actions.ts` — Add action to fetch AHP context
 
-**File to create:**
-- `src/lib/budget/compliance.ts` — export budget cycle milestone dates
+**Subtasks:**
+1. Add a "Starting Cash" row at the top of the projection table (read-only, from `getStartingCash()`)
+2. Add an "Ending Cash" row after Net Cash Flow = Starting Cash + Net Cash Flow
+3. Add an AHP context card below the table: "AHP Credit Facility: $3.5M | Drawn: $X | Available: $Y" — read from loan metadata settings (or hardcoded config until settings page is built)
+4. Update the `generateProjectionAction` to include starting cash in the response
 
-```typescript
-// Budget cycle milestones (BDG-P0-004)
-export const BUDGET_CYCLE_MILESTONES = [
-  { month: 9, label: 'Budget Review — September' },
-  { month: 10, label: 'ED Budget Draft — October' },
-  { month: 11, label: 'Board Budget Circulation — November' },
-  { month: 12, label: 'Board Budget Approval — December' },
-]
+**Tests:**
+- Verify starting cash appears in projection output
+- Verify ending cash = starting + net
 
-// Public support trajectory review (from MCP research Feb 2025)
-// As rental income enters Total Support denominator (Schedule A Line 10a)
-// but NOT Public Support numerator (Line 1), RI's public support % will
-// decline post-construction. Proactive review ensures ratio stays above
-// 33⅓% per IRC § 509(a). Target ~FY2028 when rental income is stabilized.
-export const PUBLIC_SUPPORT_REVIEW_MILESTONE = {
-  label: 'Public Support Trajectory Review',
-  description: 'Review Schedule A public support percentage — rental income pressures ratio post-construction',
-  targetFiscalYear: 2028,
-}
+---
+
+### Task 5: Mid-Year Lock Visual Enhancement
+
+**Why:** The mid-year lock is enforced server-side, but the UI could communicate it more clearly. When a budget is APPROVED and months have passed, locked months should be visually distinct.
+
+**Files to modify:**
+- `src/app/(protected)/budgets/[id]/edit/budget-edit-client.tsx` — Enhance locked month display
+
+**Subtasks:**
+1. When budget is APPROVED, show a notice: "Months through [current month] are locked (actuals recorded)"
+2. In the `MonthlyAmountsEditor`, ensure locked months show a lock icon or strikethrough styling (currently disabled, may need icon)
+3. The annual amount input should reflect only the editable portion when in mid-year edit mode — show "Remaining: $X" hint
+
+---
+
+### Task 6: Help Tooltips for Budget Concepts (SYS-P0-021)
+
+**Why:** Budget-related terms are not yet in the help dictionary. Users need inline explanations.
+
+**Files to modify:**
+- `src/lib/help/terms.ts` — Add budget-specific terms
+- `src/app/(protected)/budgets/[id]/edit/budget-edit-client.tsx` — Add tooltips to column headers
+- `src/app/(protected)/budgets/[id]/budget-review-client.tsx` — Add tooltips to variance columns
+- `src/app/(protected)/budgets/cash-projection/cash-projection-client.tsx` — Add tooltips
+
+**New terms to add:**
+```
+budget — "An annual financial plan that estimates revenue and expenses by GL account and fund. One active budget per fiscal year. Supports four spread methods for distributing annual amounts across months."
+
+spread-method — "Method for allocating an annual budget amount to individual months: Even (÷12), Seasonal (weighted), One-Time (single month), or Custom (manual entry per month)."
+
+budget-variance — "The difference between budgeted and actual amounts. Color-coded: green (≤10% deviation), yellow/warning (10-25%), red/critical (>25%). Per RPT-P0-005."
+
+cash-projection — "A 3-month rolling forecast of cash inflows and outflows. Auto-populated from budget data (or 3-month GL average if no budget), with manual override capability. Updated quarterly before board meetings."
+
+mid-year-revision — "Budget edits made after the fiscal year begins. Months with recorded actuals are locked — only future months can be modified. No version history; revisions overwrite."
+
+budget-approval — "A budget moves from Draft to Approved status. Once approved, mid-year lock rules apply (past months frozen). Approval is logged in the audit trail."
 ```
 
-This data is consumed by the compliance calendar (Phase 17) to generate budget-related and compliance reminders.
+---
+
+### Task 7: Copy Prior Year Budget (BDG-P0-006 — P1)
+
+**Why:** Marked P1 in requirements ("First budget year (2026) has no prior year to copy. Feature needed for 2027+"). Build it now since the infrastructure is ready.
+
+**Files to modify:**
+- `src/lib/budget/queries.ts` — Add `copyBudgetFromPriorYear()` function
+- `src/app/(protected)/budgets/new/page.tsx` — Add "Copy from prior year" option with percentage adjustment
+
+**Subtasks:**
+1. Add `copyBudgetFromPriorYear(sourceBudgetId, targetFiscalYear, adjustmentPercent, userId)`:
+   - Creates new budget for target FY
+   - Copies all budget lines from source
+   - Applies percentage adjustment to all annual amounts
+   - Recalculates monthly spreads using each line's existing spread method
+   - Returns new budget ID
+2. On the "New Budget" page, if a prior year budget exists:
+   - Show radio: "Start blank" / "Copy from FY [year] budget"
+   - If copying, show percentage adjustment slider/input (-50% to +50%, default 0%)
+3. Audit log the copy operation with source reference
+
+**Tests:**
+- Unit test: copy with 0% adjustment produces identical amounts
+- Unit test: copy with +10% adjustment increases all lines by 10%
+- Unit test: spread methods are preserved during copy
 
 ---
 
-## Step 7: Unit Tests
+### Task 8: Compliance Calendar Integration (BDG-P0-004)
+
+**Why:** The implementation plan requires budget cycle milestones in the compliance calendar. The milestones are defined in `src/lib/budget/compliance.ts` but not yet wired to the compliance system.
+
+**Files to modify:**
+- `src/lib/budget/compliance.ts` — Already has milestone definitions
+- This task prepares the data for Phase 17 (Dashboard & Compliance Calendar)
+
+**Subtasks:**
+1. Verify `BUDGET_CYCLE_MILESTONES` constant matches BDG-P0-004: Sept review → Oct draft → Nov circulation → Dec approval
+2. Add `getBudgetCycleDeadlines(fiscalYear)` function that generates compliance deadline records from the milestones for a given FY
+3. Export this so Phase 17's compliance calendar can import it
+4. No UI work — this is a data preparation step for Phase 17
+
+**Tests:**
+- Unit test: generates 4 deadlines for a given FY with correct months and labels
+
+---
+
+### Task 9: Projection Engine Improvements
+
+**Why:** The projection fallback path (no budget → 3-month average) only uses General Fund (fund=1). Multi-fund projections need to aggregate across all funds or allow fund-specific projections.
+
+**Files to modify:**
+- `src/lib/budget/projection.ts` — Fix fallback to use all funds, not just General Fund
+
+**Subtasks:**
+1. In `generateProjectionLines`, when falling back to GL averages:
+   - Query all funds with recent activity, not just fund ID 1
+   - Aggregate amounts by account across funds (for consolidated projection)
+   - Include account+fund label in `sourceLabel` when fund matters
+2. Add optional `fundId` parameter to `generateProjectionLines` for fund-specific projections
+3. Handle edge case: accounts with zero activity in all 3 months should be excluded
+
+**Tests:**
+- Update `projection.test.ts` with proper DB mock tests (currently only tests exports exist)
+
+---
+
+### Task 10: E2E Test — Full Budget Workflow
+
+**Why:** No E2E tests exist for budgeting. The implementation plan requires: "create budget, enter lines with different spread modes, verify variance calculation against test GL data, create cash projection."
 
 **Files to create:**
-- `src/lib/budget/spread.test.ts`
-- `src/lib/budget/variance.test.ts`
-- `src/lib/budget/projection.test.ts`
-- `src/lib/validators/budgets.test.ts`
+- `e2e/budgets.spec.ts`
 
-### 7a. Spread Tests (`spread.test.ts`)
-
-- EVEN: $12,000 → 12 × $1,000.00
-- EVEN rounding: $10,000 → 11 × $833.33 + 1 × $833.37 (or similar rounding strategy)
-- EVEN: $0 → 12 × $0.00
-- EVEN: negative amount (contra-revenue account) → 12 × negative
-- SEASONAL: $12,000 with weights [2,1,1,1,1,1,1,1,1,1,1,1] (total weight 12) → Jan $2,000, Feb-Dec $1,000
-- SEASONAL: weights must be positive
-- SEASONAL: weighted result sums to annual amount exactly
-- ONE_TIME: $5,000 in month 6 → [0,0,0,0,0,5000,0,0,0,0,0,0]
-- ONE_TIME: month must be 1-12
-- CUSTOM: user provides exact months, validates sum = annual
-- CUSTOM: rejects if sum ≠ annual amount
-
-### 7b. Variance Tests (`variance.test.ts`)
-
-- Expense account: budget $1,000, actual $1,200 → $200 over, 20% → warning (yellow)
-- Expense account: budget $1,000, actual $1,300 → $300 over, 30% → critical (red)
-- Expense account: budget $1,000, actual $900 → -$100, -10% → normal (green)
-- Revenue account: budget $5,000, actual $4,000 → -$1,000 under target, -20% → warning
-- Budget = $0: variance = actual amount, percent = null
-- Voided transactions excluded from actuals
-- System-generated entries included in actuals (depreciation, interest)
-
-### 7c. Projection Tests (`projection.test.ts`)
-
-- Auto-fill from budget data: if budget line exists for rent income, use budget amount
-- Fallback to 3-month average: if no budget line, average last 3 months GL actuals
-- Starting cash = sum of cash account balances
-- Override replaces auto amount in display
-- Override note required when override provided
-
-### 7d. Validator Tests (`budgets.test.ts`)
-
-- Valid budget creation accepted
-- Duplicate fiscal year rejected (at DB level)
-- Budget line with invalid accountId rejected
-- Spread method EVEN produces valid monthly amounts
-- ONE_TIME with invalid month (0, 13) rejected
-- CUSTOM spread where sum ≠ annual rejected
-- Mid-year lock: updating locked month rejected
+**Test scenarios:**
+1. **Budget creation:** Navigate to /budgets → New Budget → select FY → create → redirected to edit page
+2. **Add budget lines:** Add 3 lines (one EVEN, one ONE_TIME, one CUSTOM spread) → verify monthly amounts calculate correctly
+3. **Edit budget line:** Change annual amount → verify spread recalculates
+4. **Delete budget line:** Remove a line → verify it disappears
+5. **Approve budget:** Click Approve → verify status changes to Approved
+6. **Variance review:** Navigate to budget review → verify variance table shows data → change period filter → verify data updates
+7. **Cash projection:** Navigate to /budgets/cash-projection → Generate → verify table renders with inflows/outflows → add an override → save → verify note required
 
 ---
 
-## Step 8: E2E Test
+### Task 11: User Identity Integration
 
-**File to create:**
-- `tests/e2e/budgets.spec.ts` (Playwright)
+**Why:** Multiple actions currently pass `'system'` as the userId. These should use the actual authenticated user's identity.
 
-### Test scenario:
+**Files to modify:**
+- `src/app/(protected)/budgets/actions.ts` — Get user from session
+- `src/app/(protected)/budgets/cash-projection/actions.ts` — Get user from session
+- `src/app/(protected)/budgets/[id]/edit/budget-edit-client.tsx` — Pass userId from session
+- `src/app/(protected)/budgets/new/page.tsx` — Pass userId from session
 
-1. Navigate to `/budgets`
-2. Click "New Budget" → fill fiscal year 2026 → create
-3. Navigate to edit page
-4. Add budget line: Salaries & Wages + General Fund, $120,000, EVEN spread
-5. Verify 12 months show $10,000 each
-6. Add budget line: Property Insurance + AHP Fund, $6,000, ONE_TIME in month 7
-7. Verify month 7 shows $6,000, others show $0
-8. Navigate to budget review page
-9. Verify variance calculation against test GL data (if any exists)
-10. Navigate to cash projection page
-11. Verify auto-fill generates 3-month columns
-12. Enter an override amount, verify note is required
-13. Save projection
+**Subtasks:**
+1. Import `auth()` or `getServerSession()` from next-auth in server actions
+2. Replace all hardcoded `'system'` userId references with the actual authenticated user
+3. Verify audit log entries show real user names
+
+---
+
+## Files Summary
+
+### New Files
+| File | Purpose |
+|------|---------|
+| `src/lib/budget/cip-budget.ts` | CIP budget vs actual by cost code |
+| `src/lib/budget/cip-budget.test.ts` | Tests for CIP budget queries |
+| `e2e/budgets.spec.ts` | E2E test for full budget workflow |
+
+### Modified Files
+| File | Changes |
+|------|---------|
+| `src/lib/budget/variance.ts` | Use budget fiscal year for date ranges |
+| `src/lib/budget/projection.ts` | Multi-fund fallback, fund filter param |
+| `src/lib/budget/queries.ts` | Grant budget summary query, copy prior year |
+| `src/lib/budget/compliance.ts` | Add deadline generator function |
+| `src/lib/help/terms.ts` | Add 6 budget-related help terms |
+| `src/app/(protected)/budgets/actions.ts` | User identity, pass fiscal year to variance |
+| `src/app/(protected)/budgets/cash-projection/actions.ts` | Starting cash, AHP context, user identity |
+| `src/app/(protected)/budgets/cash-projection/cash-projection-client.tsx` | Starting/ending cash rows, AHP context card, help tooltips |
+| `src/app/(protected)/budgets/[id]/budget-review-client.tsx` | CIP drill-down section, grant context banner, help tooltips |
+| `src/app/(protected)/budgets/[id]/edit/budget-edit-client.tsx` | Mid-year lock notice, help tooltips, user identity |
+| `src/app/(protected)/budgets/new/page.tsx` | Copy prior year option, user identity |
+| `src/lib/budget/projection.test.ts` | Proper unit tests (currently only export checks) |
+| `src/lib/budget/variance.test.ts` | Fiscal year parameter tests |
 
 ---
 
 ## Requirements Satisfied
 
-| Requirement | Description | How Satisfied |
-|-------------|-------------|---------------|
-| BDG-P0-001 | Budget structure: GL Account × Fund × Month | budget_lines table with accountId, fundId, monthlyAmounts[12] |
-| BDG-P0-002 | Four spread modes (even, seasonal, one-time, custom) | spreadMethod enum + spread calculator |
-| BDG-P0-003 | Full budget scope (operating + capital + financing) | Account type determines category — no separate field |
-| BDG-P0-004 | Annual budget cycle (Sept-Dec milestones) | Budget cycle constants exported for compliance calendar |
-| BDG-P0-005 | One active budget per FY, mid-year revision | UNIQUE constraint on fiscalYear, mid-year month lock |
-| BDG-P0-007 | Variance calculation with color thresholds | variance.ts with >10% yellow, >25% red |
-| BDG-P0-008 | 3-month cash projection (semi-automated) | projection.ts auto-fill + manual override |
-| BDG-P0-009 | Grant budgets = fund-level budgets | Budget lines have fundId, filter by fund = grant budget |
-| DM-P0-029 | CIP budget with cost code drill-down | Budget review filters to CIP accounts, actuals drill to cost code |
-| RPT-P0-004 | Three comparison columns (current, YTD, budget) | Budget data queryable by month/period for report integration |
-| RPT-P0-005 | Color-coded budget variance | variance-indicator component with green/yellow/red |
-
-**Explicitly deferred to later phases:**
-- BDG-P0-006 (Copy prior year budget) — P1, needed for 2027+
-- Report #15 full display (Phase 16) — we build the data layer; the report page is Phase 16
-- Report #24 Capital Budget Summary (Phase 16) — data layer built here
-- Compliance calendar integration (Phase 17) — we export milestone data
-
----
-
-## File Summary
-
-### New files (18):
-| File | Purpose |
-|------|---------|
-| `src/lib/db/schema/budgets.ts` | budgets table |
-| `src/lib/db/schema/budget-lines.ts` | budget_lines table |
-| `src/lib/db/schema/cash-projections.ts` | cash_projections table |
-| `src/lib/db/schema/cash-projection-lines.ts` | cash_projection_lines table |
-| `src/lib/validators/budgets.ts` | Budget Zod schemas |
-| `src/lib/validators/cash-projections.ts` | Cash projection Zod schemas |
-| `src/lib/budget/spread.ts` | Spread calculation logic |
-| `src/lib/budget/variance.ts` | Variance calculation logic |
-| `src/lib/budget/projection.ts` | Cash projection auto-fill |
-| `src/lib/budget/queries.ts` | Budget CRUD + data access |
-| `src/lib/budget/compliance.ts` | Budget cycle milestone constants |
-| `src/lib/budget/index.ts` | Re-exports |
-| `src/app/(protected)/budgets/actions.ts` | Server actions |
-| `src/app/(protected)/budgets/new/page.tsx` | Create budget page |
-| `src/app/(protected)/budgets/[id]/page.tsx` | Budget review (variance) |
-| `src/app/(protected)/budgets/[id]/edit/page.tsx` | Budget line entry |
-| `src/app/(protected)/budgets/cash-projection/page.tsx` | 3-month projection |
-| `src/app/(protected)/budgets/cash-projection/actions.ts` | Projection server actions |
-
-### New component files (5):
-| File | Purpose |
-|------|---------|
-| `src/components/budgets/budget-line-table.tsx` | TanStack Table for budget entry |
-| `src/components/budgets/spread-mode-selector.tsx` | Spread method picker |
-| `src/components/budgets/variance-indicator.tsx` | Color-coded variance badge |
-| `src/components/budgets/monthly-amounts-editor.tsx` | 12-month grid editor |
-| `src/components/budgets/cash-projection-table.tsx` | Projection table with overrides |
-
-### Modified files (4):
-| File | Change |
-|------|--------|
-| `src/lib/db/schema/enums.ts` | Add 3 new enums |
-| `src/lib/db/schema/index.ts` | Export new tables + relations |
-| `src/lib/validators/index.ts` | Re-export new validators |
-| `src/app/(protected)/budgets/page.tsx` | Replace placeholder with budget list |
-
-### Test files (5):
-| File | Purpose |
-|------|---------|
-| `src/lib/budget/spread.test.ts` | Spread calculation tests |
-| `src/lib/budget/variance.test.ts` | Variance calculation tests |
-| `src/lib/budget/projection.test.ts` | Projection auto-fill tests |
-| `src/lib/validators/budgets.test.ts` | Validator tests |
-| `tests/e2e/budgets.spec.ts` | Full E2E workflow test |
+| ID | Requirement | Task |
+|----|------------|------|
+| BDG-P0-001 | Budget structure: GL Account × Fund × Month | Already built |
+| BDG-P0-002 | Four spread modes (even/seasonal/one_time/custom) | Already built |
+| BDG-P0-003 | Full budget scope: operating + capital + financing | Task 1 (CIP drill-down) |
+| BDG-P0-004 | Budget cycle compliance calendar integration | Task 8 |
+| BDG-P0-005 | One budget per FY, mid-year revision with locks | Already built + Task 5 (visual) |
+| BDG-P0-006 | Copy prior year budget (P1) | Task 7 |
+| BDG-P0-007 | Variance calculation with color thresholds | Already built |
+| BDG-P0-008 | 3-month cash projection (semi-automated) | Already built + Task 4 (starting cash, AHP) |
+| BDG-P0-009 | Grant budgets = fund-level, multi-year | Task 2 |
+| DM-P0-029 | CIP budget drill-down to cost code level | Task 1 |
+| RPT-P0-005 | Color-coded variance (>10% yellow, >25% red) | Already built |
+| SYS-P0-021 | Inline help tooltips | Task 6 |
 
 ---
 
 ## Execution Order
 
-The steps should be executed in this sequence:
+Tasks are ordered by dependency and priority:
 
-1. **Schema + Migration** (Step 1) — foundation, everything depends on this
-2. **Validators** (Step 2) — needed by business logic and server actions
-3. **Spread calculator** (Step 3a) — pure logic, no DB dependency, testable immediately
-4. **Spread tests** (Step 7a) — validate spread logic before building on it
-5. **Budget queries** (Step 3d) — CRUD operations using schema + validators
-6. **Variance calculator** (Step 3b) — needs GL query capability
-7. **Variance tests** (Step 7b) — validate variance logic
-8. **Server actions** (Step 4a) — wire queries to UI layer
-9. **Budget UI pages** (Steps 5a-5d) — list, create, edit, review
-10. **Projection logic** (Step 3c) — auto-fill depends on budget queries + GL queries
-11. **Projection tests** (Step 7c) — validate projection logic
-12. **Projection server actions** (Step 4b) — wire projection to UI
-13. **Projection UI** (Step 5e) — cash projection page
-14. **CIP budget view** (Step 5f) — cost code drill-down on actuals
-15. **Compliance constants** (Step 6) — lightweight, no dependencies
-16. **Validator tests** (Step 7d) — validate all Zod schemas
-17. **E2E test** (Step 8) — full workflow validation
+1. **Task 3** — Fix fiscal year bug (foundational correctness)
+2. **Task 9** — Projection engine improvements (foundational correctness)
+3. **Task 11** — User identity integration (affects all audit entries)
+4. **Task 1** — CIP budget drill-down (new feature, high requirements coverage)
+5. **Task 4** — Cash projection starting cash & AHP context (requirements gap)
+6. **Task 2** — Grant budget multi-year context (requirements gap)
+7. **Task 5** — Mid-year lock visual enhancement (polish)
+8. **Task 6** — Help tooltips (polish)
+9. **Task 7** — Copy prior year budget (P1 feature, nice-to-have)
+10. **Task 8** — Compliance calendar integration (data prep for Phase 17)
+11. **Task 10** — E2E test (validation of everything above)
 
 ---
 
-## Risk Notes
+## Acceptance Criteria
 
-- **No GL data to variance against:** If building Phase 14 before Phases 5-13, variance calculations will show $0 actuals. This is correct — budget amounts display, actuals show $0, variance = -100%. The variance engine works correctly regardless.
-- **Cash projection starting cash:** Without Plaid integration (Phase 12), starting cash is calculated from GL cash account balances. If no transactions exist yet, starting cash = $0. This is correct.
-- **CIP cost code drill-down:** Budget lines don't have cost codes. The drill-down shows GL actuals grouped by cost code within a CIP sub-account budget line. If no CIP transactions exist yet, the drill-down shows the budget amount with $0 actuals per cost code.
-- **Mid-year lock timing:** For the first budget (2026), if created mid-year, months before the creation month are locked. For a fresh system, this may mean Jan-current month are locked immediately. This is correct behavior per BDG-P0-005.
+- [ ] Creating a budget, adding lines with all 4 spread modes, and approving works end-to-end
+- [ ] Budget variance shows correct actual-vs-budget with proper color coding
+- [ ] CIP budget lines show drill-down to cost code level
+- [ ] Cash projection generates with starting cash row, 3 months of inflows/outflows, and ending cash
+- [ ] AHP available credit context is visible on cash projection page
+- [ ] Override amounts require notes (validation enforced)
+- [ ] Mid-year revision locks past months from editing (server + visual)
+- [ ] Grant fund budgets show cross-year total context
+- [ ] Variance engine uses budget fiscal year, not current year
+- [ ] All audit log entries show real user identity (not 'system')
+- [ ] 6 budget-related help tooltips appear on budget pages
+- [ ] E2E test passes: create → edit → approve → variance → projection workflow
+- [ ] All existing unit tests still pass (`npm test`)

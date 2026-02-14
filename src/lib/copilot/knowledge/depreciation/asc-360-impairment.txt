@@ -1,0 +1,52 @@
+Source: ASC 360-10 — Property, Plant, and Equipment; ASC 360-10-35
+
+ASC 360 — Fixed Asset Accounting and Impairment
+
+INITIAL MEASUREMENT
+Property, plant, and equipment recorded at cost, which includes:
+- Purchase price or construction cost
+- Directly attributable costs to bring asset to working condition
+- Capitalized interest (ASC 835-20) during construction period
+
+SUBSEQUENT MEASUREMENT
+- Carry at cost less accumulated depreciation
+- No revaluation to fair value under US GAAP (unlike IFRS)
+- Impairment testing when indicators exist
+
+DEPRECIATION (ASC 360-10-35-4)
+- Systematic and rational allocation of cost over useful life
+- Methods: straight-line, declining balance, units of production
+- Nonprofits: straight-line is most common and appropriate
+- Review useful life estimates periodically; change in estimate applied prospectively
+
+IMPAIRMENT TESTING (ASC 360-10-35-17)
+When to test: when events or changes in circumstances indicate carrying amount may not be recoverable.
+
+Indicators of impairment:
+- Significant decrease in market value
+- Significant change in how asset is used
+- Physical damage
+- Adverse legal/regulatory changes
+- Operating or cash flow losses associated with the asset
+
+Two-step test:
+1. Recoverability test: compare carrying amount to sum of undiscounted future cash flows
+   - If carrying amount <= undiscounted cash flows → no impairment
+   - If carrying amount > undiscounted cash flows → proceed to step 2
+2. Measurement: impairment loss = carrying amount - fair value
+
+For nonprofits using assets in operations (not held for sale):
+- Use service capacity concept rather than cash flows for recoverability
+- Impairment exists when asset can no longer provide the level of service for which it was acquired
+
+HELD FOR SALE (ASC 360-10-45-9)
+Assets classified as held for sale when:
+- Management commits to a plan to sell
+- Asset available for immediate sale
+- Active program to locate buyer initiated
+- Sale probable within one year
+- Asset actively marketed at reasonable price
+Measured at lower of carrying amount or fair value less cost to sell.
+
+RI-SPECIFIC CONTEXT
+RI's primary fixed asset (residential property) is used in operations (providing housing), not held for investment. Impairment testing uses service capacity approach. Given the property serves a charitable purpose with stable demand for affordable housing, impairment risk is low unless physical damage or regulatory changes occur.

@@ -1,0 +1,62 @@
+Source: Phase 17 functional-defaults.ts; Feb 2025 MCP research on comparable organizations
+
+Functional Allocation Defaults for Renewal Initiatives
+
+DEFAULT SPLITS BY ACCOUNT SUB-TYPE:
+
+Property Ops → 100/0/0 (permanent rule — no override allowed)
+  Accounts: property taxes, insurance, utilities, repairs, landscaping
+  Rationale: directly attributable to housing program operations
+
+Non-Cash → 100/0/0 (permanent rule)
+  Accounts: depreciation on program assets (building, improvements)
+  Rationale: depreciation of program assets is a program cost per ASC 958
+
+Financial → 100/0/0 (permanent rule)
+  Accounts: AHP loan interest, mortgage interest
+  Rationale: debt service on property used in program operations
+
+Payroll → 70/25/5 (default — adjustable)
+  Accounts: salaries, wages, benefits, payroll taxes
+  Rationale: RI's ED/bookkeeper blended role; lower fundraising weight than typical
+  Note: IRS expects a "reasonable method" — hours log by function is gold standard
+
+Operating → 80/20/0 (default — adjustable)
+  Accounts: office supplies, professional services, miscellaneous
+  Rationale: catch-all for misc operating costs; majority program-related
+
+THREE-TIER OVERRIDE SYSTEM:
+1. Permanent rules (cannot be overridden) — Property Ops, Non-Cash, Financial
+2. Prior-year actuals (override defaults if available)
+3. Sub-type defaults (apply when no prior-year data exists)
+
+COMPARABLE ORGANIZATION BENCHMARKS (validated Feb 2025):
+
+Falcon Housing Corp (EIN: 04-3538884)
+  Program: 75.6% | M&G: 24.4% | Fundraising: 0.0%
+  Notes: Closest comp to RI — small MA housing nonprofit, single property, no fundraising staff
+
+Pioneer Valley Habitat for Humanity (EIN: 04-3049506)
+  Program: 78.0% | M&G: 9.6% | Fundraising: 12.3%
+  Notes: Active fundraising model, less relevant to RI's grant-funded structure
+
+Valley Community Development Corp (EIN: 22-2906466)
+  Program: 85.2% | M&G: 14.5% | Fundraising: 0.3%
+  Notes: Multi-property, government-funded; represents RI's growth trajectory
+
+OUTLIER GUIDANCE:
+- Program % below 65%: watchdog orgs flag this (Charity Navigator, GuideStar)
+- Program % above 90%: may indicate understated M&G; CPA should review
+- RI target range: 75-85% program (consistent with Falcon Housing and Valley CDC benchmarks)
+
+TIME STUDY GUIDANCE:
+For Payroll sub-type, the IRS expects a reasonable allocation method:
+- Gold standard: actual hours log by function (program/M&G/fundraising)
+- Acceptable: reasonable estimate based on job descriptions and time allocation
+- 70/25/5 default fits RI's ED/bookkeeper role split
+- Review and adjust annually based on actual work patterns
+
+FORM 990 PART IX CONTEXT:
+- Functional allocation reported on Part IX, totals on Line 25
+- Method described in Part XI Line 2 or Schedule O
+- IRS reviews allocation for reasonableness; extreme splits trigger scrutiny

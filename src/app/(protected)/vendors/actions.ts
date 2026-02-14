@@ -231,6 +231,32 @@ export async function toggleVendorActive(
   revalidatePath(`/vendors/${id}`)
 }
 
+/**
+ * 1099-NEC filing thresholds by tax year.
+ * - TY2025 and prior: $600 (IRC § 6041(a))
+ * - TY2026+: $2,000 (One Big Beautiful Bill Act, signed July 4, 2025)
+ * - TY2027+: $2,000 indexed for inflation per OBBBA § 103
+ * Add new years as IRS announces inflation-adjusted thresholds.
+ */
+const FORM_1099_THRESHOLDS: Record<number, number> = {
+  2024: 600,
+  2025: 600,
+  2026: 2000,
+  // 2027+ will be inflation-indexed — add when IRS announces
+}
+
+function get1099Threshold(year: number): number {
+  if (FORM_1099_THRESHOLDS[year] !== undefined) {
+    return FORM_1099_THRESHOLDS[year]
+  }
+  // For future years not yet configured, use the most recent known threshold
+  const knownYears = Object.keys(FORM_1099_THRESHOLDS)
+    .map(Number)
+    .sort((a, b) => b - a)
+  const mostRecent = knownYears.find((y) => y <= year)
+  return mostRecent !== undefined ? FORM_1099_THRESHOLDS[mostRecent] : 2000
+}
+
 export async function getVendor1099Summary(
   vendorId: number,
   year: number
@@ -238,9 +264,10 @@ export async function getVendor1099Summary(
   // Stub — returns $0 until Phase 8 builds vendor invoices
   // When Phase 8 ships, this will sum transaction_lines where
   // vendorId matches and date falls within the calendar year
+  const threshold = get1099Threshold(year)
   return {
     totalPayments: 0,
-    threshold: 600,
+    threshold,
     isOver: false,
   }
 }

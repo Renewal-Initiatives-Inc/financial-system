@@ -93,16 +93,16 @@ export const helpTerms: Record<string, string> = {
   // --- Phase 6: Vendors, Tenants, Donors ---
 
   vendor:
-    'A supplier or contractor that provides goods or services to the organization. Vendors are tracked for payment history and IRS 1099-NEC reporting.',
+    'A supplier or contractor that provides goods or services to the organization. Vendors are tracked for payment history and IRS 1099-NEC reporting (IRC § 6041).',
 
   '1099-eligible':
-    'A vendor eligible for IRS Form 1099-NEC reporting. When calendar-year payments to an eligible vendor exceed $600, a 1099-NEC must be filed (IRC § 6041A).',
+    'A vendor eligible for IRS Form 1099-NEC reporting. Filing threshold is per calendar year: $600 for TY2025 and prior, $2,000 for TY2026+ per the One Big Beautiful Bill Act (OBBBA § 103, amending IRC § 6041). Threshold is inflation-indexed starting TY2027.',
 
   'w9-status':
     'Tracking status for IRS Form W-9 (Request for Taxpayer Identification Number). Must be collected from 1099-eligible vendors before year-end to file 1099-NEC forms.',
 
   'entity-type':
-    'Vendor classification (individual, LLC, S-corp, C-corp, partnership, government). Determines 1099 reporting requirements — corporations are generally exempt (IRC § 6041A(d)).',
+    'Vendor classification (individual, LLC, S-corp, C-corp, partnership, government). Determines 1099 reporting requirements — corporations are generally exempt per Treas. Reg. § 1.6041-3(p)(1). Exceptions: medical/legal payments to corps still reportable.',
 
   tenant:
     'An individual or household occupying a unit in the property. Tracked for lease terms, rent collection, funding source, and security deposit compliance.',
@@ -124,6 +124,52 @@ export const helpTerms: Record<string, string> = {
 
   'donor-type':
     'Classification of contribution source: individual, corporate, foundation, or government. Affects Schedule A public support test (IRC § 509(a)) — the 2% threshold applies to ALL donors.',
+
+  // --- Phase 9: Ramp Credit Card ---
+
+  categorization:
+    'Assigning a GL account and fund to a Ramp credit card transaction so it can be posted to the general ledger.',
+
+  'auto-categorization-rule':
+    'A pattern-matching rule that automatically assigns GL account and fund to Ramp transactions based on merchant name or description keywords.',
+
+  'credit-card-payable':
+    'Liability account tracking the balance owed on the Ramp credit card. Increases when expenses are categorized, decreases when Ramp autopay settlement clears the bank.',
+
+  // --- Phase 11: Fixed Assets, Depreciation & CIP ---
+
+  depreciation:
+    'Systematic allocation of a fixed asset\'s cost over its useful life. RI uses straight-line method per D-127: (cost - salvage) / useful life months. Per ASC 360-10-35 / ASC 958-360-35 (GAAP for nonprofits). MACRS tax lives (IRC § 168) do NOT apply — they are for computing taxable income, which 501(c)(3)s generally do not have.',
+
+  'useful-life':
+    'Management\'s best estimate of the period an asset will provide economic benefit, per ASC 360-10-35 / 2 CFR 200.436. GAAP defaults: Building structure: 40yr (480mo), Roof: 20-25yr, HVAC/MEP: 20yr, Electrical/Plumbing/Windows: 20-25yr, Flooring: 5-15yr, Equipment: 5-10yr. These are longer than MACRS tax lives because they reflect actual expected use, not accelerated tax recovery periods.',
+
+  'net-book-value':
+    'An asset\'s cost minus accumulated depreciation. Represents the remaining undepreciated balance on the books.',
+
+  'salvage-value':
+    'Estimated residual value of an asset at the end of its useful life. RI defaults to $0 for all fixed assets per D-127.',
+
+  'date-placed-in-service':
+    'The date an asset begins being used for its intended purpose. Depreciation starts the month following PIS date. For CIP conversions, this is the date the structure is ready for occupancy.',
+
+  'cip-conversion':
+    'The process of reclassifying Construction in Progress costs to fixed asset accounts when a structure is placed in service. Generates a reclassification JE: DR Building, CR CIP. Per DM-P0-030.',
+
+  'component-depreciation':
+    'Depreciating a building\'s major components (structure, roof, HVAC, etc.) separately, each with its own useful life. Required for the Lodging building per DM-P0-020.',
+
+  'interest-capitalization':
+    'During construction, AHP loan interest is capitalized to CIP - Construction Interest rather than expensed. Per ASC 835-20. Switches to expense mode when all structures are placed in service.',
+
+  'prepaid-amortization':
+    'Monthly recognition of a prepaid expense over its coverage period. DR Expense, CR Prepaid. Auto-generated via cron. Per TXN-P0-054.',
+
+  'developer-fee':
+    'RI\'s development fee ($827K) — partially paid in cash during construction, remainder deferred as a long-term liability (Deferred Developer Fee Payable). Related-party transaction. Per DM-P0-033.',
+
+  'ahp-loan':
+    'Affordable Housing Program loan from FHLBB. $3.5M credit facility. Interest accrues monthly, paid annually Dec 31. Available credit = limit - drawn. Per DM-P0-025.',
 }
 
 /** Get a help term by its slug. Returns undefined for unknown terms. */

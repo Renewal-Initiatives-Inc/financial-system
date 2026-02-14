@@ -1,0 +1,67 @@
+Source: Form 990 Schedule A Instructions; IRC § 170(b)(1)(A)(vi); Treas. Reg. § 1.170A-9(f)
+
+Schedule A Part II — Public Support Test for 170(b)(1)(A)(vi) Organizations
+
+COMPUTATION MECHANICS
+The public support test determines whether RI qualifies as a public charity. Uses a 5-year rolling period.
+
+LINE-BY-LINE GUIDE:
+Line 1: Gifts, grants, contributions, membership fees received (PUBLIC sources)
+  - Subject to universal 2% cap (Line 5)
+  - Includes: individual donations, corporate gifts, foundation grants
+  - Does NOT include: government contributions (those go on Line 3)
+
+Line 2: Tax revenues levied for organization's benefit
+  - Rare for RI; includes Community Preservation Act (CPA) funds IF levied as a tax
+
+Line 3: Government grants and contributions
+  - Full credit — exempt from 2% cap
+  - Includes: AHP grants, CPA grants (if from government appropriation), MassDev grants
+  - Key: must be from a governmental unit per § 170(b)(1)(A)(v)
+
+Line 4: Total (Lines 1 + 2 + 3)
+
+Line 5: 2% THRESHOLD CALCULATION
+  - Calculate 2% of Line 11 (Total Support from Part II, Section B)
+  - For EACH donor on Line 1: if their aggregate 5-year contribution exceeds this 2% threshold, the excess is excluded from public support
+  - AGGREGATION RULE: contributions from related persons per § 4946(a)(1)(C)-(G) are combined as one person for this cap
+  - This cap does NOT apply to government contributions (Line 3)
+
+Line 6: Public support (Line 4 minus Line 5)
+
+SECTION B — TOTAL SUPPORT:
+Line 7a: Amounts from Section A, Line 4
+Line 7b: Amounts from Section A, Line 2
+Line 8: Gross investment income (interest, dividends, rents from investments)
+Line 9: Net UBI (if any)
+Line 10a: Other income — includes PROGRAM SERVICE REVENUE (rental income)
+Line 10b: Adjustments (net of prior year)
+Line 11: Total Support (sum of Lines 7a through 10b)
+
+PUBLIC SUPPORT PERCENTAGE = Line 6 / Line 11
+
+PASS THRESHOLD: >= 33.33% (or 10% with facts-and-circumstances)
+
+RI-SPECIFIC ANALYSIS
+During construction: most support is government (AHP, CPA, MassDev) → public support test easily met.
+
+Post-construction risk: Rental income is program service revenue reported on Line 10a (total support denominator) but NOT on Line 1 (public support numerator). If RI shifts to rental-income-dominant revenue:
+- Line 10a grows (denominator increases)
+- Line 1/Line 3 may shrink (numerator stagnates)
+- Public support percentage erodes
+
+Timeline: 5-year grace period from initial classification. If RI was classified in FY2025, the first real test is ~FY2030.
+
+UNUSUAL GRANT EXCLUSION (Reg. 1.509(a)-3(c)(4))
+An "unusual grant" can be excluded from both numerator and denominator if:
+- From disinterested party
+- Unusually large relative to normal contributions
+- Would adversely affect public support status
+- No material restriction on use
+This can help if RI receives a one-time large private gift.
+
+DATA REQUIREMENTS
+The `contribution_source_type` enum maps to Schedule A:
+- GOVERNMENT → Line 3 (full credit, exempt from 2% cap)
+- PUBLIC → Line 1 (subject to 2% cap)
+- RELATED_PARTY → Line 1 (subject to 2% cap; aggregated with related persons per § 4946)

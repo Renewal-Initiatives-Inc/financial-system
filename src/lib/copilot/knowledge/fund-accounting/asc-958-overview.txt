@@ -1,0 +1,49 @@
+Source: ASC 958 — Not-for-Profit Entities; FASB ASU 2016-14
+
+ASC 958 — Net Asset Classification for Nonprofits
+
+OVERVIEW
+ASC 958 (updated by ASU 2016-14, effective for annual periods beginning after December 15, 2017) establishes the framework for nonprofit financial reporting. Key change: replaced three net asset classes (unrestricted, temporarily restricted, permanently restricted) with two:
+
+TWO NET ASSET CLASSES:
+1. Without Donor Restrictions — resources available for general operations
+   - Includes board-designated funds (internal, not donor-imposed)
+   - Includes operating surplus
+   - Formerly "unrestricted"
+
+2. With Donor Restrictions — resources subject to donor-imposed restrictions
+   - Time restrictions: must be used in a future period
+   - Purpose restrictions: must be used for a specified purpose
+   - Perpetual restrictions: principal must be maintained in perpetuity (endowments)
+   - Combines former "temporarily restricted" and "permanently restricted"
+
+NET ASSET RELEASES (ASC 958-205-45-6)
+When a purpose or time restriction is satisfied, a reclassification is made:
+- Debit: Net Assets With Donor Restrictions
+- Credit: Net Assets Without Donor Restrictions
+This appears on the Statement of Activities as "Net assets released from restrictions."
+
+STATEMENT OF ACTIVITIES FORMAT
+Must present:
+- Changes in net assets without donor restrictions
+- Changes in net assets with donor restrictions
+- Total change in net assets
+- Beginning net assets (by class)
+- Ending net assets (by class)
+
+STATEMENT OF FINANCIAL POSITION
+Must present:
+- Total assets
+- Total liabilities
+- Net assets without donor restrictions
+- Net assets with donor restrictions
+- Total net assets
+
+UNDERWATER ENDOWMENTS (ASC 958-205-45-10)
+If fair value of endowment fund falls below original gift amount, the deficiency is reported in net assets with donor restrictions (not without).
+
+RI-SPECIFIC CONTEXT
+RI uses two net asset classes in the fund structure:
+- General Fund (unrestricted) = Net Assets Without Donor Restrictions
+- Restricted funds = Net Assets With Donor Restrictions
+The system maps fund restriction type to net asset class for financial statement presentation.

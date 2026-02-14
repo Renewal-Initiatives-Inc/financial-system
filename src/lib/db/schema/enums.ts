@@ -76,8 +76,18 @@ export const donorTypeEnum = pgEnum('donor_type', [
   'GOVERNMENT',
 ])
 
+export const rampTransactionStatusEnum = pgEnum('ramp_transaction_status', [
+  'uncategorized',
+  'categorized',
+  'posted',
+])
+
 export const contributionSourceTypeEnum = pgEnum('contribution_source_type', [
   'GOVERNMENT',
   'PUBLIC',
   'RELATED_PARTY',
+])
+
+export const depreciationMethodEnum = pgEnum('depreciation_method', [
+  'STRAIGHT_LINE',
 ])

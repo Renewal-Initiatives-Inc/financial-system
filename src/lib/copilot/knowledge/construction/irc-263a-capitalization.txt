@@ -1,0 +1,44 @@
+Source: IRC § 263A — Uniform Capitalization Rules; Treas. Reg. § 1.263A-1
+
+IRC § 263A — Capitalization Rules for Construction
+
+OVERVIEW
+Section 263A requires taxpayers to capitalize direct and indirect costs allocable to property produced by the taxpayer. For tax-exempt organizations, this is primarily relevant for GAAP compliance rather than tax computation.
+
+COSTS REQUIRED TO BE CAPITALIZED:
+Direct costs:
+- Direct materials (building materials, fixtures)
+- Direct labor (construction wages, contractor payments)
+
+Indirect costs that must be capitalized:
+- Indirect labor (supervision, project management)
+- Utilities during construction
+- Insurance during construction period
+- Taxes during construction (property tax on land)
+- Interest (per ASC 835-20)
+- Professional fees (architect, engineer, legal — related to construction)
+- Permits and licenses
+
+Costs NOT capitalized (period costs):
+- General and administrative overhead not related to construction
+- Marketing and selling costs
+- Research and development
+- Fundraising costs
+- Organizational costs
+
+WHEN TO STOP CAPITALIZING
+Costs are capitalized until the property is placed in service (PIS). After PIS:
+- Operating costs are expensed as incurred
+- Debt service interest is expensed
+- Repairs and maintenance are expensed (unless they meet capitalization threshold)
+
+GAAP vs TAX DIFFERENCES
+GAAP (ASC 835-20): interest capitalization based on avoidable interest concept
+Tax (§ 263A): interest capitalization based on accumulated production expenditures
+For tax-exempt organizations, GAAP treatment is the relevant standard.
+
+RI-SPECIFIC CONTEXT
+RI's CIP tracks all capitalizable costs during construction using two cost categories:
+- HARD_COST: direct construction costs (materials, labor, subcontractors)
+- SOFT_COST: indirect costs (architecture, engineering, legal, permits, insurance, interest)
+At PIS date, CIP is converted to fixed asset components and depreciation begins.

@@ -1,0 +1,36 @@
+Source: IRC § 509(a); Treas. Reg. § 1.509(a)-1 through § 1.509(a)-4
+
+IRC § 509(a) — Public Charity Classification
+
+OVERVIEW
+All 501(c)(3) organizations are presumed to be private foundations unless they demonstrate they are public charities under one of the § 509(a) exceptions.
+
+§ 509(a)(1) — ORGANIZATIONS DESCRIBED IN § 170(b)(1)(A)
+Includes churches, schools, hospitals, governmental units, and:
+- § 170(b)(1)(A)(vi): Organizations that receive a substantial part of support from governmental units or the general public. This is RI's classification.
+
+§ 509(a)(2) — GROSS RECEIPTS TEST
+Organizations that normally receive more than one-third of support from gifts, grants, contributions, membership fees, and gross receipts from exempt activities, AND not more than one-third from investment income and unrelated business taxable income.
+
+KEY DISTINCTION: § 509(a)(1) vs § 509(a)(2)
+- § 509(a)(1)/170(b)(1)(A)(vi): public support test uses Schedule A Part II. Universal 2% cap applies to ALL donors. No disqualified person exclusion.
+- § 509(a)(2): public support test uses Schedule A Part III. Line 7a DOES exclude contributions from disqualified persons (§ 4946 definition applies).
+
+PUBLIC SUPPORT TEST — 170(b)(1)(A)(vi) (RI's test)
+Must meet 33-1/3% public support test OR facts-and-circumstances 10% test:
+
+33-1/3% Test:
+- Public support (Schedule A Part II, Line 7) / Total support (Line 9) >= 33.33%
+- Public support includes: government grants (Line 3, full credit), public contributions (Line 1, subject to 2% cap)
+- Total support includes all above plus: membership fees (Line 2), investment income (Line 4), net UBI (Line 5), tax revenue (Line 6)
+
+Facts-and-Circumstances Test (if between 10% and 33-1/3%):
+- Organization continuously solicits contributions from the public
+- Organization has broadly-based governing body
+- Organization provides services to broad public
+
+5-YEAR MEASURING PERIOD
+Public support test uses a 5-year aggregate (current year + 4 prior years per Schedule A Part II). New organizations get an automatic 5-year advance ruling period.
+
+RI-SPECIFIC CONTEXT
+RI is classified 170(b)(1)(A)(vi) — public charity. During construction phase, most support is government (AHP, CPA, MassDev) which gets full credit on Line 3. Post-construction risk: rental income enters Total Support denominator (Line 10a) but NOT Public Support numerator (Line 1), which could erode the public support percentage after the 5-year grace period (~FY2030).

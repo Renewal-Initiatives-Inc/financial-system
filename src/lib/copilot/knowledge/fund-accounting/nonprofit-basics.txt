@@ -1,0 +1,48 @@
+Source: nonprofitaccountingbasics.org; AICPA Audit and Accounting Guide: Not-for-Profit Entities
+
+Nonprofit Fund Accounting Basics
+
+FUND ACCOUNTING vs COMMERCIAL ACCOUNTING
+Fund accounting tracks resources by purpose/restriction, not just by entity. Each fund is a self-balancing set of accounts (assets = liabilities + net assets). This allows:
+- Tracking compliance with donor restrictions
+- Reporting on multiple grants/programs separately
+- Demonstrating proper stewardship of restricted resources
+
+FUND TYPES
+1. General Fund (Operating Fund) — unrestricted resources for day-to-day operations
+2. Restricted Funds — resources subject to donor-imposed restrictions
+3. Board-Designated Funds — unrestricted resources set aside by the board (internally designated, NOT donor restricted)
+4. Capital/Plant Fund — tracks fixed assets and related debt
+5. Endowment Fund — permanently restricted principal
+
+CHART OF ACCOUNTS CONSIDERATIONS
+- Account codes should allow reporting by natural class AND by function
+- Common structure: [Type]-[Fund]-[Natural Class] or flat with sub-accounts
+- RI uses a flat structure with fund ID on each transaction line
+
+DOUBLE-ENTRY IN FUND ACCOUNTING
+Every journal entry must:
+1. Balance debits and credits (standard double-entry)
+2. Be assigned to a specific fund
+3. If affecting multiple funds, use interfund transfers
+
+INTERFUND TRANSACTIONS
+- Interfund transfers: move resources between funds (e.g., unrestricted to restricted for matching)
+- Interfund loans: temporary lending between funds (should be repaid)
+- Both must be properly authorized and documented
+
+FINANCIAL STATEMENTS FOR NONPROFITS
+1. Statement of Financial Position (balance sheet)
+2. Statement of Activities (income statement equivalent)
+3. Statement of Functional Expenses (required for voluntary health & welfare orgs; recommended for all)
+4. Statement of Cash Flows
+5. Notes to Financial Statements
+
+KEY RATIOS
+- Program expense ratio: program expenses / total expenses (benchmark: 65-85%)
+- Current ratio: current assets / current liabilities
+- Operating reserve ratio: unrestricted net assets / annual operating expenses
+- Fundraising efficiency: donations / fundraising expenses
+
+RI-SPECIFIC CONTEXT
+RI is a small nonprofit with simple fund structure: one unrestricted fund (General Fund) and several restricted funds for construction grants. The system enforces fund assignment on every transaction line to maintain proper tracking.

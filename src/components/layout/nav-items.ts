@@ -5,6 +5,7 @@ import {
   Wallet,
   TrendingUp,
   Receipt,
+  CreditCard,
   Users,
   Scale,
   FileText,
@@ -22,6 +23,7 @@ export interface NavItem {
   label: string
   href: string
   icon: LucideIcon
+  indent?: boolean
 }
 
 export const navItems: NavItem[] = [
@@ -31,6 +33,7 @@ export const navItems: NavItem[] = [
   { label: 'Funds', href: '/funds', icon: Wallet },
   { label: 'Revenue', href: '/revenue', icon: TrendingUp },
   { label: 'Expenses', href: '/expenses', icon: Receipt },
+  { label: 'Ramp Credit Card', href: '/expenses/ramp', icon: CreditCard, indent: true },
   { label: 'Payroll', href: '/payroll', icon: Users },
   { label: 'Bank Rec', href: '/bank-rec', icon: Scale },
   { label: 'Reports', href: '/reports', icon: FileText },
@@ -40,5 +43,8 @@ export const navItems: NavItem[] = [
   { label: 'Tenants', href: '/tenants', icon: Home },
   { label: 'Donors', href: '/donors', icon: Heart },
   { label: 'Assets', href: '/assets', icon: Landmark },
+  { label: 'CIP Balances', href: '/assets/cip', icon: Landmark, indent: true },
+  { label: 'Developer Fee', href: '/assets/developer-fee', icon: Landmark, indent: true },
+  { label: 'Prepaid Expenses', href: '/assets/prepaid', icon: Landmark, indent: true },
   { label: 'Settings', href: '/settings', icon: Settings },
 ]

@@ -1,0 +1,52 @@
+Source: IRS Publication 15-T — Federal Income Tax Withholding Methods (2025)
+
+Federal Income Tax Withholding
+
+OVERVIEW
+Employers must withhold federal income tax from employee wages based on:
+1. Employee's Form W-4 (filing status, adjustments)
+2. Pay frequency (weekly, biweekly, semimonthly, monthly)
+3. Withholding tables or percentage method
+
+POST-2020 W-4 METHOD (current)
+Step 1: Adjust annual wage amount
+- Multiply per-period wage by number of pay periods
+- Add other income from W-4 Step 4(a)
+- Subtract deductions from W-4 Step 4(b) (or standard deduction if blank)
+
+Step 2: Determine tentative withholding from tables
+- Use filing status (Single/MFJ/HoH)
+- Apply graduated rate brackets
+
+Step 3: Apply tax credits
+- Subtract per-period credit from W-4 Step 3 (dependents)
+
+Step 4: Final per-period withholding
+- Cannot be less than zero
+
+2025 WITHHOLDING BRACKETS (Single)
+Over $0 — 10%
+Over $11,925 — 12%
+Over $48,475 — 22%
+Over $103,350 — 24%
+Over $197,300 — 32%
+Over $250,525 — 35%
+Over $626,350 — 37%
+
+SUPPLEMENTAL WAGES
+- Aggregate method or flat 22% rate (for supplemental wages under $1M)
+- Bonuses, commissions, overtime may be treated as supplemental
+
+DEPOSIT SCHEDULES
+- Monthly depositor: deposit by 15th of following month (total tax liability < $50,000 in lookback period)
+- Semi-weekly depositor: deposit by Wednesday (for Sat-Tue paydays) or Friday (for Wed-Fri paydays)
+- $100,000 next-day deposit rule: if accumulate $100,000+ on any day
+- Electronic deposit via EFTPS required
+
+FORM 941 — QUARTERLY RETURN
+Due: April 30, July 31, October 31, January 31
+Reports: total wages, federal income tax withheld, Social Security/Medicare taxes
+Small employer exception: Form 944 (annual) if notified by IRS
+
+RI-SPECIFIC CONTEXT
+RI has 2-5 employees. Likely qualifies as monthly depositor (small payroll). Files Form 941 quarterly. Key employees: Executive Director (likely salaried), bookkeeper (likely part-time/hourly).

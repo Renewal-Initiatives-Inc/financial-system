@@ -1,0 +1,36 @@
+Source: IRC § 170; Treas. Reg. § 1.170A-1; IRS Publication 1771
+
+IRC § 170 — Charitable Contributions
+
+DONOR DEDUCTION RULES
+Individuals may deduct charitable contributions to qualified 501(c)(3) organizations, subject to AGI limitations:
+- Cash contributions: up to 60% of AGI (§ 170(b)(1)(G))
+- Capital gain property: up to 30% of AGI (§ 170(b)(1)(C))
+- Excess contributions carry forward 5 years (§ 170(d)(1))
+
+SUBSTANTIATION REQUIREMENTS (§ 170(f)(8))
+For contributions of $250 or more, donor must obtain contemporaneous written acknowledgment from the donee organization. The acknowledgment must state:
+1. Amount of cash and description of non-cash property contributed
+2. Whether organization provided goods or services in exchange
+3. Description and good faith estimate of value of goods/services provided (if any)
+4. If goods/services consist solely of intangible religious benefits, a statement to that effect
+
+"Contemporaneous" means obtained by the earlier of: (a) the date the return is filed, or (b) the due date (including extensions) for filing the return.
+
+QUID PRO QUO CONTRIBUTIONS (§ 6115)
+If a donor makes a payment exceeding $75 that is partly a contribution and partly for goods/services, the organization must provide a written disclosure statement that:
+1. Informs the donor that the deductible amount is limited to the excess of the payment over the value of goods/services
+2. Provides a good faith estimate of the value of goods/services
+
+PENALTY: $10 per failure, up to $5,000 per fundraising event or mailing.
+
+NONCASH CONTRIBUTIONS
+- Over $500: donor files Form 8283 (§ 170(f)(11)(B))
+- Over $5,000: qualified appraisal required (§ 170(f)(11)(C))
+- Over $500,000: appraisal must be attached to return (§ 170(f)(11)(D))
+
+DONEE REPORTING (Form 8282)
+If organization sells, exchanges, or disposes of donated property within 3 years of receipt (and property was valued over $5,000), must file Form 8282 within 125 days.
+
+RI-SPECIFIC CONTEXT
+Most RI contributions are government grants (AHP, CPA, MassDev) which are not subject to the donor acknowledgment rules — those apply to individual/corporate donors. For individual and corporate donors, RI must issue written acknowledgments for gifts of $250+ and provide quid pro quo disclosures for payments over $75.

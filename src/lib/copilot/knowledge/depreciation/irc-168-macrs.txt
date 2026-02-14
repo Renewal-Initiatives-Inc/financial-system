@@ -1,0 +1,48 @@
+Source: IRC § 168; Treas. Reg. § 1.168(a)-1; IRS Publication 946
+
+IRC § 168 — Modified Accelerated Cost Recovery System (MACRS)
+
+OVERVIEW
+MACRS is the tax depreciation system for tangible property placed in service after 1986. Key elements:
+- Recovery period (useful life class)
+- Depreciation method (declining balance or straight-line)
+- Convention (half-year, mid-quarter, mid-month)
+
+RECOVERY PERIODS FOR NONPROFIT HOUSING
+- 5-year property: computers, office equipment, appliances
+- 7-year property: office furniture, fixtures
+- 15-year property: land improvements (parking lots, landscaping, sidewalks)
+- 27.5-year property: residential rental property (the building)
+- Land: NOT depreciable
+
+DEPRECIATION METHODS
+- 200% declining balance (GDS): 5-year and 7-year property
+- 150% declining balance (GDS): 15-year property
+- Straight-line (GDS): 27.5-year residential rental property
+- Straight-line (ADS): required for certain tax-exempt use property
+
+CONVENTIONS
+- Half-year convention: default for personal property (5, 7-year)
+  - First year: half-year of depreciation regardless of when placed in service
+  - Year of disposition: half-year of depreciation
+- Mid-quarter convention: if >40% of personal property placed in service in Q4
+- Mid-month convention: real property (27.5-year)
+  - Depreciation starts mid-month of PIS date
+
+TAX-EXEMPT ORGANIZATIONS
+501(c)(3) organizations are generally exempt from income tax, so MACRS is primarily relevant for:
+1. GAAP book depreciation (where MACRS useful lives provide reasonable estimates)
+2. Unrelated business income property
+3. Form 990 reporting (Part X, Line 10)
+
+SECTION 179 AND BONUS DEPRECIATION
+- § 179 immediate expensing: generally NOT available to tax-exempt organizations (must have taxable income to use)
+- Bonus depreciation (§ 168(k)): phasing down from 100% (2022) to 0% (2027). Not relevant for nonprofits unless they have UBTI.
+
+RI-SPECIFIC CONTEXT
+RI's primary depreciable asset will be the residential rental building (27.5-year, straight-line, mid-month convention). Component allocation at PIS date:
+- Building structure: 27.5-year
+- Building systems (HVAC, plumbing, electrical): 27.5-year (as part of building)
+- Land improvements: 15-year
+- Personal property (appliances, fixtures): 5-7 year
+- Land: not depreciable (must be separated from building cost)

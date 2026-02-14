@@ -1,0 +1,28 @@
+Source: IRC § 501(c)(3); Treas. Reg. § 1.501(c)(3)-1
+
+IRC § 501(c)(3) — Tax-Exempt Status for Charitable Organizations
+
+OVERVIEW
+Organizations described in IRC § 501(c)(3) are exempt from federal income tax if organized and operated exclusively for religious, charitable, scientific, educational, or other specified exempt purposes. "Exclusively" is interpreted as "primarily" per Treas. Reg. § 1.501(c)(3)-1(c)(1).
+
+ORGANIZATIONAL TEST (§ 1.501(c)(3)-1(b))
+- Articles of organization must limit purposes to exempt purposes
+- Must not expressly empower activities that are not in furtherance of exempt purposes (more than an insubstantial part)
+- Dissolution clause: assets must be dedicated to exempt purpose upon dissolution
+
+OPERATIONAL TEST (§ 1.501(c)(3)-1(c))
+- Must be operated exclusively (primarily) for exempt purposes
+- No part of net earnings may inure to benefit of private shareholders or individuals
+- May not participate or intervene in political campaigns (absolute prohibition)
+- Substantial part of activities may not be carrying on propaganda or attempting to influence legislation (unless § 501(h) election made)
+
+PRIVATE BENEFIT / PRIVATE INUREMENT
+- Private inurement (§ 1.501(c)(3)-1(c)(2)): no part of net earnings inures to insiders (officers, directors, key employees). Any amount triggers loss of exemption.
+- Private benefit doctrine: broader than inurement. Organization must serve public rather than private interests. Evaluated qualitatively and quantitatively — must be incidental in both.
+
+RI-SPECIFIC CONTEXT
+Renewal Initiatives, Inc. is a Massachusetts 501(c)(3) classified as a public charity under IRC § 170(b)(1)(A)(vi). The organization manages a single property development and housing operation. Key compliance areas:
+- Housing operations serve charitable purpose (providing affordable housing)
+- Developer fee arrangement must not constitute private inurement
+- Board member transactions require arm's-length terms and conflict-of-interest review
+- No political campaign activity permitted

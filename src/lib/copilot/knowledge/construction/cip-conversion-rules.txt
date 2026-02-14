@@ -1,0 +1,58 @@
+Source: ASC 360-10; ASC 835-20; RI property development plan
+
+CIP Conversion Rules — Placed In Service Date
+
+OVERVIEW
+Construction in Progress (CIP) is a current asset account that accumulates costs during the construction period. When the property is substantially complete and ready for its intended use, CIP is "converted" to fixed asset accounts and depreciation begins.
+
+PLACED IN SERVICE (PIS) DATE DETERMINATION
+The PIS date is when the asset is ready and available for its specifically assigned function. For residential rental property:
+- Not necessarily when the first tenant moves in
+- Not necessarily when the certificate of occupancy is issued (though this is a strong indicator)
+- When the property is in a condition or state of readiness for its intended use
+
+Indicators that PIS date has been reached:
+1. Certificate of occupancy (C of O) issued
+2. All substantial construction complete
+3. Property is habitable and ready for tenants
+4. Only punch-list items remain (do not delay PIS)
+
+CONVERSION ENTRIES
+At PIS date, the following journal entries occur:
+
+1. Close CIP to fixed asset components:
+   Dr: Building (27.5-year component)
+   Dr: Land Improvements (15-year component)
+   Dr: Equipment/Fixtures (5-7 year component)
+   Dr: Land (non-depreciable)
+   Cr: Construction in Progress (total CIP balance)
+
+2. Allocate total CIP across components:
+   - Land: appraised value or reasonable estimate (typically 10-20%)
+   - Building: remainder after subtracting land, improvements, and personal property
+   - Land improvements: specific costs (parking, landscaping, sidewalks)
+   - Personal property: specific costs (appliances, fixtures, office equipment)
+
+3. Begin depreciation from PIS date:
+   - Each component uses its respective recovery period and method
+   - Mid-month convention for real property (building)
+   - Half-year convention for personal property
+
+4. Release restricted net assets (if applicable):
+   - Restricted construction funds are released to unrestricted
+   - Timing: at PIS date per RI's accounting policy
+
+POST-PIS COSTS
+After PIS date:
+- Routine maintenance: expense as incurred
+- Improvements that extend useful life or add functionality: capitalize
+- Threshold for capitalization: organization should set a policy (e.g., $2,500)
+- Punch-list costs incurred after PIS: may be capitalized if known at PIS date
+
+RI-SPECIFIC CONTEXT
+RI's property development will convert from CIP to fixed assets at PIS date. The system:
+1. Tracks CIP by cost code (HARD_COST, SOFT_COST)
+2. Supports PIS date entry with component allocation
+3. Automatically generates conversion journal entries
+4. Triggers net asset release for restricted construction funds
+5. Begins depreciation schedules for each component

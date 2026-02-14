@@ -1,0 +1,54 @@
+Source: M.G.L. c. 186, §§ 15B, 15C; MA Attorney General's Guide
+
+Massachusetts Tenant Security Deposit Law (G.L. c. 186, § 15B)
+
+MAXIMUM DEPOSIT
+- Landlord may require no more than first month's rent, last month's rent, security deposit equal to one month's rent, and lock change cost
+- Security deposit cannot exceed one month's rent
+
+ESCROW REQUIREMENTS
+- Must be held in a separate, interest-bearing escrow account in a Massachusetts bank
+- Account must be in tenant's name or clearly identified as tenant funds
+- Landlord must provide tenant with receipt including: bank name, account number, amount deposited
+- Receipt must be provided within 30 days of receiving deposit
+
+INTEREST OBLIGATIONS
+- Landlord must pay tenant 5% annual interest OR the actual bank interest rate, whichever is less
+- Interest paid annually (on anniversary of tenancy or within 30 days after)
+- If landlord fails to pay interest, tenant may deduct from rent
+
+STATEMENT OF CONDITION (§ 15B(2))
+- Landlord must provide written statement of condition within 10 days of tenancy start
+- Must itemize existing damage/conditions
+- Tenant has 15 days to add to or modify the statement
+- Both parties should sign and retain copies
+
+RETURN OF DEPOSIT (§ 15B(4))
+- Must return deposit (plus interest) within 30 days after termination of tenancy
+- Deductions allowed only for:
+  1. Unpaid rent (not last month's rent if prepaid)
+  2. Unpaid water charges (if tenant responsible)
+  3. Damage beyond normal wear and tear
+  4. Unpaid real estate tax increases (if lease provides)
+- Must provide itemized list of deductions with supporting documentation
+
+PENALTIES FOR VIOLATION
+- Treble damages (3x the deposit amount) if landlord:
+  - Fails to hold in escrow
+  - Fails to provide receipt
+  - Fails to return within 30 days
+  - Makes improper deductions
+  - Fails to transfer when property sold
+
+FORM PC AND AG REPORTING
+Security deposits are trust funds and should be reported as restricted liabilities. The MA AG's office may review handling during charity audits.
+
+RI-SPECIFIC CONTEXT
+RI manages residential tenants with security deposits. The system tracks:
+- Security deposit amount per tenant
+- Escrow bank reference
+- Deposit date
+- Interest rate
+- Statement of condition date
+- Tenancy anniversary (for annual interest payment)
+All security deposit funds are held in escrow and recorded as restricted liabilities on the balance sheet.
