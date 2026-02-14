@@ -339,6 +339,9 @@ financial-system/
 │     ├─ reports/             # Report components (tables, charts, export)
 │     ├─ forms/               # Transaction entry forms, PO forms
 │     └─ shared/              # Common UI components
+│        ├─ Breadcrumbs       # Auto-generated from App Router route hierarchy
+│        ├─ UserMenu          # Upper-right dropdown (user info, app-portal link, sign out)
+│        └─ HelpTooltip       # "?" icon with hover/click explanation text
 ```
 
 ### 3.2 Key Libraries (Anticipated)
@@ -615,6 +618,62 @@ Report Request (filters: date range, fund, period)
 The dashboard home screen (D-113) is a composite of 5 report widgets, each running a lightweight version of its full report's query.
 
 **Report UI consistency:** All 29 reports share a unified component library. Filter headers look the same across reports — same layout, same field ordering when reports share filter fields (e.g., date range always first, fund filter always second). Reuse shared components (filter bar, table, export buttons, variance indicators, drill-down navigation) to keep reports visually coherent and reduce maintenance. Follows Design Principle #6 (consistent look and feel).
+
+### 5.8 Navigation & Contextual Help
+
+Three shared UI patterns that appear on every page (SYS-P0-018 through SYS-P0-021):
+
+**Breadcrumbs**
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Top Nav                                    [?] [User ▾]│
+├─────────────────────────────────────────────────────────┤
+│  Vendors  ›  Greenfield Construction  ›  PO-0042  ›  Invoice #7
+├─────────────────────────────────────────────────────────┤
+│  Page content...                                        │
+```
+
+Derived automatically from the Next.js App Router nested layout hierarchy. Each route segment maps to a breadcrumb — the `<Breadcrumbs />` component reads `usePathname()` and resolves display names from route metadata or entity lookups (e.g., vendor name instead of vendor ID). No per-page configuration. Deep paths that benefit most: Vendors → PO → Invoice, Tenants → Security Deposit, Assets → Components, Reports → Fund drill-down.
+
+**User Menu**
+
+Upper-right icon/avatar in the top nav. Dropdown:
+
+```
+┌──────────────────────┐
+│  Heather Takle       │
+│  heather@renewal...  │
+├──────────────────────┤
+│  ← App Portal        │
+│  Sign Out            │
+└──────────────────────┘
+```
+
+- User identity read from Zitadel session (already available via app-portal auth).
+- "App Portal" link navigates to app-portal's URL. This is a **cross-app standard** — every RI app except app-portal itself includes this link so users can always return to home base.
+- Sign Out triggers Zitadel logout flow.
+
+**Inline Help Tooltips**
+
+```
+Fund  [General Fund ▾]  (?)    ← hover/click shows: "An accounting entity with its
+                                   own restricted/unrestricted designation. Every
+                                   transaction line is coded to exactly one fund."
+```
+
+A `<HelpTooltip term="fund" />` component backed by a static lookup table (`lib/help/terms.ts`). Content sourced from:
+
+| Source | Examples |
+|--------|----------|
+| Glossary (requirements.md) | Fund, Restricted Net Assets, Net Asset Release, CIP, Trust-Escalation |
+| GAAP Policies (Section 9.3) | Capitalization threshold, depreciation method, bad debt policy |
+| MA compliance rules | Security deposit limits, rent proration formula, treble damages warning |
+| Decision rationale | Why no approval workflows (D-044), why accrual basis (D-005) |
+
+No AI, no API calls — pure static text rendered in a popover. The term dictionary is a flat `Record<string, string>` seeded at build time from project documentation. Terms are added incrementally as pages are built — each page's developer identifies which fields/headings warrant a tooltip.
+
+Relationship to copilot: tooltips are the **zero-friction** help layer (instant, no interaction required). The copilot (SYS-P0-001) is the **deep-reasoning** layer (conversational, context-aware, can query data). They complement each other — a user reads a tooltip to understand what a field means, then opens the copilot to ask "which fund should I use for this invoice?"
 
 ---
 

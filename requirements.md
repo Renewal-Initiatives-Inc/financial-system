@@ -560,7 +560,16 @@ Example copilot context packages:
 | SYS-P0-011 | One-time import of all FY25 transactions from QBO (CSV). Flagged "FY25 Import." Validates: debits = credits, valid accounts. Rollback on failure. No UI — script run by Jeff/Claude Code. | P0 | D-033 |
 | SYS-P0-012 | Accrual-basis opening balance generation: system identifies timing differences and generates adjustment entries. Known items: prepaid insurance ($501), accrued reimbursements ($4,472 to Heather), December rent AR, accrued AHP loan interest. Produces conversion summary for review before finalizing. | P0 | D-033 |
 
-### 8.5 Deployment
+### 8.5 Navigation & Contextual Help
+
+| ID | Requirement | Priority | Decisions |
+|----|------------|----------|-----------|
+| SYS-P0-018 | **Breadcrumbs.** All pages with nested navigation display a breadcrumb trail derived from the route hierarchy (e.g., Vendors → PO-0042 → Invoice #7). Each segment is a clickable link. Breadcrumbs render automatically from the App Router layout structure — no per-page configuration required. | P0 | — |
+| SYS-P0-019 | **User menu.** Persistent icon/avatar in the upper-right corner of the top nav. Dropdown contains: (a) current user name/email (informational), (b) "Back to App Portal" link to app-portal, (c) Sign Out action. | P0 | — |
+| SYS-P0-020 | **Cross-app portal link.** The "Back to App Portal" link in the user menu is a standard pattern across all RI apps except app-portal itself. Provides a consistent way to return to home base from within any app. | P0 | — |
+| SYS-P0-021 | **Inline help tooltips.** `?` icon adjacent to fields and headings where accounting concepts, compliance rules, or system behavior may not be self-evident. Hover/click shows a 1-2 sentence explanation. Content sourced from project documentation (glossary, decisions, GAAP policies, MA compliance rules). Implemented as a shared `<HelpTooltip>` component backed by a static lookup table of terms → explanations. No AI required — lightweight and instant. | P0 | D-129 (complements copilot as the lower-friction help layer) |
+
+### 8.6 Deployment
 
 | ID | Requirement | Priority | Decisions |
 |----|------------|----------|-----------|
