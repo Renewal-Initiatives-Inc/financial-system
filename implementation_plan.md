@@ -41,6 +41,17 @@ All technology choices are finalized:
 
 No further decisions required for Phase 0.
 
+### Development-Time MCP Servers
+
+The following MCP servers are configured for Claude Code during development (not shipped in the app):
+
+| MCP Server | Purpose | Source |
+|------------|---------|--------|
+| **charity-mcp-server** | IRS nonprofit data lookup — EIN verification, tax-deductible status checks, comparable org research | https://github.com/briancasteel/charity-mcp-server |
+| **propublica-mcp** | ProPublica Nonprofit Explorer — 990 financial data for 1.8M+ orgs, benchmarking, peer comparison | https://github.com/asachs01/propublica-mcp |
+
+These help Claude Code answer questions about RI's tax status, validate design decisions against real nonprofit data, and look up comparable organizations during planning and development. They run via stdio transport and require no API keys.
+
 ---
 
 ## 3. Phase 1: Project Scaffolding & Dev Environment
@@ -149,7 +160,7 @@ No further decisions required for Phase 0.
 7. Build fund balance calculation query: for any fund, sum all transaction_lines debits and credits grouped by account type to derive fund-level assets, liabilities, net assets
 8. Build account hierarchy display: tree view showing parent accounts with expandable children (CIP parent → 5 sub-accounts, Building accounts with components)
 9. Add `<HelpTooltip>` instances on key fields: "Fund," "Restriction Type," "Normal Balance," "System Locked," "Form 990 Line" with explanations from glossary and GAAP policies (SYS-P0-021)
-10. Create `src/lib/help/terms.ts` — static `Record<string, string>` lookup table for help tooltip content. Seed with ~20 terms from glossary, GAAP policies, and MA compliance rules
+10. Create `src/lib/help/terms.ts` — static `Record<string, string>` lookup table for help tooltip content. Seed with ~20 terms from glossary, GAAP policies, and MA compliance rules. Enrich each term with authoritative references: IRC section citations (e.g., "Fund Accounting" → ASC 958, IRC 501(c)(3)), Treasury Regulation references where applicable (e.g., "Restriction Type" → 26 CFR 1.501(c)(3)-1), and RI-specific context (e.g., public charity classification 170(b)(1)(A)(vi), MA ST-2 exemption). These grounded references provide better-than-generic AI assistance at the tooltip level before the full copilot ships in Phase 18
 11. Write E2E test: create a new account, verify it appears in the list, create a fund, verify balance enforcement
 
 **Deliverable:** Working account and fund management pages. Users can view the full chart of accounts, create new accounts/funds, and manage active status with proper guards.
@@ -549,7 +560,7 @@ No further decisions required for Phase 0.
     - Wizard-style UI, one account at a time with progress indicator
     - Stored as metadata in `functional_allocations` table — no GL journal entries
 6. Build W-2 generation (TXN-P0-036): aggregate per-employee annual data (boxes 1-6, 16-17). Use pdf-lib to fill official W-2 PDF template with pixel-precise field placement. Preview before generation (Report #27 data)
-7. Build 1099-NEC preparation (TXN-P0-023): auto-track vendor payments by calendar year, flag $600+ threshold, W-9 collection tracking, data export (CSV), PDF 1099-NEC form generation via pdf-lib
+7. Build 1099-NEC preparation (TXN-P0-023): auto-track vendor payments by calendar year, flag $600+ threshold, W-9 collection tracking, data export (CSV), PDF 1099-NEC form generation via pdf-lib. Add TaxBandits API integration (`src/lib/integrations/taxbandits.ts`) as optional IRS e-filing path: W-9 collection via email (`request_w9_by_email`), 1099-NEC validation (`validate_1099_nec`), and IRS e-file submission (`create_1099_nec`). TaxBandits also exposes a remote MCP server (https://developer.taxbandits.com/docs/mcp/) for conversational tax filing if the copilot (Phase 18) needs to invoke it. Resolves open question Q19 from company_facts.md
 8. Build filing progression awareness (SYS-P0-010): track which 990 form type RI files based on gross receipts and asset thresholds. Alert when property acquisition triggers Full 990
 9. Build quarterly 941/M-941 data export (TXN-P0-037): formatted to match form line items from Report #29 data
 10. Build board pack generation workflow (RPT-P0-007): Heather manually selects reports, system generates combined PDF. No automated distribution
@@ -569,21 +580,36 @@ No further decisions required for Phase 0.
 1. Build copilot panel component (`src/components/copilot/CopilotPanel.tsx`): right-side sliding panel (shadcn/ui Sheet component), chat message list, text input with send button, streaming response display. Collapsible — available on every page but not intrusive (SYS-P0-001)
 2. Build copilot API proxy (`src/app/api/copilot/route.ts`): receives messages + context package from client, assembles system prompt, forwards to Anthropic API via `@anthropic-ai/sdk`. Stream response back to client (SYS-P0-002)
 3. Define copilot context package interface (`src/lib/copilot/types.ts`): `{ data: Record<string, any>, tools: ToolDefinition[], knowledge: string[] }`
-4. Build context package for fixed asset form: form state, asset register data, IRS publication search tool, useful life lookup tool. Knowledge: D-127 depreciation policy, D-080 component depreciation rules (SYS-P0-004 — replaces standalone depreciation assistant D-128)
-5. Build context package for Ramp categorization: transaction details, GL chart of accounts, categorization rule history, merchant pattern data. Tools: account suggestion, merchant pattern lookup. Knowledge: existing categorization rules
-6. Build context package for PO/vendor invoice: contract details, PO compliance status, budget remaining by fund. Tools: budget query. Knowledge: covenant terms from PO
-7. Build context package for bank reconciliation: unmatched items, matching rules, transaction history. Tools: transaction history search. Knowledge: matching rules documentation
-8. Build context package for compliance calendar: current deadlines, upcoming filings. Tools: web search for regulatory updates. Knowledge: filing requirements, MA tenant law
-9. Build context package for transaction entry: current form state, recent transactions, chart of accounts. Tools: account lookup, recent transaction search. Knowledge: GAAP policies (SYS-P0-004 — replaces standalone transaction assistant D-130)
-10. Build context package for reports: current report data, filter state. Tools: drill-down queries, comparison queries. Knowledge: report definitions
-11. Build context package for dashboard: all dashboard section data. Tools: report navigation, transaction lookup. Knowledge: system overview
-12. Implement tool execution: when copilot invokes a tool (e.g., "search transactions"), the API route executes the tool against the database and returns results to the AI for incorporation into its response
-13. Add copilot panel to the root layout so it's available on every page. Each page passes its context package via React context
-14. Implement conversation persistence: store conversation history per user per session. Clear on explicit "New Chat" action
-15. Write unit tests: context package assembly for each page, tool execution, Anthropic API request formation
-16. Write E2E test: open copilot on fixed asset page, ask about useful life, verify context-aware response
+4. Build tax law knowledge layer (`src/lib/copilot/tax-knowledge.ts`):
+    - Curate a focused corpus of ~50-100 documents for the copilot's knowledge base:
+      - **IRC primary law:** Sections 170 (charitable contributions), 501-530 (exempt organizations), 511-514 (UBIT), 263A (capitalization rules) — downloaded as USLM XML from uscode.house.gov, parsed to plain text
+      - **Treasury Regulations:** Subchapter F (Exempt Organizations) via eCFR REST API (https://www.ecfr.gov/developers/documentation/api/v1) — free, no auth, point-in-time access. Key sections: 26 CFR 1.501(c)(3)-1, 1.170A-13 (substantiation), 1.509(a)-3 (public support test)
+      - **IRS Publications:** Pub 557 (Tax-Exempt Status), Pub 598 (UBIT), Pub 1771 (Charitable Contributions Substantiation), Pub 4221-PC (Compliance Guide for 501(c)(3)s), Pub 15-T (Federal Income Tax Withholding Methods), Pub 946 (Depreciation) — downloaded as PDF, parsed to text
+      - **IRS Form Instructions:** Form 990, 990-EZ, 990-N, 990-T instructions — parsing targets: line-by-line guidance, threshold rules, schedule triggers
+      - **MA-specific:** Form PC instructions (AG charity portal), MA DOR Circular M (state withholding), MA G.L. c. 186 (tenant law / security deposits), MA nonprofit FAQ from mass.gov
+      - **Plain-language guides:** nonprofitaccountingbasics.org content on fund accounting, donor acknowledgment, functional expenses, 990 reporting
+    - Build eCFR API client (`src/lib/copilot/ecfr-client.ts`): fetch specific CFR sections on demand (e.g., title 26, part 1, section 501(c)(3)-1). Cache responses. Use for real-time regulation lookup when copilot needs authoritative text
+    - Build `taxLawSearch` copilot tool: searches the curated knowledge corpus and returns cited passages with source references (e.g., "Per IRC § 170(f)(8)(A), a donor must obtain a contemporaneous written acknowledgment for any single contribution of $250 or more")
+    - Build `regulationLookup` copilot tool: fetches a specific Treasury Regulation section via eCFR API by citation (e.g., "26 CFR 1.501(c)(3)-1(d)(1)(ii)") and returns the full text. Useful when copilot needs to quote exact regulatory language
+    - Build `nonprofitExplorerLookup` copilot tool: queries ProPublica Nonprofit Explorer API (free, no key) to look up comparable organizations by EIN or search — useful for benchmarking questions ("how do similar-sized nonprofits report this?")
+    - Store corpus as static text files in `src/lib/copilot/knowledge/` organized by topic (exempt-org-rules/, depreciation/, payroll-tax/, ma-compliance/, fund-accounting/). Loaded into copilot system prompt as relevant knowledge per context package. No vector DB needed at this scale — topic-based selection by context package is sufficient for ~50-100 documents
+5. Build context package for fixed asset form: form state, asset register data, IRS publication search tool, useful life lookup tool. Tools: `regulationLookup`. Knowledge: D-127 depreciation policy, D-080 component depreciation rules, IRC § 168 (MACRS), Pub 946 excerpts on useful life by asset class (SYS-P0-004 — replaces standalone depreciation assistant D-128)
+6. Build context package for Ramp categorization: transaction details, GL chart of accounts, categorization rule history, merchant pattern data. Tools: account suggestion, merchant pattern lookup. Knowledge: existing categorization rules, UBIT guidance from Pub 598 (flag if expense could relate to unrelated business activity)
+7. Build context package for PO/vendor invoice: contract details, PO compliance status, budget remaining by fund. Tools: budget query, `taxLawSearch`. Knowledge: covenant terms from PO, IRC § 263A capitalization rules (relevant for CIP-coded invoices), 1099 reporting thresholds
+8. Build context package for bank reconciliation: unmatched items, matching rules, transaction history. Tools: transaction history search. Knowledge: matching rules documentation
+9. Build context package for compliance calendar: current deadlines, upcoming filings. Tools: `taxLawSearch`, `regulationLookup`. Knowledge: filing requirements with statutory references (IRC § 6033 for 990 filing, MA AG Form PC rules, IRC § 6721/6722 penalty rules for late filing), MA tenant law (G.L. c. 186 for security deposit deadlines)
+10. Build context package for transaction entry: current form state, recent transactions, chart of accounts. Tools: account lookup, recent transaction search, `taxLawSearch`. Knowledge: GAAP policies, ASC 958 fund accounting rules, donor acknowledgment thresholds (IRC § 170(f)(8) — $250+ requires written ack; quid pro quo disclosure required for $75+ contributions) (SYS-P0-004 — replaces standalone transaction assistant D-130)
+11. Build context package for reports: current report data, filter state. Tools: drill-down queries, comparison queries, `nonprofitExplorerLookup`. Knowledge: report definitions, Form 990 Part IX functional expense classification rules, public support test calculation guidance (IRC § 509(a), 26 CFR 1.509(a)-3)
+12. Build context package for dashboard: all dashboard section data. Tools: report navigation, transaction lookup. Knowledge: system overview
+13. Build context package for revenue recording: current form state, donor/grant data. Tools: `taxLawSearch`, `regulationLookup`. Knowledge: ASC 958 revenue recognition (conditional vs unconditional contributions), donor acknowledgment letter requirements (Pub 1771), in-kind contribution valuation rules, grant restriction classification
+14. Build context package for payroll: payroll run data, employee records, withholding calculations. Tools: `regulationLookup`. Knowledge: Pub 15-T withholding method excerpts, MA Circular M, FICA wage base rules, employer vs employee share rules
+15. Implement tool execution: when copilot invokes a tool (e.g., "search transactions", "regulationLookup 26 CFR 1.501(c)(3)-1"), the API route executes the tool against the database or external API and returns results to the AI for incorporation into its response
+16. Add copilot panel to the root layout so it's available on every page. Each page passes its context package via React context
+17. Implement conversation persistence: store conversation history per user per session. Clear on explicit "New Chat" action
+18. Write unit tests: context package assembly for each page, tool execution (including eCFR API client and ProPublica API client), Anthropic API request formation, tax knowledge corpus loading
+19. Write E2E test: open copilot on fixed asset page, ask about useful life, verify context-aware response citing IRS publication. Open copilot on transaction entry page, ask about donor acknowledgment requirements, verify response cites IRC § 170(f)(8) threshold
 
-**Deliverable:** AI copilot available on every page with page-specific context and tools. Replaces standalone AI features (depreciation assistant, transaction assistant). Capability-based tools connected to financial-system data.
+**Deliverable:** AI copilot available on every page with page-specific context, tools, and tax law knowledge. Tax knowledge layer provides authoritative citations from IRC, Treasury Regulations, IRS publications, and MA compliance rules. Three copilot tools (`taxLawSearch`, `regulationLookup`, `nonprofitExplorerLookup`) connect the copilot to primary legal sources and nonprofit benchmarking data. Replaces standalone AI features (depreciation assistant, transaction assistant).
 
 ---
 
@@ -740,7 +766,7 @@ Phase 22 (Deployment)             ── depends on: Phase 21
 | **macOS dev → Linux production (Vercel).** No containers. Potential for platform-specific behavior differences. | Low | CI runs on Linux (GitHub Actions) to catch issues before production. Node.js and Next.js are fully portable. Playwright tests run on both platforms. Main risk area: native dependencies (unlikely given the pure-JS stack). Flag and investigate any CI-only failures immediately. |
 | **FY25 migration data quality.** QBO CSV export may have inconsistencies, unmapped accounts, or missing fund coding. | Medium | Build validation-first: reject invalid rows with descriptive errors. Map accounts manually before running import. Run against dev DB first, review conversion summary, iterate. Keep QBO active as fallback until migration verified. |
 | **29 reports at launch.** Large surface area. Risk of report bugs or performance issues discovered late. | Medium | Build reports in two batches (Phases 15-16). Use shared query/formatter infrastructure to reduce per-report effort. Prioritize core financial statements (Reports 1-4) for early user validation. |
-| **AI copilot context quality.** Copilot usefulness depends on context package quality. Poor context = poor answers. | Low | Start with minimal context packages, iterate based on usage. The copilot is additive — the system works without it. Context packages are easy to update (just data/tools/knowledge arrays). |
+| **AI copilot context quality.** Copilot usefulness depends on context package quality and tax knowledge corpus accuracy. Poor context = poor answers. Stale tax law = dangerous answers. | Low | Start with minimal context packages, iterate based on usage. The copilot is additive — the system works without it. Context packages are easy to update (just data/tools/knowledge arrays). Tax knowledge corpus sourced exclusively from primary authorities (IRC, Treasury Regs via eCFR API, IRS publications). Copilot responses always include source citations so users can verify. eCFR API provides point-in-time access to current regulations. Annual review of IRS publication updates (especially Pub 15-T withholding tables, Pub 946 depreciation) when new tax year guidance is released. |
 | **Vercel cron job limits.** Multiple scheduled jobs (Plaid, Ramp, depreciation, interest, rent, amortization, compliance). Vercel hobby plan has cron limitations. | Low | Consolidate cron jobs where possible (e.g., single daily job handles Plaid + Ramp + compliance checks). Verify plan limits early. Upgrade Vercel plan if needed — cost is minimal for this scale. |
 | **AHP interest capitalization mode switch.** Automatic switch from CIP capitalization to expense when last structure placed in service. Edge case: what if a conversion is reversed? | Low | CIP conversions are audited and reviewed — reversals are extremely unlikely. If needed, manual JE corrects. Document the mode-switch logic clearly for future maintainers. |
 
@@ -792,9 +818,13 @@ The project is complete when all of the following are true:
 
 **AI & UX**
 - [ ] AI copilot available on every page with relevant context
+- [ ] Tax law knowledge layer loaded with curated corpus (~50-100 docs from IRC, Treasury Regs, IRS Pubs, MA compliance)
+- [ ] `taxLawSearch`, `regulationLookup`, and `nonprofitExplorerLookup` copilot tools functional and returning cited results
+- [ ] eCFR API client fetches current Treasury Regulations on demand
+- [ ] Copilot responses on tax questions cite primary sources (IRC sections, CFR sections, IRS publication references)
+- [ ] Help tooltips include authoritative IRC/ASC references where applicable
 - [ ] Breadcrumbs display correctly on all nested routes
 - [ ] User menu with App Portal link and Sign Out working
-- [ ] Help tooltips present on all non-obvious fields
 - [ ] Audit log captures every mutation across all features
 
 **Data & Migration**
