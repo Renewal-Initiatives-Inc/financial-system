@@ -288,8 +288,7 @@ export function CreatePOForm({
             extractedMilestones: milestones,
             extractedTerms: terms,
             extractedCovenants: covenants,
-          },
-          'system' // TODO: replace with actual user ID from session
+          }
         )
 
         toast.success(

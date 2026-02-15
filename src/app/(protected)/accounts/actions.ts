@@ -8,6 +8,7 @@ import { insertAccountSchema, updateAccountSchema, type InsertAccount, type Upda
 import { logAudit } from '@/lib/audit/logger'
 import { deactivateAccount } from '@/lib/gl/deactivation'
 import { SystemLockedError } from '@/lib/gl/errors'
+import { getUserId } from '@/lib/auth'
 import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
 
 // --- Types ---
@@ -100,9 +101,9 @@ export async function getAccountById(id: number): Promise<AccountDetail | null> 
 }
 
 export async function createAccount(
-  data: InsertAccount,
-  userId: string
+  data: InsertAccount
 ): Promise<{ id: number }> {
+  const userId = await getUserId()
   const validated = insertAccountSchema.parse(data)
 
   const [newAccount] = await db.transaction(async (tx) => {
@@ -138,9 +139,9 @@ export async function createAccount(
 
 export async function updateAccount(
   id: number,
-  data: UpdateAccount,
-  userId: string
+  data: UpdateAccount
 ): Promise<void> {
+  const userId = await getUserId()
   const validated = updateAccountSchema.parse(data)
 
   await db.transaction(async (tx) => {
@@ -190,9 +191,9 @@ export async function updateAccount(
 
 export async function toggleAccountActive(
   id: number,
-  active: boolean,
-  userId: string
+  active: boolean
 ): Promise<void> {
+  const userId = await getUserId()
   if (!active) {
     // Deactivation uses the GL deactivation guard
     await deactivateAccount(id, userId)

@@ -16,6 +16,7 @@ import {
 } from '@/lib/validators'
 import { logAudit } from '@/lib/audit/logger'
 import { collectSecurityDeposit } from '@/lib/security-deposits/collect'
+import { getUserId } from '@/lib/auth'
 import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
 
 // --- Types ---
@@ -83,9 +84,9 @@ export async function getTenantById(
 }
 
 export async function createTenant(
-  data: InsertTenant,
-  userId: string
+  data: InsertTenant
 ): Promise<{ id: number }> {
+  const userId = await getUserId()
   const validated = insertTenantSchema.parse(data)
 
   const [newTenant] = await db.transaction(async (tx) => {

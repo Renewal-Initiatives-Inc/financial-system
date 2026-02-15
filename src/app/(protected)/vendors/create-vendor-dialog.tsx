@@ -102,8 +102,7 @@ export function CreateVendorDialog({
               w9Status === 'COLLECTED' && w9CollectedDate
                 ? w9CollectedDate
                 : null,
-          },
-          'system' // TODO: replace with actual user ID from session
+          }
         )
         toast.success('Vendor created')
         resetForm()

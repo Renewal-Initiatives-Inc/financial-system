@@ -11,6 +11,7 @@ import {
   type UpdateDonor,
 } from '@/lib/validators'
 import { logAudit } from '@/lib/audit/logger'
+import { getUserId } from '@/lib/auth'
 import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
 
 // --- Types ---
@@ -57,9 +58,9 @@ export async function getDonorById(id: number): Promise<DonorRow | null> {
 }
 
 export async function createDonor(
-  data: InsertDonor,
-  userId: string
+  data: InsertDonor
 ): Promise<{ id: number }> {
+  const userId = await getUserId()
   const validated = insertDonorSchema.parse(data)
 
   const [newDonor] = await db.transaction(async (tx) => {

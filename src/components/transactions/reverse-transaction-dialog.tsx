@@ -40,10 +40,7 @@ export function ReverseTransactionDialog({
   const handleReverse = async () => {
     setPending(true)
     try {
-      const result = await reverseTransactionAction(
-        transaction.id,
-        'system' // TODO: replace with session user
-      )
+      const result = await reverseTransactionAction(transaction.id)
       toast.success(
         `Transaction reversed. Reversal entry #${result.reversalId} created.`
       )

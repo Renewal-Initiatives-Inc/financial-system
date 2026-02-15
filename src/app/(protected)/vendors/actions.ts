@@ -11,6 +11,7 @@ import {
   type UpdateVendor,
 } from '@/lib/validators'
 import { logAudit } from '@/lib/audit/logger'
+import { getUserId } from '@/lib/auth'
 import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
 
 // --- Types ---
@@ -93,9 +94,9 @@ export async function getVendorById(
 }
 
 export async function createVendor(
-  data: InsertVendor,
-  userId: string
+  data: InsertVendor
 ): Promise<{ id: number }> {
+  const userId = await getUserId()
   const validated = insertVendorSchema.parse(data)
 
   const [newVendor] = await db.transaction(async (tx) => {

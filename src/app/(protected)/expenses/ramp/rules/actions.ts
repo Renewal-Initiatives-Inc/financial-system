@@ -10,6 +10,7 @@ import {
   type InsertCategorizationRule,
   type UpdateCategorizationRule,
 } from '@/lib/validators'
+import { getUserId } from '@/lib/auth'
 
 // --- Types ---
 
@@ -47,9 +48,10 @@ export async function getCategorizationRules(): Promise<
 // --- Mutations ---
 
 export async function createCategorizationRule(
-  data: InsertCategorizationRule
+  data: Omit<InsertCategorizationRule, 'createdBy'>
 ): Promise<{ id: number }> {
-  const validated = insertCategorizationRuleSchema.parse(data)
+  const userId = await getUserId()
+  const validated = insertCategorizationRuleSchema.parse({ ...data, createdBy: userId })
 
   const [newRule] = await db
     .insert(categorizationRules)
@@ -58,7 +60,7 @@ export async function createCategorizationRule(
       glAccountId: validated.glAccountId,
       fundId: validated.fundId,
       autoApply: validated.autoApply,
-      createdBy: validated.createdBy,
+      createdBy: userId,
     })
     .returning({ id: categorizationRules.id })
 

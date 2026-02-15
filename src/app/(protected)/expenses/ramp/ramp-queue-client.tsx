@@ -98,7 +98,7 @@ export function RampQueueClient({
   const handleSync = () => {
     startTransition(async () => {
       try {
-        const result = await triggerRampSync('system')
+        const result = await triggerRampSync()
         toast.success(
           `Synced ${result.synced} transactions, ${result.autoCategorized} auto-categorized`
         )

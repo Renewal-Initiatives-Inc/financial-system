@@ -24,6 +24,7 @@ import {
 } from '@/lib/validators'
 import { createTransaction } from '@/lib/gl/engine'
 import { logAudit } from '@/lib/audit/logger'
+import { getUserId } from '@/lib/auth'
 
 // --- Types ---
 
@@ -161,9 +162,9 @@ export async function getPurchaseOrderById(
 // --- Purchase Order Mutations ---
 
 export async function createPurchaseOrder(
-  data: InsertPurchaseOrder,
-  userId: string
+  data: InsertPurchaseOrder
 ): Promise<{ id: number }> {
+  const userId = await getUserId()
   const validated = insertPurchaseOrderSchema.parse(data)
 
   const [newPo] = await db.transaction(async (tx) => {

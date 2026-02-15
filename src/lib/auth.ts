@@ -139,3 +139,12 @@ export const authConfig: NextAuthConfig = {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth(authConfig)
+
+/**
+ * Get the authenticated user's ID from the session.
+ * For use in server actions and API routes.
+ */
+export async function getUserId(): Promise<string> {
+  const session = await auth()
+  return session?.user?.id ?? 'system'
+}

@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getQuarterlyTaxPrepData } from '@/lib/reports/quarterly-tax-prep'
+import { auth } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
+  const session = await auth()
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   const params = request.nextUrl.searchParams
   const yearStr = params.get('year')
   const quarterStr = params.get('quarter')

@@ -168,10 +168,7 @@ export function JournalEntryForm({
         memo: l.memo || null,
       }))
 
-      const result = await createManualTransaction(
-        { date, memo, lines: txnLines },
-        'system' // TODO: replace with session user
-      )
+      const result = await createManualTransaction({ date, memo, lines: txnLines })
 
       const msg = result.releaseTransactionId
         ? `Journal entry #${result.transactionId} created. Net asset release #${result.releaseTransactionId} auto-generated.`

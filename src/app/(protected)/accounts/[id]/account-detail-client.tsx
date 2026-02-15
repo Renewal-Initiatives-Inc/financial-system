@@ -51,8 +51,7 @@ export function AccountDetailClient({ account }: AccountDetailClientProps) {
           {
             ...(name !== account.name ? { name } : {}),
             ...(subType !== (account.subType ?? '') ? { subType: subType || null } : {}),
-          },
-          'system' // TODO: replace with actual user ID from session
+          }
         )
         setIsEditing(false)
         toast.success('Account updated')
@@ -70,7 +69,7 @@ export function AccountDetailClient({ account }: AccountDetailClientProps) {
     }
     startTransition(async () => {
       try {
-        await toggleAccountActive(account.id, true, 'system')
+        await toggleAccountActive(account.id, true)
         toast.success('Account reactivated')
         router.refresh()
       } catch (err) {
@@ -82,7 +81,7 @@ export function AccountDetailClient({ account }: AccountDetailClientProps) {
   const confirmDeactivation = () => {
     startTransition(async () => {
       try {
-        await toggleAccountActive(account.id, false, 'system')
+        await toggleAccountActive(account.id, false)
         setIsConfirmDeactivateOpen(false)
         toast.success('Account deactivated')
         router.refresh()

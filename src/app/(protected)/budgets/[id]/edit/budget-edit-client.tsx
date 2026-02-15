@@ -32,6 +32,7 @@ import {
 import { AccountSelector } from '@/components/shared/account-selector'
 import { FundSelector } from '@/components/shared/fund-selector'
 import { SpreadModeSelector } from '@/components/budgets/spread-mode-selector'
+import { HelpTooltip } from '@/components/shared/help-tooltip'
 import { MonthlyAmountsEditor } from '@/components/budgets/monthly-amounts-editor'
 import { recalculateSpread } from '@/lib/budget/spread'
 import type { BudgetWithLines } from '@/lib/budget/queries'
@@ -334,7 +335,7 @@ export function BudgetEditClient({ budget, accounts, funds }: BudgetEditClientPr
               <TableHead className="w-[180px]">Account</TableHead>
               <TableHead className="w-[120px]">Fund</TableHead>
               <TableHead className="w-[130px]">Annual Amount</TableHead>
-              <TableHead className="w-[130px]">Spread</TableHead>
+              <TableHead className="w-[130px]">Spread <HelpTooltip term="spread-method" /></TableHead>
               <TableHead>Monthly Amounts</TableHead>
               <TableHead className="w-[60px]"></TableHead>
             </TableRow>

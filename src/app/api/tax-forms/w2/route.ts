@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getW2VerificationData } from '@/lib/reports/w2-verification'
 import { generateW2PDF, generateCombinedW2PDF } from '@/lib/pdf/w2-generator'
+import { auth } from '@/lib/auth'
 
 const EMPLOYER_INFO = {
   ein: process.env.EMPLOYER_EIN ?? '00-0000000',
@@ -12,6 +13,11 @@ const EMPLOYER_INFO = {
 }
 
 export async function GET(request: NextRequest) {
+  const session = await auth()
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const params = request.nextUrl.searchParams
   const yearStr = params.get('year')
   const employeeId = params.get('employeeId')

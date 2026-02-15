@@ -49,8 +49,7 @@ export function BulkCategorizeDialog({
             glAccountId,
             fundId,
             createRule,
-          },
-          'system' // TODO: replace with actual user ID from session
+          }
         )
         toast.success(
           `${result.succeeded} categorized${result.failed > 0 ? `, ${result.failed} failed` : ''}`

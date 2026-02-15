@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { extractContractTerms } from '@/lib/ai/contract-extraction'
+import { auth } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
+  const session = await auth()
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   const { pdfBase64 } = await request.json()
 
   if (!pdfBase64 || typeof pdfBase64 !== 'string') {

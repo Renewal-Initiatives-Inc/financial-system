@@ -126,15 +126,42 @@ npx tsx src/lib/migration/run-import.ts --csv-path ./qbo-export.csv --force --en
 ## Architecture
 
 ```
-qbo-csv-parser.ts      → Parse QBO CSV into structured data
-account-mapping.ts     → Map QBO names to our chart of accounts
-import-engine.ts       → Batch import via createTransaction()
-accrual-adjustments.ts → Cash→accrual adjustment entries
-verification.ts        → Post-import integrity checks
-conversion-summary.ts  → Human-readable summary report
-plaid-history-sync.ts  → Pull Plaid bank history
-run-import.ts          → CLI orchestrator
+qbo-csv-parser.ts        → Parse QBO CSV into structured data
+account-mapping.ts       → Map QBO names to our chart of accounts
+import-engine.ts         → Batch import via createTransaction()
+accrual-adjustments.ts   → Cash→accrual adjustment entries
+verification.ts          → Post-import integrity checks
+conversion-summary.ts    → Human-readable summary report
+plaid-history-sync.ts    → Pull Plaid bank history
+reconciliation.ts        → Multi-source matching engine (QBO ↔ Bank ↔ Ramp)
+run-import.ts            → CLI: import orchestrator
+run-reconciliation.ts    → CLI: reconciliation runner
 ```
+
+## Multi-Source Reconciliation
+
+After import, run the reconciliation tool to verify QBO, bank, and Ramp agree:
+
+```bash
+npx tsx src/lib/migration/run-reconciliation.ts \
+  --qbo ./qbo-export/journal-all.csv \
+  --bank-checking ./qbo-export/umass5-checking.csv \
+  --ramp ./qbo-export/ramp-transactions.csv \
+  --cutoff-date 2026-02-15 \
+  --output ./qbo-export/reconciliation-report.txt
+```
+
+Two reconciliation passes:
+1. **QBO cash accounts (1000/1010/1020) ↔ UMass Five bank transactions**
+2. **QBO credit card (2020) ↔ Ramp transactions**
+
+Matching strategy (in priority order):
+- Exact: same date + same amount
+- Fuzzy 1-day: ±1 day + same amount
+- Fuzzy 3-day: ±3 days + same amount
+- Amount-only: ±7 days + same amount (flagged for manual review)
+
+Exit codes: 0 = fully reconciled, 2 = unmatched transactions found.
 
 Key design: All imports use `createTransaction()` from the GL engine, ensuring:
 - INV-001: Balance check per transaction

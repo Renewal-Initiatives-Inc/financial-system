@@ -83,8 +83,7 @@ export function CreateDonorDialog({
               | 'FOUNDATION'
               | 'GOVERNMENT',
             firstGiftDate: firstGiftDate || null,
-          },
-          'system' // TODO: replace with actual user ID from session
+          }
         )
         toast.success('Donor created')
         resetForm()

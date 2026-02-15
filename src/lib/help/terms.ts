@@ -330,6 +330,9 @@ export const helpTerms: Record<string, string> = {
 
   'pending-transaction':
     'A bank transaction that has been authorized but not yet fully processed. Shown as informational in reconciliation but cannot be matched until posted.',
+
+  'ramp-settlement':
+    'When Ramp autopay settles, the bank debit should match the sum of categorized Ramp transactions for that period. The cross-check highlights any discrepancies between settlement amounts and posted GL entries.',
 }
 
 /** Get a help term by its slug. Returns undefined for unknown terms. */

@@ -31,10 +31,7 @@ export function VoidTransactionDialog({
   const handleVoid = async () => {
     setPending(true)
     try {
-      await voidTransactionAction(
-        transactionId,
-        'system' // TODO: replace with session user
-      )
+      await voidTransactionAction(transactionId)
       toast.success('Transaction voided')
       onOpenChange(false)
       router.refresh()

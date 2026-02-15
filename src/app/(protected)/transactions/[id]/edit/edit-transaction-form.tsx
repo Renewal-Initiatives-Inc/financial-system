@@ -156,8 +156,7 @@ export function EditTransactionForm({
 
       await editTransactionAction(
         transaction.id,
-        { date, memo, lines: txnLines },
-        'system' // TODO: replace with session user
+        { date, memo, lines: txnLines }
       )
 
       toast.success('Transaction updated')

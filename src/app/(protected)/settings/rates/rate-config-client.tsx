@@ -56,6 +56,14 @@ const RATE_LABELS: Record<string, string> = {
   ma_surtax_threshold: 'MA Surtax Threshold',
 }
 
+const RATE_TOOLTIPS: Record<string, string> = {
+  fica_ss_rate: 'fica',
+  fica_medicare_rate: 'fica',
+  fica_ss_wage_base: 'ss-wage-base',
+  vendor_1099_threshold: '1099-eligible',
+  ma_state_tax_rate: 'ma-state-withholding',
+}
+
 function formatRateValue(key: string, value: string): string {
   const num = parseFloat(value)
   if (key.includes('rate')) {
@@ -220,6 +228,9 @@ export function RateConfigClient({ initialRates }: RateConfigClientProps) {
                     <TableRow key={rate.id}>
                       <TableCell className="font-medium">
                         {RATE_LABELS[rate.configKey] ?? rate.configKey}
+                        {RATE_TOOLTIPS[rate.configKey] && (
+                          <> <HelpTooltip term={RATE_TOOLTIPS[rate.configKey]} /></>
+                        )}
                       </TableCell>
                       <TableCell>
                         {formatRateValue(rate.configKey, rate.value)}

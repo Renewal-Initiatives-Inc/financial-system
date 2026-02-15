@@ -127,7 +127,6 @@ export function CreateRuleDialog({
             glAccountId: glAccountId!,
             fundId: fundId!,
             autoApply,
-            createdBy: 'system', // TODO: replace with actual user ID
           })
           toast.success('Rule created')
         }

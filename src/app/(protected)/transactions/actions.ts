@@ -19,6 +19,7 @@ import {
 } from '@/lib/gl/engine'
 import type { InsertTransaction, EditTransaction } from '@/lib/validators'
 import type { AccountRow } from '@/app/(protected)/accounts/actions'
+import { getUserId } from '@/lib/auth'
 
 // --- Types ---
 
@@ -253,9 +254,9 @@ export async function createManualTransaction(
       cipCostCodeId?: number | null
       memo?: string | null
     }>
-  },
-  userId: string
+  }
 ): Promise<{ transactionId: number; releaseTransactionId?: number }> {
+  const userId = await getUserId()
   const input: InsertTransaction = {
     date: data.date,
     memo: data.memo,
@@ -276,9 +277,9 @@ export async function createManualTransaction(
 
 export async function editTransactionAction(
   id: number,
-  updates: EditTransaction,
-  userId: string
+  updates: EditTransaction
 ): Promise<{ transactionId: number }> {
+  const userId = await getUserId()
   const result = await editTransaction(id, updates, userId)
 
   revalidatePath('/transactions')
@@ -287,9 +288,9 @@ export async function editTransactionAction(
 }
 
 export async function reverseTransactionAction(
-  id: number,
-  userId: string
+  id: number
 ): Promise<{ reversalId: number }> {
+  const userId = await getUserId()
   const result = await reverseTransaction(id, userId)
 
   revalidatePath('/transactions')
@@ -299,9 +300,9 @@ export async function reverseTransactionAction(
 }
 
 export async function voidTransactionAction(
-  id: number,
-  userId: string
+  id: number
 ): Promise<void> {
+  const userId = await getUserId()
   await voidTransaction(id, userId)
 
   revalidatePath('/transactions')

@@ -133,7 +133,7 @@ describe('Bank Reconciliation — Matching & GL-Only', () => {
 
     it('confidence scoring: ±1 day gets bonus', () => {
       let score = 1.0
-      const daysDiff = 1
+      const daysDiff: number = 1
       if (daysDiff === 0) score += 0.05
       else if (daysDiff <= 1) score += 0.03
       expect(score).toBe(1.03)

@@ -365,13 +365,13 @@ export function PayrollWizard() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Employee</TableHead>
-                    <TableHead className="text-right">Gross Pay</TableHead>
-                    <TableHead className="text-right">Federal Tax</TableHead>
-                    <TableHead className="text-right">State Tax</TableHead>
-                    <TableHead className="text-right">SS (EE)</TableHead>
-                    <TableHead className="text-right">Medicare (EE)</TableHead>
-                    <TableHead className="text-right">Net Pay</TableHead>
-                    <TableHead className="text-right">Employer SS+Med</TableHead>
+                    <TableHead className="text-right">Gross Pay <HelpTooltip term="gross-pay" /></TableHead>
+                    <TableHead className="text-right">Federal Tax <HelpTooltip term="federal-withholding" /></TableHead>
+                    <TableHead className="text-right">State Tax <HelpTooltip term="ma-state-withholding" /></TableHead>
+                    <TableHead className="text-right">SS (EE) <HelpTooltip term="fica" /></TableHead>
+                    <TableHead className="text-right">Medicare (EE) <HelpTooltip term="fica" /></TableHead>
+                    <TableHead className="text-right">Net Pay <HelpTooltip term="net-pay" /></TableHead>
+                    <TableHead className="text-right">Employer SS+Med <HelpTooltip term="employer-fica" /></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

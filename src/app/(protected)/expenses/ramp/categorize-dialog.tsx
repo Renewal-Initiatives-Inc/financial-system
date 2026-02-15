@@ -80,8 +80,7 @@ export function CategorizeDialog({
             glAccountId,
             fundId,
             createRule,
-          },
-          'system' // TODO: replace with actual user ID from session
+          }
         )
         toast.success('Transaction categorized and posted to GL')
         onClose()

@@ -29,5 +29,6 @@ export const transactions = pgTable(
   (table) => [
     index('transactions_date_idx').on(table.date),
     index('transactions_source_type_idx').on(table.sourceType),
+    index('transactions_voided_date_idx').on(table.isVoided, table.date),
   ]
 )

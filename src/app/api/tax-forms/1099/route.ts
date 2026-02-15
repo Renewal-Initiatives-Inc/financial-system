@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getVendor1099Data } from '@/lib/compliance/vendor-1099'
 import { generate1099PDF } from '@/lib/pdf/form-1099-generator'
+import { auth } from '@/lib/auth'
 
 const PAYER_INFO = {
   tin: process.env.EMPLOYER_EIN ?? '00-0000000',
@@ -12,6 +13,11 @@ const PAYER_INFO = {
 }
 
 export async function GET(request: NextRequest) {
+  const session = await auth()
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const params = request.nextUrl.searchParams
   const yearStr = params.get('year')
   const format = params.get('format') ?? 'json'

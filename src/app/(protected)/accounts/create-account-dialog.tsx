@@ -96,8 +96,7 @@ export function CreateAccountDialog({
             subType: subType.trim() || null,
             parentAccountId: parentAccountId ? parseInt(parentAccountId, 10) : null,
             form990Line: form990Line.trim() || null,
-          },
-          'system' // TODO: replace with actual user ID from session
+          }
         )
         toast.success('Account created')
         resetForm()

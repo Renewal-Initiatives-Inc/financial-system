@@ -116,8 +116,7 @@ export function CreateTenantDialog({
             depositDate: depositDate || null,
             interestRate: interestRate || null,
             statementOfConditionDate: statementOfConditionDate || null,
-          },
-          'system' // TODO: replace with actual user ID from session
+          }
         )
         toast.success('Tenant created')
         resetForm()

@@ -18,6 +18,7 @@ import {
 import { postCategorizedTransaction } from '@/lib/ramp/categorization'
 import { fetchTransactions } from '@/lib/integrations/ramp'
 import { autoCategorize, batchPostCategorized } from '@/lib/ramp/categorization'
+import { getUserId } from '@/lib/auth'
 
 // --- Types ---
 
@@ -103,9 +104,9 @@ export async function getRampStats(): Promise<RampStats> {
 // --- Mutations ---
 
 export async function categorizeRampTransaction(
-  data: CategorizeRampTransaction,
-  userId: string
+  data: CategorizeRampTransaction
 ): Promise<void> {
+  const userId = await getUserId()
   const validated = categorizeRampTransactionSchema.parse(data)
 
   // Set categorization
@@ -143,9 +144,9 @@ export async function categorizeRampTransaction(
 }
 
 export async function bulkCategorizeRampTransactions(
-  data: BulkCategorize,
-  userId: string
+  data: BulkCategorize
 ): Promise<{ succeeded: number; failed: number }> {
+  const userId = await getUserId()
   const validated = bulkCategorizeSchema.parse(data)
 
   let succeeded = 0
@@ -159,8 +160,7 @@ export async function bulkCategorizeRampTransactions(
           glAccountId: validated.glAccountId,
           fundId: validated.fundId,
           createRule: false,
-        },
-        userId
+        }
       )
       succeeded++
     } catch {
@@ -190,9 +190,8 @@ export async function bulkCategorizeRampTransactions(
   return { succeeded, failed }
 }
 
-export async function triggerRampSync(
-  userId: string
-): Promise<{ synced: number; autoCategorized: number }> {
+export async function triggerRampSync(): Promise<{ synced: number; autoCategorized: number }> {
+  const userId = await getUserId()
   const now = new Date()
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
   const fromDate = sevenDaysAgo.toISOString().substring(0, 10)
