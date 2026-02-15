@@ -144,7 +144,7 @@ export function EmployerPayrollCostClient({
             value={String(year)}
             onValueChange={(v) => setYear(Number(v))}
           >
-            <SelectTrigger className="w-28">
+            <SelectTrigger className="w-28" data-testid="employer-payroll-cost-year-select">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

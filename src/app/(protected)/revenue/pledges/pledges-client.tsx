@@ -284,6 +284,7 @@ export function PledgesClient({ donors, funds, pledges }: Props) {
             <Button
               variant="outline"
               onClick={() => setPaymentPledge(null)}
+              data-testid="revenue-pledge-payment-cancel-btn"
             >
               Cancel
             </Button>

@@ -25,8 +25,8 @@ export default function PayrollError({
           Could not load payroll data. No payroll runs have been affected.
         </p>
         <div className="flex justify-center gap-2">
-          <Button onClick={reset}>Try Again</Button>
-          <Button variant="outline" asChild>
+          <Button onClick={reset} data-testid="payroll-error-try-again-btn">Try Again</Button>
+          <Button variant="outline" asChild data-testid="payroll-error-dashboard-btn">
             <Link href="/">Dashboard</Link>
           </Button>
         </div>

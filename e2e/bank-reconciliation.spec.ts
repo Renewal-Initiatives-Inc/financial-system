@@ -1,8 +1,20 @@
 import { test, expect } from '@playwright/test'
+import * as fs from 'fs'
+import * as path from 'path'
+
+const AUTH_STATE_PATH = path.join(__dirname, '.auth-state.json')
 
 test.describe('Bank Reconciliation', () => {
   // Note: These tests run against the authenticated app.
   // Plaid interactions are mocked since we can't connect to real banks in E2E.
+
+  test.beforeAll(() => {
+    if (!fs.existsSync(AUTH_STATE_PATH)) {
+      test.skip()
+    }
+  })
+
+  test.use({ storageState: AUTH_STATE_PATH })
 
   test('bank rec page loads and shows empty state or account selector', async ({
     page,

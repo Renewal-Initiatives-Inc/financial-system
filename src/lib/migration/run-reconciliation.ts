@@ -5,7 +5,7 @@
  * Matches transactions across QBO, UMass Five bank, and Ramp
  * to identify discrepancies before go-live.
  *
- * Usage:
+ * Usage (CSV mode):
  *   npx tsx src/lib/migration/run-reconciliation.ts \
  *     --qbo ./qbo-export/journal-all.csv \
  *     --bank-checking ./qbo-export/umass5-checking.csv \
@@ -13,23 +13,31 @@
  *     --ramp ./qbo-export/ramp-transactions.csv \
  *     --cutoff-date 2026-02-15 \
  *     --output ./qbo-export/reconciliation-report.txt
+ *
+ * Usage (DB mode — reads from Plaid/Ramp API-sourced tables):
+ *   DATABASE_URL=<connection-string> npx tsx src/lib/migration/run-reconciliation.ts \
+ *     --qbo ./qbo-export/journal-all.csv \
+ *     --from-db \
+ *     --cutoff-date 2026-02-15 \
+ *     --output ./qbo-export/reconciliation-report.txt
  */
 
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { runFullReconciliation } from './reconciliation'
+import { runFullReconciliation, type ReconTransaction } from './reconciliation'
 
 interface CliArgs {
   qbo?: string
   bankFiles: Array<{ path: string; label: string }>
   ramp?: string
+  fromDb: boolean
   cutoffDate?: string
   output?: string
 }
 
 function parseArgs(): CliArgs {
   const args = process.argv.slice(2)
-  const result: CliArgs = { bankFiles: [] }
+  const result: CliArgs = { bankFiles: [], fromDb: false }
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]
@@ -67,6 +75,9 @@ function parseArgs(): CliArgs {
         result.ramp = next
         i++
         break
+      case '--from-db':
+        result.fromDb = true
+        break
       case '--cutoff-date':
         result.cutoffDate = next
         i++
@@ -99,7 +110,7 @@ Usage:
 Required:
   --qbo <path>              Path to QBO Journal CSV export
 
-Bank accounts (at least one recommended):
+Bank accounts (CSV mode — at least one recommended):
   --bank-checking <path>    UMass Five checking account CSV
   --bank-savings <path>     UMass Five savings account CSV
   --bank-escrow <path>      UMass Five escrow account CSV
@@ -107,12 +118,15 @@ Bank accounts (at least one recommended):
 
 Optional:
   --ramp <path>             Ramp transaction CSV export
+  --from-db                 Load bank/Ramp data from database tables
+                            (bank_transactions + ramp_transactions)
+                            instead of CSV files. Requires DATABASE_URL.
   --cutoff-date YYYY-MM-DD  Only include transactions on or before this date
   --output <path>           Write report to file (default: stdout)
   --help                    Show this help message
 
 Examples:
-  # Full reconciliation
+  # Full reconciliation (CSV mode)
   npx tsx src/lib/migration/run-reconciliation.ts \\
     --qbo ./exports/journal-all.csv \\
     --bank-checking ./exports/umass5-checking.csv \\
@@ -120,15 +134,17 @@ Examples:
     --cutoff-date 2026-02-15 \\
     --output ./exports/recon-report.txt
 
-  # QBO vs Bank only
+  # Full reconciliation (DB mode — uses Plaid/Ramp API data)
+  DATABASE_URL=<prod-url> npx tsx src/lib/migration/run-reconciliation.ts \\
+    --qbo ./exports/journal-all.csv \\
+    --from-db \\
+    --cutoff-date 2026-02-15 \\
+    --output ./exports/recon-report.txt
+
+  # QBO vs Bank only (CSV)
   npx tsx src/lib/migration/run-reconciliation.ts \\
     --qbo ./exports/journal-all.csv \\
     --bank-checking ./exports/umass5-checking.csv
-
-  # QBO vs Ramp only
-  npx tsx src/lib/migration/run-reconciliation.ts \\
-    --qbo ./exports/journal-all.csv \\
-    --ramp ./exports/ramp-transactions.csv
 `)
 }
 
@@ -141,6 +157,93 @@ function readFile(filePath: string): string {
   return fs.readFileSync(resolved, 'utf-8')
 }
 
+/**
+ * Load bank transactions from the bank_transactions table (Plaid-sourced).
+ * Joins with bank_accounts to get account context.
+ */
+async function loadBankTransactionsFromDb(cutoffDate?: string): Promise<ReconTransaction[]> {
+  const { Pool } = await import('@neondatabase/serverless')
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL! })
+
+  try {
+    let query = `
+      SELECT
+        bt.plaid_transaction_id,
+        bt.amount::float,
+        bt.date::text,
+        bt.merchant_name,
+        ba.name as account_name
+      FROM bank_transactions bt
+      JOIN bank_accounts ba ON bt.bank_account_id = ba.id
+      WHERE bt.is_pending = false
+    `
+    const params: string[] = []
+
+    if (cutoffDate) {
+      query += ` AND bt.date <= $1`
+      params.push(cutoffDate)
+    }
+
+    query += ` ORDER BY bt.date`
+
+    const { rows } = await pool.query(query, params)
+
+    return rows.map((row: Record<string, unknown>) => ({
+      source: 'bank' as const,
+      date: String(row.date),
+      // Plaid: negative = money out, positive = money in
+      // Our convention: positive = money out, negative = money in
+      amount: -Number(row.amount),
+      description: String(row.merchant_name ?? ''),
+      sourceId: String(row.plaid_transaction_id),
+    }))
+  } finally {
+    await pool.end()
+  }
+}
+
+/**
+ * Load Ramp transactions from the ramp_transactions table (Ramp API-sourced).
+ */
+async function loadRampTransactionsFromDb(cutoffDate?: string): Promise<ReconTransaction[]> {
+  const { Pool } = await import('@neondatabase/serverless')
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL! })
+
+  try {
+    let query = `
+      SELECT
+        ramp_id,
+        amount::float,
+        date,
+        merchant_name,
+        cardholder
+      FROM ramp_transactions
+      WHERE 1=1
+    `
+    const params: string[] = []
+
+    if (cutoffDate) {
+      query += ` AND date <= $1`
+      params.push(cutoffDate)
+    }
+
+    query += ` ORDER BY date`
+
+    const { rows } = await pool.query(query, params)
+
+    return rows.map((row: Record<string, unknown>) => ({
+      source: 'ramp' as const,
+      date: String(row.date),
+      // Ramp amounts are charges (positive = money out)
+      amount: Math.abs(Number(row.amount)),
+      description: [row.merchant_name, row.cardholder].filter(Boolean).join(' — '),
+      sourceId: String(row.ramp_id),
+    }))
+  } finally {
+    await pool.end()
+  }
+}
+
 async function main(): Promise<void> {
   const args = parseArgs()
 
@@ -149,34 +252,62 @@ async function main(): Promise<void> {
     process.exit(1)
   }
 
-  if (args.bankFiles.length === 0 && !args.ramp) {
-    console.error('Error: provide at least one of --bank-* or --ramp to reconcile against.')
+  if (!args.fromDb && args.bankFiles.length === 0 && !args.ramp) {
+    console.error('Error: provide at least one of --bank-*, --ramp, or --from-db to reconcile against.')
+    process.exit(1)
+  }
+
+  if (args.fromDb && !process.env.DATABASE_URL) {
+    console.error('Error: --from-db requires DATABASE_URL environment variable.')
     process.exit(1)
   }
 
   console.log('Multi-Source Reconciliation')
   console.log('==========================')
   console.log(`QBO Journal: ${args.qbo}`)
-  for (const bf of args.bankFiles) {
-    console.log(`Bank (${bf.label}): ${bf.path}`)
+
+  if (args.fromDb) {
+    console.log('Data source: Database (bank_transactions + ramp_transactions)')
+  } else {
+    for (const bf of args.bankFiles) {
+      console.log(`Bank (${bf.label}): ${bf.path}`)
+    }
+    if (args.ramp) console.log(`Ramp: ${args.ramp}`)
   }
-  if (args.ramp) console.log(`Ramp: ${args.ramp}`)
   if (args.cutoffDate) console.log(`Cutoff date: ${args.cutoffDate}`)
   console.log('')
 
   const qboCsv = readFile(args.qbo)
 
-  const bankCsvs = args.bankFiles.map((bf) => ({
-    csv: readFile(bf.path),
-    accountLabel: bf.label,
-  }))
+  let bankTransactions: ReconTransaction[] | undefined
+  let rampTransactions: ReconTransaction[] | undefined
 
-  const rampCsv = args.ramp ? readFile(args.ramp) : undefined
+  if (args.fromDb) {
+    console.log('Loading bank transactions from database...')
+    bankTransactions = await loadBankTransactionsFromDb(args.cutoffDate)
+    console.log(`  Found ${bankTransactions.length} bank transactions`)
+
+    console.log('Loading Ramp transactions from database...')
+    rampTransactions = await loadRampTransactionsFromDb(args.cutoffDate)
+    console.log(`  Found ${rampTransactions.length} Ramp transactions`)
+    console.log('')
+  }
+
+  const bankCsvs = args.fromDb
+    ? undefined
+    : args.bankFiles.map((bf) => ({
+        csv: readFile(bf.path),
+        accountLabel: bf.label,
+      }))
+
+  const rampCsv = args.fromDb ? undefined : (args.ramp ? readFile(args.ramp) : undefined)
 
   const result = runFullReconciliation({
     qboCsv,
-    bankCsvs: bankCsvs.length > 0 ? bankCsvs : undefined,
+    bankCsvs: bankCsvs && bankCsvs.length > 0 ? bankCsvs : undefined,
     rampCsv,
+    bankTransactions,
+    rampTransactions,
     cutoffDate: args.cutoffDate,
   })
 
@@ -196,10 +327,10 @@ async function main(): Promise<void> {
     (result.creditCardRecon && (result.creditCardRecon.unmatchedSource1.length > 0 || result.creditCardRecon.unmatchedSource2.length > 0))
 
   if (hasUnmatched) {
-    console.log('\n⚠️  Unmatched transactions found — review the report above.')
+    console.log('\nUnmatched transactions found — review the report above.')
     process.exit(2)
   } else {
-    console.log('\n✓ All sources reconciled successfully.')
+    console.log('\nAll sources reconciled successfully.')
   }
 }
 

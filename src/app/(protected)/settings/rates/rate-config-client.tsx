@@ -188,7 +188,7 @@ export function RateConfigClient({ initialRates }: RateConfigClientProps) {
 
       <div className="flex gap-4">
         <Select value={yearFilter} onValueChange={setYearFilter}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-[180px]" data-testid="rate-config-year-filter-select">
             <SelectValue placeholder="Filter by year" />
           </SelectTrigger>
           <SelectContent>
@@ -301,10 +301,10 @@ export function RateConfigClient({ initialRates }: RateConfigClientProps) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditRate(null)}>
+            <Button variant="outline" onClick={() => setEditRate(null)} data-testid="rate-config-edit-cancel-btn">
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={isPending}>
+            <Button onClick={handleSave} disabled={isPending} data-testid="rate-config-edit-save-btn">
               {isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : null}
@@ -335,6 +335,7 @@ export function RateConfigClient({ initialRates }: RateConfigClientProps) {
                     fiscalYear: parseInt(e.target.value, 10),
                   })
                 }
+                data-testid="rate-config-add-fiscal-year-input"
               />
             </div>
             <div>
@@ -345,7 +346,7 @@ export function RateConfigClient({ initialRates }: RateConfigClientProps) {
                   setNewRate({ ...newRate, configKey: v })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger data-testid="rate-config-add-config-key-select">
                   <SelectValue placeholder="Select rate type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -365,6 +366,7 @@ export function RateConfigClient({ initialRates }: RateConfigClientProps) {
                   setNewRate({ ...newRate, value: e.target.value })
                 }
                 placeholder="e.g. 0.062000 or 184500.000000"
+                data-testid="rate-config-add-value-input"
               />
             </div>
             <div>
@@ -374,14 +376,15 @@ export function RateConfigClient({ initialRates }: RateConfigClientProps) {
                 onChange={(e) =>
                   setNewRate({ ...newRate, notes: e.target.value })
                 }
+                data-testid="rate-config-add-notes-input"
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+            <Button variant="outline" onClick={() => setShowAddDialog(false)} data-testid="rate-config-add-cancel-btn">
               Cancel
             </Button>
-            <Button onClick={handleAdd} disabled={isPending}>
+            <Button onClick={handleAdd} disabled={isPending} data-testid="rate-config-add-submit-btn">
               {isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : null}

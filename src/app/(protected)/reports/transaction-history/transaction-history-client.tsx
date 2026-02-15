@@ -190,6 +190,7 @@ export function TransactionHistoryClient({
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
             className="w-36 h-8 text-sm"
+            data-testid="transaction-history-start-date-input"
           />
         </div>
         <div className="space-y-1">
@@ -199,12 +200,13 @@ export function TransactionHistoryClient({
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
             className="w-36 h-8 text-sm"
+            data-testid="transaction-history-end-date-input"
           />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Source</Label>
           <Select value={sourceType} onValueChange={setSourceType}>
-            <SelectTrigger className="w-36 h-8 text-sm">
+            <SelectTrigger className="w-36 h-8 text-sm" data-testid="transaction-history-source-select">
               <SelectValue placeholder="All sources" />
             </SelectTrigger>
             <SelectContent>
@@ -223,7 +225,7 @@ export function TransactionHistoryClient({
             value={fundId ? String(fundId) : 'all'}
             onValueChange={(v) => setFundId(v === 'all' ? null : Number(v))}
           >
-            <SelectTrigger className="w-44 h-8 text-sm">
+            <SelectTrigger className="w-44 h-8 text-sm" data-testid="transaction-history-fund-select">
               <SelectValue placeholder="All funds" />
             </SelectTrigger>
             <SelectContent>
@@ -243,6 +245,7 @@ export function TransactionHistoryClient({
             value={memoSearch}
             onChange={(e) => setMemoSearch(e.target.value)}
             className="w-40 h-8 text-sm"
+            data-testid="transaction-history-memo-search-input"
           />
         </div>
         <Button size="sm" onClick={handleApply} disabled={isPending} data-testid="transaction-history-apply-btn">
@@ -287,17 +290,17 @@ export function TransactionHistoryClient({
       {/* Pagination */}
       {data.totalPages > 1 && (
         <div className="flex items-center justify-end gap-1" data-testid="transaction-history-pagination">
-          <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => fetchPage(1)} disabled={data.page === 1 || isPending}>
+          <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => fetchPage(1)} disabled={data.page === 1 || isPending} data-testid="transaction-history-first-page-btn">
             <ChevronsLeft className="h-4 w-4" />
           </Button>
-          <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => fetchPage(data.page - 1)} disabled={data.page === 1 || isPending}>
+          <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => fetchPage(data.page - 1)} disabled={data.page === 1 || isPending} data-testid="transaction-history-prev-page-btn">
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <span className="text-sm px-2 tabular-nums">{data.page} / {data.totalPages}</span>
-          <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => fetchPage(data.page + 1)} disabled={data.page === data.totalPages || isPending}>
+          <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => fetchPage(data.page + 1)} disabled={data.page === data.totalPages || isPending} data-testid="transaction-history-next-page-btn">
             <ChevronRight className="h-4 w-4" />
           </Button>
-          <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => fetchPage(data.totalPages)} disabled={data.page === data.totalPages || isPending}>
+          <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => fetchPage(data.totalPages)} disabled={data.page === data.totalPages || isPending} data-testid="transaction-history-last-page-btn">
             <ChevronsRight className="h-4 w-4" />
           </Button>
         </div>

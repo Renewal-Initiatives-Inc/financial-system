@@ -20,13 +20,13 @@ const formatCurrency = (amount: number) =>
 
 interface MatchSuggestionPanelProps {
   candidates: MatchCandidate[]
-  onConfirm: (candidate: MatchCandidate) => void
+  onSubmit: (candidate: MatchCandidate) => void
   isLoading: boolean
 }
 
 export function MatchSuggestionPanel({
   candidates,
-  onConfirm,
+  onSubmit,
   isLoading,
 }: MatchSuggestionPanelProps) {
   if (isLoading) {
@@ -86,7 +86,7 @@ export function MatchSuggestionPanel({
               <TableCell>
                 <Button
                   size="sm"
-                  onClick={() => onConfirm(candidate)}
+                  onClick={() => onSubmit(candidate)}
                   data-testid={`confirm-match-${candidate.glTransactionLineId}`}
                 >
                   Match

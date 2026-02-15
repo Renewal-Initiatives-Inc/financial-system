@@ -161,7 +161,7 @@ export function PayrollTaxLiabilityClient({
             value={periodMode}
             onValueChange={(v) => setPeriodMode(v as PeriodMode)}
           >
-            <SelectTrigger className="w-36">
+            <SelectTrigger className="w-36" data-testid="payroll-tax-period-type-select">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -177,7 +177,7 @@ export function PayrollTaxLiabilityClient({
             value={String(year)}
             onValueChange={(v) => setYear(Number(v))}
           >
-            <SelectTrigger className="w-28">
+            <SelectTrigger className="w-28" data-testid="payroll-tax-year-select">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -199,7 +199,7 @@ export function PayrollTaxLiabilityClient({
               value={String(quarter)}
               onValueChange={(v) => setQuarter(Number(v))}
             >
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-40" data-testid="payroll-tax-quarter-select">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -218,7 +218,7 @@ export function PayrollTaxLiabilityClient({
               value={String(month)}
               onValueChange={(v) => setMonth(Number(v))}
             >
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-40" data-testid="payroll-tax-month-select">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

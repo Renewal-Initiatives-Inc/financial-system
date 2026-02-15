@@ -4,12 +4,12 @@ import { MessageSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface CopilotToggleProps {
-  isOpen: boolean
+  open: boolean
   onClick: () => void
 }
 
-export function CopilotToggle({ isOpen, onClick }: CopilotToggleProps) {
-  if (isOpen) return null
+export function CopilotToggle({ open, onClick }: CopilotToggleProps) {
+  if (open) return null
 
   return (
     <Button

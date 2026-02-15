@@ -211,7 +211,7 @@ export function BankRecClient({
               No bank accounts connected. Connect a bank account to start
               reconciling.
             </p>
-            <Button asChild>
+            <Button asChild data-testid="bank-rec-settings-empty-btn">
               <Link href="/bank-rec/settings">
                 <Settings className="mr-2 h-4 w-4" />
                 Bank Account Settings
@@ -584,7 +584,7 @@ export function BankRecClient({
           <CardContent>
             <MatchSuggestionPanel
               candidates={matchCandidates}
-              onConfirm={handleConfirmMatch}
+              onSubmit={handleConfirmMatch}
               isLoading={loadingSuggestions}
             />
           </CardContent>
@@ -678,6 +678,7 @@ export function BankRecClient({
             <Button
               variant="outline"
               onClick={() => setStartSessionOpen(false)}
+              data-testid="bank-rec-session-cancel-btn"
             >
               Cancel
             </Button>

@@ -25,8 +25,8 @@ export default function ReportsError({
           Could not generate the requested report. Try adjusting your filters or check back shortly.
         </p>
         <div className="flex justify-center gap-2">
-          <Button onClick={reset}>Try Again</Button>
-          <Button variant="outline" asChild>
+          <Button onClick={reset} data-testid="reports-error-try-again-btn">Try Again</Button>
+          <Button variant="outline" asChild data-testid="reports-error-all-reports-btn">
             <Link href="/reports">All Reports</Link>
           </Button>
         </div>

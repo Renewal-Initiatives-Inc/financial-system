@@ -25,8 +25,8 @@ export default function TransactionsError({
           Could not load transaction data. This may be a temporary issue.
         </p>
         <div className="flex justify-center gap-2">
-          <Button onClick={reset}>Try Again</Button>
-          <Button variant="outline" asChild>
+          <Button onClick={reset} data-testid="transactions-error-try-again-btn">Try Again</Button>
+          <Button variant="outline" asChild data-testid="transactions-error-dashboard-btn">
             <Link href="/">Dashboard</Link>
           </Button>
         </div>

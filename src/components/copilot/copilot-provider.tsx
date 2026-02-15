@@ -8,16 +8,16 @@ import { CopilotPanel } from './copilot-panel'
 import { CopilotToggle } from './copilot-toggle'
 
 interface CopilotContextValue {
-  isOpen: boolean
-  open: () => void
-  close: () => void
+  open: boolean
+  openPanel: () => void
+  closePanel: () => void
   setPageContext: (pageId: string, data?: Record<string, unknown>) => void
 }
 
 const CopilotContext = createContext<CopilotContextValue>({
-  isOpen: false,
-  open: () => {},
-  close: () => {},
+  open: false,
+  openPanel: () => {},
+  closePanel: () => {},
   setPageContext: () => {},
 })
 
@@ -46,8 +46,8 @@ export function CopilotProvider({
     userId,
   })
 
-  const open = useCallback(() => setIsOpen(true), [])
-  const close = useCallback(() => setIsOpen(false), [])
+  const openPanel = useCallback(() => setIsOpen(true), [])
+  const closePanel = useCallback(() => setIsOpen(false), [])
 
   const setPageContext = useCallback(
     (pageId: string, data?: Record<string, unknown>) => {
@@ -57,12 +57,12 @@ export function CopilotProvider({
   )
 
   return (
-    <CopilotContext.Provider value={{ isOpen, open, close, setPageContext }}>
+    <CopilotContext.Provider value={{ open: isOpen, openPanel, closePanel, setPageContext }}>
       <div className="flex h-full">
         <div className="flex-1 overflow-auto">{children}</div>
         <CopilotPanel
-          isOpen={isOpen}
-          onClose={close}
+          open={isOpen}
+          onClose={closePanel}
           messages={messages}
           isStreaming={isStreaming}
           error={error}
@@ -70,7 +70,7 @@ export function CopilotProvider({
           onClearChat={clearChat}
         />
       </div>
-      <CopilotToggle isOpen={isOpen} onClick={open} />
+      <CopilotToggle open={isOpen} onClick={openPanel} />
     </CopilotContext.Provider>
   )
 }

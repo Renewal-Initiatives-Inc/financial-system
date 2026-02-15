@@ -77,12 +77,13 @@ export function LateEntriesClient({ initialData, defaultPeriodEndDate }: LateEnt
             value={periodEndDate}
             onChange={(e) => setPeriodEndDate(e.target.value)}
             className="w-40 h-8 text-sm"
+            data-testid="late-entries-period-end-date-input"
           />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Lookback Window</Label>
           <Select value={lookbackDays} onValueChange={setLookbackDays}>
-            <SelectTrigger className="w-32 h-8 text-sm">
+            <SelectTrigger className="w-32 h-8 text-sm" data-testid="late-entries-lookback-select">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

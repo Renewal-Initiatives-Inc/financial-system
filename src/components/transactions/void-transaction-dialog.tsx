@@ -63,6 +63,7 @@ export function VoidTransactionDialog({
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={pending}
+            data-testid="void-dialog-cancel-btn"
           >
             Cancel
           </Button>

@@ -11,7 +11,7 @@ export default function NotFound() {
         <p className="text-muted-foreground">
           The page you&apos;re looking for doesn&apos;t exist or has been moved.
         </p>
-        <Button asChild>
+        <Button asChild data-testid="root-not-found-go-home-btn">
           <Link href="/">Go Home</Link>
         </Button>
       </div>

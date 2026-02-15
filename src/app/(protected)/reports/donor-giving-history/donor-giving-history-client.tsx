@@ -130,16 +130,16 @@ export function DonorGivingHistoryClient({
       <div className="flex flex-wrap items-end gap-3" data-testid="donor-giving-history-filter-bar">
         <div className="space-y-1">
           <Label className="text-xs">Start Date</Label>
-          <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-36 h-8 text-sm" />
+          <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-36 h-8 text-sm" data-testid="donor-giving-history-start-date-input" />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">End Date</Label>
-          <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-36 h-8 text-sm" />
+          <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-36 h-8 text-sm" data-testid="donor-giving-history-end-date-input" />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Fund</Label>
           <Select value={fundId ? String(fundId) : 'all'} onValueChange={(v) => setFundId(v === 'all' ? null : Number(v))}>
-            <SelectTrigger className="w-44 h-8 text-sm"><SelectValue placeholder="All funds" /></SelectTrigger>
+            <SelectTrigger className="w-44 h-8 text-sm" data-testid="donor-giving-history-fund-select"><SelectValue placeholder="All funds" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All funds</SelectItem>
               {funds.map((f) => (<SelectItem key={f.id} value={String(f.id)}>{f.name}</SelectItem>))}

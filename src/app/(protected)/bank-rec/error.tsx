@@ -25,8 +25,8 @@ export default function BankRecError({
           Could not load bank reconciliation data. Your matched transactions are preserved.
         </p>
         <div className="flex justify-center gap-2">
-          <Button onClick={reset}>Try Again</Button>
-          <Button variant="outline" asChild>
+          <Button onClick={reset} data-testid="bank-rec-error-try-again-btn">Try Again</Button>
+          <Button variant="outline" asChild data-testid="bank-rec-error-dashboard-btn">
             <Link href="/">Dashboard</Link>
           </Button>
         </div>

@@ -29,8 +29,8 @@ export default function RootError({
           </p>
         )}
         <div className="flex justify-center gap-2">
-          <Button onClick={reset}>Try Again</Button>
-          <Button variant="outline" asChild>
+          <Button onClick={reset} data-testid="root-error-try-again-btn">Try Again</Button>
+          <Button variant="outline" asChild data-testid="root-error-go-home-btn">
             <a href="/">Go Home</a>
           </Button>
         </div>

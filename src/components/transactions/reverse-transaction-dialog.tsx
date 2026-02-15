@@ -150,6 +150,7 @@ export function ReverseTransactionDialog({
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={pending}
+            data-testid="reverse-dialog-cancel-btn"
           >
             Cancel
           </Button>

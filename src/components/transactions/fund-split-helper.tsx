@@ -182,13 +182,14 @@ export function FundSplitHelper({ funds, onApply }: FundSplitHelperProps) {
                   onClick={() => removeSplit(split.key)}
                   disabled={splits.length <= 2}
                   className="h-9 w-9"
+                  data-testid={`fund-split-${index}-remove-btn`}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
             ))}
 
-            <Button variant="outline" size="sm" onClick={addSplit}>
+            <Button variant="outline" size="sm" onClick={addSplit} data-testid="fund-split-add-fund-btn">
               <Plus className="mr-2 h-4 w-4" />
               Add Fund
             </Button>
@@ -223,7 +224,7 @@ export function FundSplitHelper({ funds, onApply }: FundSplitHelperProps) {
           )}
 
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>
+            <Button variant="outline" onClick={() => setOpen(false)} data-testid="fund-split-cancel-btn">
               Cancel
             </Button>
             <Button

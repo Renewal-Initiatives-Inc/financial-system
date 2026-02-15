@@ -116,6 +116,7 @@ export function PayrollRegisterClient({
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
             className="w-40"
+            data-testid="payroll-register-start-date-input"
           />
         </div>
         <div className="space-y-1">
@@ -125,6 +126,7 @@ export function PayrollRegisterClient({
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
             className="w-40"
+            data-testid="payroll-register-end-date-input"
           />
         </div>
         <Button onClick={handleApply} disabled={isPending} data-testid="payroll-register-apply-btn">

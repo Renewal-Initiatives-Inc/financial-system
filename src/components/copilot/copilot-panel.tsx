@@ -7,7 +7,7 @@ import { CopilotMessage } from './copilot-message'
 import type { CopilotMessage as CopilotMessageType } from '@/lib/copilot/types'
 
 interface CopilotPanelProps {
-  isOpen: boolean
+  open: boolean
   onClose: () => void
   messages: CopilotMessageType[]
   isStreaming: boolean
@@ -17,7 +17,7 @@ interface CopilotPanelProps {
 }
 
 export function CopilotPanel({
-  isOpen,
+  open,
   onClose,
   messages,
   isStreaming,
@@ -36,10 +36,10 @@ export function CopilotPanel({
 
   // Focus input when panel opens
   useEffect(() => {
-    if (isOpen) {
+    if (open) {
       setTimeout(() => inputRef.current?.focus(), 100)
     }
-  }, [isOpen])
+  }, [open])
 
   const handleSend = useCallback(() => {
     if (!input.trim() || isStreaming) return
@@ -57,7 +57,7 @@ export function CopilotPanel({
     [handleSend]
   )
 
-  if (!isOpen) return null
+  if (!open) return null
 
   return (
     <div

@@ -25,8 +25,8 @@ export default function ExpensesError({
           Could not load expense data. Your purchase orders and invoices are preserved.
         </p>
         <div className="flex justify-center gap-2">
-          <Button onClick={reset}>Try Again</Button>
-          <Button variant="outline" asChild>
+          <Button onClick={reset} data-testid="expenses-error-try-again-btn">Try Again</Button>
+          <Button variant="outline" asChild data-testid="expenses-error-dashboard-btn">
             <Link href="/">Dashboard</Link>
           </Button>
         </div>

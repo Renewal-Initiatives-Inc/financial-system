@@ -191,6 +191,7 @@ export function ConversionWizardClient({
           variant="ghost"
           size="sm"
           onClick={() => router.push('/assets/cip')}
+          data-testid="cip-convert-back-to-cip-btn"
         >
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to CIP
@@ -284,6 +285,7 @@ export function ConversionWizardClient({
                   setStep(2)
                 }}
                 disabled={!selectedStructure || !pisDate}
+                data-testid="cip-convert-step1-next-btn"
               >
                 Next
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -334,6 +336,7 @@ export function ConversionWizardClient({
                           }
                           placeholder="0.00"
                           className="text-right"
+                          data-testid={`cip-convert-source-amount-${sub.accountId}-input`}
                         />
                       </TableCell>
                     </TableRow>
@@ -346,7 +349,7 @@ export function ConversionWizardClient({
             </div>
 
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(1)}>
+              <Button variant="outline" onClick={() => setStep(1)} data-testid="cip-convert-step2-back-btn">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
               </Button>
@@ -360,6 +363,7 @@ export function ConversionWizardClient({
                   setStep(3)
                 }}
                 disabled={totalSelectedAmount <= 0}
+                data-testid="cip-convert-step2-next-btn"
               >
                 Next
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -407,6 +411,7 @@ export function ConversionWizardClient({
                             setAllocations(updated)
                           }}
                           className="max-w-xs"
+                          data-testid={`cip-convert-component-name-${i}-input`}
                         />
                       </TableCell>
                       <TableCell className="text-right">
@@ -424,6 +429,7 @@ export function ConversionWizardClient({
                             setAllocations(updated)
                           }}
                           className="text-right w-32"
+                          data-testid={`cip-convert-component-amount-${i}-input`}
                         />
                       </TableCell>
                       <TableCell className="text-right">
@@ -440,6 +446,7 @@ export function ConversionWizardClient({
                             setAllocations(updated)
                           }}
                           className="text-right w-24"
+                          data-testid={`cip-convert-component-life-${i}-input`}
                         />
                       </TableCell>
                       <TableCell className="text-right text-muted-foreground">
@@ -468,7 +475,7 @@ export function ConversionWizardClient({
             )}
 
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(2)}>
+              <Button variant="outline" onClick={() => setStep(2)} data-testid="cip-convert-step3-back-btn">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
               </Button>
@@ -482,6 +489,7 @@ export function ConversionWizardClient({
                   }
                   setStep(4)
                 }}
+                data-testid="cip-convert-step3-next-btn"
               >
                 Next
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -591,11 +599,11 @@ export function ConversionWizardClient({
             </div>
 
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(3)}>
+              <Button variant="outline" onClick={() => setStep(3)} data-testid="cip-convert-step4-back-btn">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
               </Button>
-              <Button onClick={() => setStep(5)}>
+              <Button onClick={() => setStep(5)} data-testid="cip-convert-proceed-confirm-btn">
                 Proceed to Confirm
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
@@ -626,7 +634,7 @@ export function ConversionWizardClient({
             </div>
 
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(4)}>
+              <Button variant="outline" onClick={() => setStep(4)} data-testid="cip-convert-step5-back-btn">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
               </Button>

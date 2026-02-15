@@ -187,6 +187,7 @@ export function DonationsClient({ donors, funds, recentDonations }: Props) {
                 type="button"
                 onClick={() => setShowAdvanced(!showAdvanced)}
                 className="text-xs text-muted-foreground underline"
+                data-testid="revenue-donation-show-advanced-btn"
               >
                 {showAdvanced ? 'Hide advanced' : 'Show advanced'}
               </button>

@@ -122,7 +122,7 @@ export function W2VerificationClient({ initialData }: W2VerificationClientProps)
             value={String(year)}
             onValueChange={(v) => setYear(Number(v))}
           >
-            <SelectTrigger className="w-28">
+            <SelectTrigger className="w-28" data-testid="w2-verification-year-select">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

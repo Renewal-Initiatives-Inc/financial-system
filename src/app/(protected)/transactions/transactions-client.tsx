@@ -125,6 +125,7 @@ export function TransactionsClient({
                 setPage(page - 1)
                 refetch({ page: page - 1 })
               }}
+              data-testid="transactions-prev-page-btn"
             >
               Previous
             </Button>
@@ -136,6 +137,7 @@ export function TransactionsClient({
                 setPage(page + 1)
                 refetch({ page: page + 1 })
               }}
+              data-testid="transactions-next-page-btn"
             >
               Next
             </Button>

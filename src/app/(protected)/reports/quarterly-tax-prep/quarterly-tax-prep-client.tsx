@@ -102,7 +102,7 @@ export function QuarterlyTaxPrepClient({
             value={String(year)}
             onValueChange={(v) => setYear(Number(v))}
           >
-            <SelectTrigger className="w-28">
+            <SelectTrigger className="w-28" data-testid="quarterly-tax-year-select">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -120,7 +120,7 @@ export function QuarterlyTaxPrepClient({
             value={String(quarter)}
             onValueChange={(v) => setQuarter(Number(v))}
           >
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-40" data-testid="quarterly-tax-quarter-select">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

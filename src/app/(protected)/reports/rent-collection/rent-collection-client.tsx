@@ -144,6 +144,7 @@ export function RentCollectionClient({ initialData }: RentCollectionClientProps)
             value={selectedMonth}
             onChange={(e) => handleMonthChange(e.target.value)}
             className="w-48"
+            data-testid="rent-collection-month-input"
           />
         </div>
         <p className="text-sm text-muted-foreground pb-1">

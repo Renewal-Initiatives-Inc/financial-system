@@ -113,12 +113,12 @@ export function CapitalBudgetClient({ initialData, funds, defaultYear }: Capital
       <div className="flex flex-wrap items-end gap-3" data-testid="capital-budget-filter-bar">
         <div className="space-y-1">
           <Label className="text-xs">Fiscal Year</Label>
-          <Input type="number" value={year} onChange={(e) => setYear(e.target.value)} className="w-24 h-8 text-sm" />
+          <Input type="number" value={year} onChange={(e) => setYear(e.target.value)} className="w-24 h-8 text-sm" data-testid="capital-budget-year-input" />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Fund</Label>
           <Select value={fundId ? String(fundId) : 'all'} onValueChange={(v) => setFundId(v === 'all' ? null : Number(v))}>
-            <SelectTrigger className="w-44 h-8 text-sm"><SelectValue placeholder="All funds" /></SelectTrigger>
+            <SelectTrigger className="w-44 h-8 text-sm" data-testid="capital-budget-fund-select"><SelectValue placeholder="All funds" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All funds</SelectItem>
               {funds.map((f) => (<SelectItem key={f.id} value={String(f.id)}>{f.name}</SelectItem>))}

@@ -155,6 +155,7 @@ export function AssetDetailClient({
             variant="ghost"
             size="sm"
             onClick={() => router.push('/assets')}
+            data-testid="asset-detail-back-btn"
           >
             <ArrowLeft className="h-4 w-4 mr-1" />
             Back
@@ -181,6 +182,7 @@ export function AssetDetailClient({
                 size="sm"
                 onClick={() => setIsEditing(false)}
                 disabled={isPending}
+                data-testid="asset-detail-cancel-btn"
               >
                 <X className="h-4 w-4 mr-1" />
                 Cancel
@@ -189,6 +191,7 @@ export function AssetDetailClient({
                 size="sm"
                 onClick={handleSave}
                 disabled={isPending}
+                data-testid="asset-detail-save-btn"
               >
                 <Save className="h-4 w-4 mr-1" />
                 {isPending ? 'Saving...' : 'Save'}
@@ -200,6 +203,7 @@ export function AssetDetailClient({
                 variant="outline"
                 size="sm"
                 onClick={() => setIsEditing(true)}
+                data-testid="asset-detail-edit-btn"
               >
                 <Pencil className="h-4 w-4 mr-1" />
                 Edit
@@ -209,6 +213,7 @@ export function AssetDetailClient({
                 size="sm"
                 onClick={handleToggleActive}
                 disabled={isPending}
+                data-testid="asset-detail-toggle-active-btn"
               >
                 {asset.isActive ? 'Deactivate' : 'Reactivate'}
               </Button>
@@ -230,6 +235,7 @@ export function AssetDetailClient({
                 <Input
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
+                  data-testid="asset-detail-name-input"
                 />
               ) : (
                 <p className="font-medium">{asset.name}</p>
@@ -242,6 +248,7 @@ export function AssetDetailClient({
                   value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value)}
                   placeholder="Optional"
+                  data-testid="asset-detail-description-input"
                 />
               ) : (
                 <p>{asset.description || '-'}</p>
@@ -263,6 +270,7 @@ export function AssetDetailClient({
                   type="date"
                   value={editPisDate}
                   onChange={(e) => setEditPisDate(e.target.value)}
+                  data-testid="asset-detail-pis-date-input"
                 />
               ) : (
                 <p>{formatDate(asset.datePlacedInService)}</p>
@@ -484,6 +492,7 @@ export function AssetDetailClient({
                     `/transactions?id=${asset.cipConversion!.glTransactionId}`
                   )
                 }
+                data-testid="asset-detail-view-reclass-je-btn"
               >
                 View Reclassification JE
               </Button>

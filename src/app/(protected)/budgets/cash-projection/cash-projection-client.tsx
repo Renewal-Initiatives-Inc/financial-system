@@ -270,6 +270,7 @@ export function CashProjectionClient({
                             setOverride(monthLine.id, 'amount', e.target.value)
                           }
                           className="h-7 text-xs text-center mt-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          data-testid={`cash-projection-inflow-override-${monthLine.id}`}
                         />
                       </TableCell>
                     )
@@ -328,6 +329,7 @@ export function CashProjectionClient({
                             setOverride(monthLine.id, 'amount', e.target.value)
                           }
                           className="h-7 text-xs text-center mt-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          data-testid={`cash-projection-outflow-override-${monthLine.id}`}
                         />
                       </TableCell>
                     )

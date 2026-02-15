@@ -64,7 +64,7 @@ export function Form990DataClient({ initialData, defaultYear }: Form990DataClien
       <div className="flex items-end gap-3" data-testid="form-990-filter-bar">
         <div className="space-y-1">
           <Label className="text-xs">Fiscal Year</Label>
-          <Input type="number" value={year} onChange={(e) => setYear(e.target.value)} className="w-24 h-8 text-sm" />
+          <Input type="number" value={year} onChange={(e) => setYear(e.target.value)} className="w-24 h-8 text-sm" data-testid="form-990-year-input" />
         </div>
         <Button size="sm" onClick={handleApply} disabled={isPending} data-testid="form-990-apply-btn">
           {isPending ? 'Loading...' : 'Generate'}
@@ -73,10 +73,10 @@ export function Form990DataClient({ initialData, defaultYear }: Form990DataClien
 
       <Tabs defaultValue="part-ix" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="part-ix">Part IX</TabsTrigger>
-          <TabsTrigger value="revenue">Revenue</TabsTrigger>
-          <TabsTrigger value="officers">Officers</TabsTrigger>
-          <TabsTrigger value="schedules">Schedules</TabsTrigger>
+          <TabsTrigger value="part-ix" data-testid="form-990-tab-part-ix">Part IX</TabsTrigger>
+          <TabsTrigger value="revenue" data-testid="form-990-tab-revenue">Revenue</TabsTrigger>
+          <TabsTrigger value="officers" data-testid="form-990-tab-officers">Officers</TabsTrigger>
+          <TabsTrigger value="schedules" data-testid="form-990-tab-schedules">Schedules</TabsTrigger>
         </TabsList>
 
         <TabsContent value="part-ix" className="space-y-4">

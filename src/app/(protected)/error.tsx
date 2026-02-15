@@ -30,8 +30,8 @@ export default function ProtectedError({
           </p>
         )}
         <div className="flex justify-center gap-2">
-          <Button onClick={reset}>Try Again</Button>
-          <Button variant="outline" asChild>
+          <Button onClick={reset} data-testid="protected-error-try-again-btn">Try Again</Button>
+          <Button variant="outline" asChild data-testid="protected-error-dashboard-btn">
             <Link href="/">Dashboard</Link>
           </Button>
         </div>

@@ -45,7 +45,7 @@ export function AHPAnnualPackageClient({ initialData }: AHPAnnualPackageClientPr
       <div className="flex items-end gap-3" data-testid="ahp-annual-package-filter-bar">
         <div className="space-y-1">
           <Label className="text-xs">Fiscal Year</Label>
-          <Input type="number" value={year} onChange={(e) => setYear(e.target.value)} className="w-24 h-8 text-sm" />
+          <Input type="number" value={year} onChange={(e) => setYear(e.target.value)} className="w-24 h-8 text-sm" data-testid="ahp-annual-package-year-input" />
         </div>
         <Button size="sm" onClick={handleApply} disabled={isPending} data-testid="ahp-annual-package-apply-btn">
           {isPending ? 'Loading...' : 'Generate'}
@@ -54,10 +54,10 @@ export function AHPAnnualPackageClient({ initialData }: AHPAnnualPackageClientPr
 
       <Tabs defaultValue="balance-sheet" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="balance-sheet">Balance Sheet</TabsTrigger>
-          <TabsTrigger value="activities">Activities</TabsTrigger>
-          <TabsTrigger value="cash-flows">Cash Flows</TabsTrigger>
-          <TabsTrigger value="loan-summary">Loan Summary</TabsTrigger>
+          <TabsTrigger value="balance-sheet" data-testid="ahp-annual-package-tab-balance-sheet">Balance Sheet</TabsTrigger>
+          <TabsTrigger value="activities" data-testid="ahp-annual-package-tab-activities">Activities</TabsTrigger>
+          <TabsTrigger value="cash-flows" data-testid="ahp-annual-package-tab-cash-flows">Cash Flows</TabsTrigger>
+          <TabsTrigger value="loan-summary" data-testid="ahp-annual-package-tab-loan-summary">Loan Summary</TabsTrigger>
         </TabsList>
 
         <TabsContent value="balance-sheet" className="space-y-4">

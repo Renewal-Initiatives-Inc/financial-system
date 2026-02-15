@@ -1,6 +1,18 @@
 import { test, expect } from '@playwright/test'
+import * as fs from 'fs'
+import * as path from 'path'
+
+const AUTH_STATE_PATH = path.join(__dirname, '.auth-state.json')
 
 test.describe('Reports Index', () => {
+  test.beforeAll(() => {
+    if (!fs.existsSync(AUTH_STATE_PATH)) {
+      test.skip()
+    }
+  })
+
+  test.use({ storageState: AUTH_STATE_PATH })
+
   test('reports page loads with category sections', async ({ page }) => {
     await page.goto('/reports')
     const heading = page.getByRole('heading', { name: 'Reports' })
@@ -45,6 +57,14 @@ test.describe('Reports Index', () => {
 })
 
 test.describe('Report #1 — Balance Sheet', () => {
+  test.beforeAll(() => {
+    if (!fs.existsSync(AUTH_STATE_PATH)) {
+      test.skip()
+    }
+  })
+
+  test.use({ storageState: AUTH_STATE_PATH })
+
   test('renders report title and sections', async ({ page }) => {
     await page.goto('/reports/balance-sheet')
     await expect(
@@ -78,6 +98,14 @@ test.describe('Report #1 — Balance Sheet', () => {
 })
 
 test.describe('Report #2 — Statement of Activities', () => {
+  test.beforeAll(() => {
+    if (!fs.existsSync(AUTH_STATE_PATH)) {
+      test.skip()
+    }
+  })
+
+  test.use({ storageState: AUTH_STATE_PATH })
+
   test('renders report title', async ({ page }) => {
     await page.goto('/reports/activities')
     await expect(
@@ -97,6 +125,14 @@ test.describe('Report #2 — Statement of Activities', () => {
 })
 
 test.describe('Report #3 — Cash Flows', () => {
+  test.beforeAll(() => {
+    if (!fs.existsSync(AUTH_STATE_PATH)) {
+      test.skip()
+    }
+  })
+
+  test.use({ storageState: AUTH_STATE_PATH })
+
   test('renders report title', async ({ page }) => {
     await page.goto('/reports/cash-flows')
     await expect(
@@ -106,6 +142,14 @@ test.describe('Report #3 — Cash Flows', () => {
 })
 
 test.describe('Report #4 — Functional Expenses', () => {
+  test.beforeAll(() => {
+    if (!fs.existsSync(AUTH_STATE_PATH)) {
+      test.skip()
+    }
+  })
+
+  test.use({ storageState: AUTH_STATE_PATH })
+
   test('renders report title', async ({ page }) => {
     await page.goto('/reports/functional-expenses')
     await expect(
@@ -115,6 +159,14 @@ test.describe('Report #4 — Functional Expenses', () => {
 })
 
 test.describe('Report #5 — Cash Position', () => {
+  test.beforeAll(() => {
+    if (!fs.existsSync(AUTH_STATE_PATH)) {
+      test.skip()
+    }
+  })
+
+  test.use({ storageState: AUTH_STATE_PATH })
+
   test('renders report title', async ({ page }) => {
     await page.goto('/reports/cash-position')
     await expect(page.getByText('Cash Position Summary')).toBeVisible()
@@ -122,6 +174,14 @@ test.describe('Report #5 — Cash Position', () => {
 })
 
 test.describe('Report #6 — AR Aging', () => {
+  test.beforeAll(() => {
+    if (!fs.existsSync(AUTH_STATE_PATH)) {
+      test.skip()
+    }
+  })
+
+  test.use({ storageState: AUTH_STATE_PATH })
+
   test('renders report title', async ({ page }) => {
     await page.goto('/reports/ar-aging')
     await expect(
@@ -131,6 +191,14 @@ test.describe('Report #6 — AR Aging', () => {
 })
 
 test.describe('Report #7 — Outstanding Payables', () => {
+  test.beforeAll(() => {
+    if (!fs.existsSync(AUTH_STATE_PATH)) {
+      test.skip()
+    }
+  })
+
+  test.use({ storageState: AUTH_STATE_PATH })
+
   test('renders report title', async ({ page }) => {
     await page.goto('/reports/outstanding-payables')
     await expect(page.getByText('Outstanding Payables')).toBeVisible()
@@ -138,6 +206,14 @@ test.describe('Report #7 — Outstanding Payables', () => {
 })
 
 test.describe('Report #8 — Rent Collection', () => {
+  test.beforeAll(() => {
+    if (!fs.existsSync(AUTH_STATE_PATH)) {
+      test.skip()
+    }
+  })
+
+  test.use({ storageState: AUTH_STATE_PATH })
+
   test('renders report title', async ({ page }) => {
     await page.goto('/reports/rent-collection')
     await expect(
@@ -147,6 +223,14 @@ test.describe('Report #8 — Rent Collection', () => {
 })
 
 test.describe('Report #9 — Fund Draw-Down', () => {
+  test.beforeAll(() => {
+    if (!fs.existsSync(AUTH_STATE_PATH)) {
+      test.skip()
+    }
+  })
+
+  test.use({ storageState: AUTH_STATE_PATH })
+
   test('renders report title', async ({ page }) => {
     await page.goto('/reports/fund-drawdown')
     await expect(
@@ -156,6 +240,14 @@ test.describe('Report #9 — Fund Draw-Down', () => {
 })
 
 test.describe('Report #10 — Grant Compliance', () => {
+  test.beforeAll(() => {
+    if (!fs.existsSync(AUTH_STATE_PATH)) {
+      test.skip()
+    }
+  })
+
+  test.use({ storageState: AUTH_STATE_PATH })
+
   test('renders report title', async ({ page }) => {
     await page.goto('/reports/grant-compliance')
     await expect(
@@ -165,6 +257,14 @@ test.describe('Report #10 — Grant Compliance', () => {
 })
 
 test.describe('Report #11 — Fund Level', () => {
+  test.beforeAll(() => {
+    if (!fs.existsSync(AUTH_STATE_PATH)) {
+      test.skip()
+    }
+  })
+
+  test.use({ storageState: AUTH_STATE_PATH })
+
   test('renders report title', async ({ page }) => {
     await page.goto('/reports/fund-level')
     await expect(
@@ -174,6 +274,14 @@ test.describe('Report #11 — Fund Level', () => {
 })
 
 test.describe('Report #12 — Property Expenses', () => {
+  test.beforeAll(() => {
+    if (!fs.existsSync(AUTH_STATE_PATH)) {
+      test.skip()
+    }
+  })
+
+  test.use({ storageState: AUTH_STATE_PATH })
+
   test('renders report title', async ({ page }) => {
     await page.goto('/reports/property-expenses')
     await expect(
@@ -183,6 +291,14 @@ test.describe('Report #12 — Property Expenses', () => {
 })
 
 test.describe('Report #13 — Utility Trends', () => {
+  test.beforeAll(() => {
+    if (!fs.existsSync(AUTH_STATE_PATH)) {
+      test.skip()
+    }
+  })
+
+  test.use({ storageState: AUTH_STATE_PATH })
+
   test('renders report title', async ({ page }) => {
     await page.goto('/reports/utility-trends')
     await expect(
@@ -192,6 +308,14 @@ test.describe('Report #13 — Utility Trends', () => {
 })
 
 test.describe('Report #14 — Security Deposit Register', () => {
+  test.beforeAll(() => {
+    if (!fs.existsSync(AUTH_STATE_PATH)) {
+      test.skip()
+    }
+  })
+
+  test.use({ storageState: AUTH_STATE_PATH })
+
   test('renders report title', async ({ page }) => {
     await page.goto('/reports/security-deposit-register')
     await expect(

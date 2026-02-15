@@ -240,6 +240,7 @@ export function BudgetEditClient({ budget, accounts, funds }: BudgetEditClientPr
             variant="ghost"
             size="icon"
             onClick={() => router.push(`/budgets/${budget.id}`)}
+            data-testid="budget-edit-back-btn"
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -300,7 +301,7 @@ export function BudgetEditClient({ budget, accounts, funds }: BudgetEditClientPr
       {/* Filters */}
       <div className="flex items-center gap-4">
         <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-[160px]" data-testid="budget-edit-type-filter">
             <SelectValue placeholder="Account Type" />
           </SelectTrigger>
           <SelectContent>
@@ -312,7 +313,7 @@ export function BudgetEditClient({ budget, accounts, funds }: BudgetEditClientPr
           </SelectContent>
         </Select>
         <Select value={fundFilter} onValueChange={setFundFilter}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-[180px]" data-testid="budget-edit-fund-filter">
             <SelectValue placeholder="Fund" />
           </SelectTrigger>
           <SelectContent>
@@ -429,7 +430,7 @@ export function BudgetEditClient({ budget, accounts, funds }: BudgetEditClientPr
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setAddDialogOpen(false)} data-testid="budget-edit-cancel-add-btn">
               Cancel
             </Button>
             <Button

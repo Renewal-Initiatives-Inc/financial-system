@@ -189,6 +189,7 @@ export function ComplianceCalendarClient({ initialData }: ComplianceCalendarClie
             variant={activeCategories.has(cat) ? 'default' : 'outline'}
             className={`cursor-pointer text-xs ${activeCategories.has(cat) ? CATEGORY_COLORS[cat] : 'opacity-50'}`}
             onClick={() => toggleCategory(cat)}
+            data-testid={`compliance-calendar-filter-${cat}`}
           >
             {CATEGORY_LABELS[cat]}
           </Badge>

@@ -43,6 +43,7 @@ function JsonViewer({ label, data }: { label: string; data: unknown }) {
       <button
         onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded) }}
         className="text-xs text-blue-600 hover:underline"
+        data-testid={`audit-log-toggle-${label}-btn`}
       >
         {isExpanded ? `Hide ${label}` : `Show ${label}`}
       </button>
@@ -150,6 +151,7 @@ export function AuditLogClient({ initialData }: AuditLogClientProps) {
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
             className="w-36 h-8 text-sm"
+            data-testid="audit-log-start-date-input"
           />
         </div>
         <div className="space-y-1">
@@ -159,6 +161,7 @@ export function AuditLogClient({ initialData }: AuditLogClientProps) {
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
             className="w-36 h-8 text-sm"
+            data-testid="audit-log-end-date-input"
           />
         </div>
         <div className="space-y-1">
@@ -168,12 +171,13 @@ export function AuditLogClient({ initialData }: AuditLogClientProps) {
             value={userId}
             onChange={(e) => setUserId(e.target.value)}
             className="w-40 h-8 text-sm"
+            data-testid="audit-log-user-id-input"
           />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Action</Label>
           <Select value={action} onValueChange={setAction}>
-            <SelectTrigger className="w-36 h-8 text-sm">
+            <SelectTrigger className="w-36 h-8 text-sm" data-testid="audit-log-action-select">
               <SelectValue placeholder="All actions" />
             </SelectTrigger>
             <SelectContent>
@@ -189,7 +193,7 @@ export function AuditLogClient({ initialData }: AuditLogClientProps) {
         <div className="space-y-1">
           <Label className="text-xs">Entity Type</Label>
           <Select value={entityType} onValueChange={setEntityType}>
-            <SelectTrigger className="w-40 h-8 text-sm">
+            <SelectTrigger className="w-40 h-8 text-sm" data-testid="audit-log-entity-type-select">
               <SelectValue placeholder="All entities" />
             </SelectTrigger>
             <SelectContent>
@@ -277,7 +281,7 @@ export function AuditLogClient({ initialData }: AuditLogClientProps) {
               value={String(pageSize)}
               onValueChange={(v) => { setPageSize(Number(v)); fetchPage(1) }}
             >
-              <SelectTrigger className="w-20 h-8 text-sm">
+              <SelectTrigger className="w-20 h-8 text-sm" data-testid="audit-log-page-size-select">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -296,6 +300,7 @@ export function AuditLogClient({ initialData }: AuditLogClientProps) {
               className="h-8 w-8"
               onClick={() => fetchPage(1)}
               disabled={data.page === 1 || isPending}
+              data-testid="audit-log-first-page-btn"
             >
               <ChevronsLeft className="h-4 w-4" />
             </Button>
@@ -305,6 +310,7 @@ export function AuditLogClient({ initialData }: AuditLogClientProps) {
               className="h-8 w-8"
               onClick={() => fetchPage(data.page - 1)}
               disabled={data.page === 1 || isPending}
+              data-testid="audit-log-prev-page-btn"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -317,6 +323,7 @@ export function AuditLogClient({ initialData }: AuditLogClientProps) {
               className="h-8 w-8"
               onClick={() => fetchPage(data.page + 1)}
               disabled={data.page === data.totalPages || isPending}
+              data-testid="audit-log-next-page-btn"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -326,6 +333,7 @@ export function AuditLogClient({ initialData }: AuditLogClientProps) {
               className="h-8 w-8"
               onClick={() => fetchPage(data.totalPages)}
               disabled={data.page === data.totalPages || isPending}
+              data-testid="audit-log-last-page-btn"
             >
               <ChevronsRight className="h-4 w-4" />
             </Button>

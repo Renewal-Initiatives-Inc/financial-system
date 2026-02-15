@@ -119,7 +119,7 @@ export function BudgetReviewClient({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => router.push('/budgets')}>
+          <Button variant="ghost" size="icon" onClick={() => router.push('/budgets')} data-testid="budget-review-back-btn">
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
@@ -170,7 +170,7 @@ export function BudgetReviewClient({
             handleFilterChange(v, fundFilter)
           }}
         >
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-[180px]" data-testid="budget-review-period-filter">
             <SelectValue placeholder="Period" />
           </SelectTrigger>
           <SelectContent>
@@ -188,7 +188,7 @@ export function BudgetReviewClient({
             handleFilterChange(period, v)
           }}
         >
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-[180px]" data-testid="budget-review-fund-filter">
             <SelectValue placeholder="Fund" />
           </SelectTrigger>
           <SelectContent>

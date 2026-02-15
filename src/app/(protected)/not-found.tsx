@@ -11,7 +11,7 @@ export default function ProtectedNotFound() {
         <p className="text-muted-foreground">
           The item you&apos;re looking for doesn&apos;t exist or has been removed.
         </p>
-        <Button asChild>
+        <Button asChild data-testid="protected-not-found-dashboard-btn">
           <Link href="/">Back to Dashboard</Link>
         </Button>
       </div>

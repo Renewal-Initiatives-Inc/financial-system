@@ -575,6 +575,10 @@ export interface FullReconOptions {
   qboCsv: string
   bankCsvs?: Array<{ csv: string; accountLabel: string; options?: Parameters<typeof parseBankCsv>[1] }>
   rampCsv?: string
+  /** Pre-parsed bank transactions (alternative to bankCsvs — used with --from-db) */
+  bankTransactions?: ReconTransaction[]
+  /** Pre-parsed ramp transactions (alternative to rampCsv — used with --from-db) */
+  rampTransactions?: ReconTransaction[]
   cutoffDate?: string // only include transactions on or before this date
 }
 
@@ -603,17 +607,26 @@ export function runFullReconciliation(options: FullReconOptions): FullReconResul
   let creditCardRecon: ReconResult | undefined
 
   // 1. QBO cash ↔ Bank
-  if (options.bankCsvs && options.bankCsvs.length > 0) {
+  const hasBankCsvs = options.bankCsvs && options.bankCsvs.length > 0
+  const hasBankTxns = options.bankTransactions && options.bankTransactions.length > 0
+
+  if (hasBankCsvs || hasBankTxns) {
     const qboCash = filterByCutoff(parseQboForRecon(qboCsv, 'cash'))
 
-    // Combine all bank CSVs into one list
-    const allBank: ReconTransaction[] = []
-    for (const bankCsv of options.bankCsvs) {
-      const parsed = parseBankCsv(bankCsv.csv, {
-        ...bankCsv.options,
-        accountLabel: bankCsv.accountLabel,
-      })
-      allBank.push(...filterByCutoff(parsed))
+    let allBank: ReconTransaction[]
+    if (hasBankTxns) {
+      // Pre-parsed from DB
+      allBank = filterByCutoff(options.bankTransactions!)
+    } else {
+      // Parse from CSV files
+      allBank = []
+      for (const bankCsv of options.bankCsvs!) {
+        const parsed = parseBankCsv(bankCsv.csv, {
+          ...bankCsv.options,
+          accountLabel: bankCsv.accountLabel,
+        })
+        allBank.push(...filterByCutoff(parsed))
+      }
     }
 
     cashRecon = matchTransactions(qboCash, allBank, {
@@ -624,9 +637,19 @@ export function runFullReconciliation(options: FullReconOptions): FullReconResul
   }
 
   // 2. QBO credit card ↔ Ramp
-  if (options.rampCsv) {
+  const hasRampCsv = !!options.rampCsv
+  const hasRampTxns = options.rampTransactions && options.rampTransactions.length > 0
+
+  if (hasRampCsv || hasRampTxns) {
     const qboCC = filterByCutoff(parseQboForRecon(qboCsv, 'credit-card'))
-    const ramp = filterByCutoff(parseRampCsv(options.rampCsv))
+
+    let ramp: ReconTransaction[]
+    if (hasRampTxns) {
+      // Pre-parsed from DB
+      ramp = filterByCutoff(options.rampTransactions!)
+    } else {
+      ramp = filterByCutoff(parseRampCsv(options.rampCsv!))
+    }
 
     creditCardRecon = matchTransactions(qboCC, ramp, {
       source1Name: 'QBO Credit Card',

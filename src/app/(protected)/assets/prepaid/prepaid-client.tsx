@@ -176,7 +176,7 @@ export function PrepaidClient({
           value={showActive}
           onValueChange={(v) => setShowActive(v as 'all' | 'active')}
         >
-          <SelectTrigger className="w-[150px]">
+          <SelectTrigger className="w-[150px]" data-testid="prepaid-status-filter">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -287,6 +287,7 @@ export function PrepaidClient({
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
+                  data-testid="prepaid-start-date"
                 />
               </div>
               <div>
@@ -295,6 +296,7 @@ export function PrepaidClient({
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
+                  data-testid="prepaid-end-date"
                 />
               </div>
             </div>
@@ -311,7 +313,7 @@ export function PrepaidClient({
                 value={glExpenseAccountId}
                 onValueChange={setGlExpenseAccountId}
               >
-                <SelectTrigger>
+                <SelectTrigger data-testid="prepaid-expense-account-select">
                   <SelectValue placeholder="Select expense account..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -335,7 +337,7 @@ export function PrepaidClient({
                 }
                 onValueChange={setGlPrepaidAccountId}
               >
-                <SelectTrigger>
+                <SelectTrigger data-testid="prepaid-prepaid-account-select">
                   <SelectValue placeholder="Prepaid Expenses (1200)" />
                 </SelectTrigger>
                 <SelectContent>
@@ -351,7 +353,7 @@ export function PrepaidClient({
             <div>
               <Label>Fund</Label>
               <Select value={fundId} onValueChange={setFundId}>
-                <SelectTrigger>
+                <SelectTrigger data-testid="prepaid-fund-select">
                   <SelectValue placeholder="Select fund..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -370,10 +372,11 @@ export function PrepaidClient({
               variant="outline"
               onClick={() => setCreateOpen(false)}
               disabled={isPending}
+              data-testid="prepaid-cancel-btn"
             >
               Cancel
             </Button>
-            <Button onClick={handleCreate} disabled={isPending}>
+            <Button onClick={handleCreate} disabled={isPending} data-testid="prepaid-create-btn">
               {isPending ? 'Creating...' : 'Create Schedule'}
             </Button>
           </DialogFooter>
