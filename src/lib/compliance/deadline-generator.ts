@@ -38,6 +38,14 @@ const ANNUAL_DEADLINES: AnnualDeadline[] = [
   { taskName: 'Quarterly board prep (Q2)', month: 6, day: 15, category: 'budget', recurrence: 'annual' },
   { taskName: 'Quarterly board prep (Q3)', month: 9, day: 15, category: 'budget', recurrence: 'annual' },
   { taskName: 'Quarterly board prep (Q4)', month: 12, day: 15, category: 'budget', recurrence: 'annual' },
+  // Annual rate review — SSA announces SS wage base mid-October
+  { taskName: 'Annual tax rate review (SS wage base)', month: 10, day: 15, category: 'tax', recurrence: 'annual' },
+  // Functional allocation — year-end
+  { taskName: 'Year-end functional allocation review', month: 12, day: 15, category: 'tax', recurrence: 'annual' },
+  // Public support — trajectory review for 509(a)(1) status (relevant ~FY2028+)
+  { taskName: 'Public support trajectory review', month: 6, day: 30, category: 'tax', recurrence: 'annual' },
+  // Grant reporting
+  { taskName: 'Annual grant compliance review', month: 12, day: 31, category: 'grant', recurrence: 'annual' },
 ]
 
 /**

@@ -1,5 +1,7 @@
+import { getDashboardData } from '@/lib/dashboard/queries'
 import { DashboardClient } from './dashboard-client'
 
-export default function DashboardPage() {
-  return <DashboardClient />
+export default async function DashboardPage() {
+  const data = await getDashboardData()
+  return <DashboardClient data={data} />
 }

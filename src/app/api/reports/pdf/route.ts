@@ -1178,6 +1178,831 @@ async function generateReportPDF(
     }
 
     // -----------------------------------------------------------------------
+    // Report #14: Donor Giving History
+    // -----------------------------------------------------------------------
+    case 'donor-giving-history': {
+      const { getDonorGivingHistoryData } = await import(
+        '@/lib/reports/donor-giving-history'
+      )
+      const data = await getDonorGivingHistoryData({ startDate, endDate, fundId })
+      return renderToBuffer(
+        el(
+          ReportDocument,
+          { title: 'Donor Giving History', dateRange: `${startDate} to ${endDate}` },
+          el(PDFTableHeader, {
+            columns: [
+              { label: 'Donor' },
+              { label: 'Total Given' },
+              { label: 'Restricted' },
+              { label: 'Unrestricted' },
+              { label: 'Gifts' },
+            ],
+          }),
+          ...data.rows.map((r) =>
+            el(PDFTableRow, {
+              key: `dg-${r.donorId}`,
+              cells: [
+                r.donorName,
+                formatCurrency(r.totalGiven),
+                formatCurrency(r.restrictedAmount),
+                formatCurrency(r.unrestrictedAmount),
+                String(r.giftCount),
+              ],
+            })
+          ),
+          el(PDFSectionDivider),
+          el(PDFTableRow, {
+            cells: [
+              `${data.totalDonors} donors`,
+              formatCurrency(data.totalGiving),
+              formatCurrency(data.totalRestricted),
+              formatCurrency(data.totalUnrestricted),
+              '',
+            ],
+            isBold: true,
+          })
+        )
+      )
+    }
+
+    // -----------------------------------------------------------------------
+    // Report #15: Cash Projection
+    // -----------------------------------------------------------------------
+    case 'cash-projection': {
+      const { getCashProjectionData } = await import(
+        '@/lib/reports/cash-projection'
+      )
+      const data = await getCashProjectionData()
+      return renderToBuffer(
+        el(
+          ReportDocument,
+          {
+            title: 'Cash Projection',
+            dateRange: `FY${data.fiscalYear}`,
+          },
+          el(PDFTableHeader, {
+            columns: [
+              { label: 'Month' },
+              { label: 'Inflows' },
+              { label: 'Outflows' },
+              { label: 'Net' },
+              { label: 'Ending Cash' },
+            ],
+          }),
+          ...data.months.map((m, i) =>
+            el(PDFTableRow, {
+              key: `cp-${i}`,
+              cells: [
+                m.monthLabel,
+                formatCurrency(m.totalInflows),
+                formatCurrency(m.totalOutflows),
+                formatCurrency(m.netCashFlow),
+                formatCurrency(data.endingCashByMonth[i] ?? 0),
+              ],
+            })
+          ),
+          el(PDFSectionDivider),
+          el(PDFTableRow, {
+            cells: [
+              `Starting Cash: ${formatCurrency(data.startingCash)}`,
+              '',
+              '',
+              '',
+              '',
+            ],
+          })
+        )
+      )
+    }
+
+    // -----------------------------------------------------------------------
+    // Report #16: AHP Loan Summary
+    // -----------------------------------------------------------------------
+    case 'ahp-loan-summary': {
+      const { getAHPLoanSummaryData } = await import(
+        '@/lib/reports/ahp-loan-summary'
+      )
+      const data = await getAHPLoanSummaryData()
+      return renderToBuffer(
+        el(
+          ReportDocument,
+          { title: 'AHP Loan Summary', dateRange: `As of ${endDate}` },
+          ...(data.summary
+            ? [
+                el(PDFTableHeader, {
+                  key: 'ahp-hdr',
+                  columns: [{ label: 'Item' }, { label: 'Value' }],
+                }),
+                el(PDFTableRow, {
+                  key: 'ahp-cl',
+                  cells: ['Credit Limit', formatCurrency(data.summary.creditLimit)],
+                }),
+                el(PDFTableRow, {
+                  key: 'ahp-dr',
+                  cells: ['Current Drawn', formatCurrency(data.summary.currentDrawnAmount)],
+                }),
+                el(PDFTableRow, {
+                  key: 'ahp-av',
+                  cells: ['Available Credit', formatCurrency(data.summary.availableCredit)],
+                  isBold: true,
+                }),
+                el(PDFTableRow, {
+                  key: 'ahp-ir',
+                  cells: ['Interest Rate', `${data.summary.currentInterestRate}%`],
+                }),
+                el(PDFTableRow, {
+                  key: 'ahp-ia',
+                  cells: ['Total Interest Accrued', formatCurrency(data.totalInterestAccrued)],
+                }),
+                el(PDFSectionDivider, { key: 'ahp-div1' }),
+                el(PDFTableRow, {
+                  key: 'ahp-hist-h',
+                  cells: ['Draw/Payment History', ''],
+                  isSectionHeader: true,
+                }),
+                ...data.drawPaymentHistory.map((e, i) =>
+                  el(PDFTableRow, {
+                    key: `ahp-dp-${i}`,
+                    cells: [
+                      `${e.date} — ${e.type === 'draw' ? 'Draw' : 'Payment'}: ${e.memo}`,
+                      formatCurrency(e.amount),
+                    ],
+                  })
+                ),
+              ]
+            : [
+                el(PDFTableRow, {
+                  cells: ['No AHP loan configuration found.', ''],
+                }),
+              ])
+        )
+      )
+    }
+
+    // -----------------------------------------------------------------------
+    // Report #17: Audit Log
+    // -----------------------------------------------------------------------
+    case 'audit-log': {
+      const { getAuditLogData } = await import('@/lib/reports/audit-log')
+      const data = await getAuditLogData({ startDate, endDate, pageSize: 200 })
+      return renderToBuffer(
+        el(
+          ReportDocument,
+          { title: 'Audit Log', dateRange: `${startDate} to ${endDate}` },
+          el(PDFTableHeader, {
+            columns: [
+              { label: 'Timestamp' },
+              { label: 'User' },
+              { label: 'Action' },
+              { label: 'Entity' },
+            ],
+          }),
+          ...data.entries.map((e) =>
+            el(PDFTableRow, {
+              key: `al-${e.id}`,
+              cells: [
+                e.timestamp.substring(0, 19).replace('T', ' '),
+                e.userId,
+                e.action,
+                `${e.entityType} #${e.entityId}`,
+              ],
+            })
+          ),
+          el(PDFSectionDivider),
+          el(PDFTableRow, {
+            cells: [`${data.totalCount} total entries`, '', '', ''],
+            isBold: true,
+          })
+        )
+      )
+    }
+
+    // -----------------------------------------------------------------------
+    // Report #18: Transaction History
+    // -----------------------------------------------------------------------
+    case 'transaction-history': {
+      const { getTransactionHistoryData } = await import(
+        '@/lib/reports/transaction-history'
+      )
+      const data = await getTransactionHistoryData({
+        startDate,
+        endDate,
+        fundId,
+        pageSize: 200,
+      })
+      return renderToBuffer(
+        el(
+          ReportDocument,
+          {
+            title: 'Transaction History',
+            dateRange: `${startDate} to ${endDate}`,
+          },
+          el(PDFTableHeader, {
+            columns: [
+              { label: 'Date' },
+              { label: 'Memo' },
+              { label: 'Source' },
+              { label: 'Debit' },
+              { label: 'Credit' },
+            ],
+          }),
+          ...data.rows.map((r) =>
+            el(PDFTableRow, {
+              key: `th-${r.id}`,
+              cells: [
+                r.date,
+                r.memo.substring(0, 50),
+                r.sourceType,
+                formatCurrency(r.totalDebit),
+                formatCurrency(r.totalCredit),
+              ],
+            })
+          ),
+          el(PDFSectionDivider),
+          el(PDFTableRow, {
+            cells: [`${data.totalCount} transactions total`, '', '', '', ''],
+            isBold: true,
+          })
+        )
+      )
+    }
+
+    // -----------------------------------------------------------------------
+    // Report #19: Late Entries
+    // -----------------------------------------------------------------------
+    case 'late-entries': {
+      const { getLateEntriesData } = await import('@/lib/reports/late-entries')
+      const data = await getLateEntriesData({ periodEndDate: endDate })
+      return renderToBuffer(
+        el(
+          ReportDocument,
+          {
+            title: 'Late Entries Report',
+            dateRange: `Period ending ${data.periodEndDate}`,
+          },
+          el(PDFTableHeader, {
+            columns: [
+              { label: 'Date' },
+              { label: 'Memo' },
+              { label: 'Source' },
+              { label: 'Amount' },
+              { label: 'Days Late' },
+            ],
+          }),
+          ...data.rows.map((r) =>
+            el(PDFTableRow, {
+              key: `le-${r.transactionId}`,
+              cells: [
+                r.date,
+                r.memo.substring(0, 50),
+                r.sourceType,
+                formatCurrency(r.totalAmount),
+                String(r.daysLate),
+              ],
+            })
+          ),
+          el(PDFSectionDivider),
+          el(PDFTableRow, {
+            cells: [
+              `${data.totalLateEntries} late entries`,
+              '',
+              '',
+              formatCurrency(data.totalLateAmount),
+              '',
+            ],
+            isBold: true,
+          })
+        )
+      )
+    }
+
+    // -----------------------------------------------------------------------
+    // Report #20: AHP Annual Package
+    // -----------------------------------------------------------------------
+    case 'ahp-annual-package': {
+      const { getAHPAnnualPackageData } = await import(
+        '@/lib/reports/ahp-annual-package'
+      )
+      const year = params.get('year')
+        ? parseInt(params.get('year')!)
+        : new Date().getFullYear()
+      const data = await getAHPAnnualPackageData({ fiscalYear: year })
+      return renderToBuffer(
+        el(
+          ReportDocument,
+          {
+            title: 'AHP Annual Compliance Package',
+            dateRange: `FY${data.fiscalYear}`,
+          },
+          el(PDFTableRow, {
+            cells: ['Balance Sheet Summary', ''],
+            isSectionHeader: true,
+          }),
+          el(PDFTableRow, {
+            cells: ['Total Assets', formatCurrency(data.balanceSheet.totalAssets)],
+            isBold: true,
+          }),
+          el(PDFTableRow, {
+            cells: ['Total Liabilities', formatCurrency(data.balanceSheet.totalLiabilities)],
+          }),
+          el(PDFTableRow, {
+            cells: ['Total Net Assets', formatCurrency(data.balanceSheet.totalNetAssets)],
+            isBold: true,
+          }),
+          el(PDFSectionDivider),
+          el(PDFTableRow, {
+            cells: ['Loan Summary', ''],
+            isSectionHeader: true,
+          }),
+          ...(data.loanSummary.summary
+            ? [
+                el(PDFTableRow, {
+                  key: 'ahp-pkg-cl',
+                  cells: ['Credit Limit', formatCurrency(data.loanSummary.summary.creditLimit)],
+                }),
+                el(PDFTableRow, {
+                  key: 'ahp-pkg-dr',
+                  cells: ['Drawn', formatCurrency(data.loanSummary.summary.currentDrawnAmount)],
+                }),
+                el(PDFTableRow, {
+                  key: 'ahp-pkg-ia',
+                  cells: ['Interest Accrued', formatCurrency(data.loanSummary.totalInterestAccrued)],
+                }),
+              ]
+            : [el(PDFTableRow, { cells: ['No AHP loan data', ''] })])
+        )
+      )
+    }
+
+    // -----------------------------------------------------------------------
+    // Report #21: Form 990 Data
+    // -----------------------------------------------------------------------
+    case 'form-990-data': {
+      const { getForm990Data } = await import('@/lib/reports/form-990-data')
+      const year = params.get('year')
+        ? parseInt(params.get('year')!)
+        : new Date().getFullYear()
+      const data = await getForm990Data({ fiscalYear: year })
+      return renderToBuffer(
+        el(
+          ReportDocument,
+          { title: 'Form 990 Data Worksheet', dateRange: `FY${data.fiscalYear}` },
+          el(PDFTableRow, {
+            cells: ['Part IX — Functional Expenses', '', '', '', ''],
+            isSectionHeader: true,
+          }),
+          el(PDFTableHeader, {
+            columns: [
+              { label: 'Line' },
+              { label: 'Total' },
+              { label: 'Program' },
+              { label: 'M&G' },
+              { label: 'Fundraising' },
+            ],
+          }),
+          ...data.partIXExpenses.map((r) =>
+            el(PDFTableRow, {
+              key: `990e-${r.form990Line}`,
+              cells: [
+                `${r.form990Line} — ${r.lineLabel}`,
+                formatCurrency(r.total),
+                formatCurrency(r.program),
+                formatCurrency(r.admin),
+                formatCurrency(r.fundraising),
+              ],
+            })
+          ),
+          el(PDFTableRow, {
+            cells: [
+              'Total',
+              formatCurrency(data.partIXTotal.total),
+              formatCurrency(data.partIXTotal.program),
+              formatCurrency(data.partIXTotal.admin),
+              formatCurrency(data.partIXTotal.fundraising),
+            ],
+            isBold: true,
+          }),
+          el(PDFSectionDivider),
+          el(PDFTableRow, {
+            cells: ['Revenue', '', '', '', ''],
+            isSectionHeader: true,
+          }),
+          ...data.revenue.map((r) =>
+            el(PDFTableRow, {
+              key: `990r-${r.form990Line}`,
+              cells: [
+                `${r.form990Line} — ${r.lineLabel}`,
+                formatCurrency(r.amount),
+                '',
+                '',
+                '',
+              ],
+            })
+          ),
+          el(PDFTableRow, {
+            cells: ['Total Revenue', formatCurrency(data.totalRevenue), '', '', ''],
+            isBold: true,
+          })
+        )
+      )
+    }
+
+    // -----------------------------------------------------------------------
+    // Report #23: Compliance Calendar
+    // -----------------------------------------------------------------------
+    case 'compliance-calendar': {
+      const { getComplianceCalendarData } = await import(
+        '@/lib/reports/compliance-calendar'
+      )
+      const data = await getComplianceCalendarData({})
+      return renderToBuffer(
+        el(
+          ReportDocument,
+          { title: 'Compliance Calendar', dateRange: `As of ${endDate}` },
+          ...(data.overdue.length > 0
+            ? [
+                el(PDFTableRow, {
+                  key: 'cc-oh',
+                  cells: ['OVERDUE', '', '', ''],
+                  isSectionHeader: true,
+                }),
+                el(PDFTableHeader, {
+                  key: 'cc-ohdr',
+                  columns: [
+                    { label: 'Task' },
+                    { label: 'Due Date' },
+                    { label: 'Category' },
+                    { label: 'Days Overdue' },
+                  ],
+                }),
+                ...data.overdue.map((d) =>
+                  el(PDFTableRow, {
+                    key: `cc-o-${d.id}`,
+                    cells: [d.taskName, d.dueDate, d.category, String(Math.abs(d.daysUntilDue))],
+                  })
+                ),
+              ]
+            : []),
+          el(PDFTableRow, {
+            key: 'cc-uh',
+            cells: ['UPCOMING', '', '', ''],
+            isSectionHeader: true,
+          }),
+          ...data.upcoming.map((d) =>
+            el(PDFTableRow, {
+              key: `cc-u-${d.id}`,
+              cells: [d.taskName, d.dueDate, d.category, `${d.daysUntilDue}d`],
+            })
+          ),
+          el(PDFTableRow, {
+            key: 'cc-fh',
+            cells: ['THIS QUARTER', '', '', ''],
+            isSectionHeader: true,
+          }),
+          ...data.thisQuarter.map((d) =>
+            el(PDFTableRow, {
+              key: `cc-q-${d.id}`,
+              cells: [d.taskName, d.dueDate, d.category, `${d.daysUntilDue}d`],
+            })
+          ),
+          el(PDFSectionDivider),
+          el(PDFTableRow, {
+            cells: [`${data.totalCount} total deadlines (${data.overdueCount} overdue)`, '', '', ''],
+            isBold: true,
+          })
+        )
+      )
+    }
+
+    // -----------------------------------------------------------------------
+    // Report #24: Capital Budget
+    // -----------------------------------------------------------------------
+    case 'capital-budget': {
+      const { getCapitalBudgetData } = await import(
+        '@/lib/reports/capital-budget'
+      )
+      const year = params.get('year')
+        ? parseInt(params.get('year')!)
+        : new Date().getFullYear()
+      const data = await getCapitalBudgetData({ year, fundId })
+      return renderToBuffer(
+        el(
+          ReportDocument,
+          {
+            title: 'Capital Budget vs Actual',
+            dateRange: `FY${data.year}`,
+            fundName: data.fundName,
+          },
+          el(PDFTableHeader, {
+            columns: [
+              { label: 'Account' },
+              { label: 'Budget' },
+              { label: 'Actual' },
+              { label: 'Variance' },
+              { label: 'Var %' },
+            ],
+          }),
+          ...data.rows.map((r) =>
+            el(PDFTableRow, {
+              key: `cb-${r.accountId}`,
+              cells: [
+                `${r.accountCode} — ${r.accountName}`,
+                formatCurrency(r.budget),
+                formatCurrency(r.actual),
+                formatCurrency(r.variance),
+                r.variancePercent !== null ? formatPercent(r.variancePercent) : '—',
+              ],
+            })
+          ),
+          el(PDFSectionDivider),
+          el(PDFTableRow, {
+            cells: [
+              'TOTAL',
+              formatCurrency(data.totalBudget),
+              formatCurrency(data.totalActual),
+              formatCurrency(data.totalVariance),
+              '',
+            ],
+            isBold: true,
+          })
+        )
+      )
+    }
+
+    // -----------------------------------------------------------------------
+    // Report #25: Payroll Register
+    // -----------------------------------------------------------------------
+    case 'payroll-register': {
+      const { getPayrollRegisterData } = await import(
+        '@/lib/reports/payroll-register'
+      )
+      const data = await getPayrollRegisterData({ startDate, endDate })
+      return renderToBuffer(
+        el(
+          ReportDocument,
+          { title: 'Payroll Register', dateRange: `${startDate} to ${endDate}` },
+          ...data.runs.flatMap((run) => [
+            el(PDFTableRow, {
+              key: `pr-h-${run.runId}`,
+              cells: [`Pay Period: ${run.payPeriodStart} to ${run.payPeriodEnd}`, '', '', '', ''],
+              isSectionHeader: true,
+            }),
+            el(PDFTableHeader, {
+              key: `pr-hdr-${run.runId}`,
+              columns: [
+                { label: 'Employee' },
+                { label: 'Gross' },
+                { label: 'Fed Tax' },
+                { label: 'State Tax' },
+                { label: 'Net' },
+              ],
+            }),
+            ...run.rows.map((r) =>
+              el(PDFTableRow, {
+                key: `pr-${run.runId}-${r.entryId}`,
+                cells: [
+                  r.employeeName,
+                  formatCurrency(r.grossPay),
+                  formatCurrency(r.federalWithholding),
+                  formatCurrency(r.stateWithholding),
+                  formatCurrency(r.netPay),
+                ],
+              })
+            ),
+            el(PDFTableRow, {
+              key: `pr-t-${run.runId}`,
+              cells: [
+                'Run Total',
+                formatCurrency(run.totalGross),
+                formatCurrency(run.totalFederal),
+                formatCurrency(run.totalState),
+                formatCurrency(run.totalNet),
+              ],
+              isBold: true,
+            }),
+          ]),
+          el(PDFSectionDivider),
+          el(PDFTableRow, {
+            cells: [
+              'GRAND TOTAL',
+              formatCurrency(data.grandTotalGross),
+              formatCurrency(data.grandTotalFederal),
+              formatCurrency(data.grandTotalState),
+              formatCurrency(data.grandTotalNet),
+            ],
+            isBold: true,
+          })
+        )
+      )
+    }
+
+    // -----------------------------------------------------------------------
+    // Report #26: Payroll Tax Liability
+    // -----------------------------------------------------------------------
+    case 'payroll-tax-liability': {
+      const { getPayrollTaxLiabilityData } = await import(
+        '@/lib/reports/payroll-tax-liability'
+      )
+      const data = await getPayrollTaxLiabilityData({ startDate, endDate })
+      return renderToBuffer(
+        el(
+          ReportDocument,
+          {
+            title: 'Payroll Tax Liability Summary',
+            dateRange: `${data.periodStart} to ${data.periodEnd}`,
+          },
+          el(PDFTableHeader, {
+            columns: [
+              { label: 'Tax Type' },
+              { label: 'Employee' },
+              { label: 'Employer' },
+              { label: 'Total' },
+            ],
+          }),
+          ...data.rows.map((r, i) =>
+            el(PDFTableRow, {
+              key: `ptl-${i}`,
+              cells: [
+                r.taxType,
+                formatCurrency(r.employeeAmount),
+                formatCurrency(r.employerAmount),
+                formatCurrency(r.totalAmount),
+              ],
+            })
+          ),
+          el(PDFSectionDivider),
+          el(PDFTableRow, {
+            cells: [
+              'TOTAL',
+              formatCurrency(data.totalEmployeeWithholding),
+              formatCurrency(data.totalEmployerContribution),
+              formatCurrency(data.grandTotal),
+            ],
+            isBold: true,
+          }),
+          el(PDFTableRow, {
+            cells: [`${data.employeeCount} employees`, '', '', ''],
+          })
+        )
+      )
+    }
+
+    // -----------------------------------------------------------------------
+    // Report #27: W-2 Verification
+    // -----------------------------------------------------------------------
+    case 'w2-verification': {
+      const { getW2VerificationData } = await import(
+        '@/lib/reports/w2-verification'
+      )
+      const year = params.get('year')
+        ? parseInt(params.get('year')!)
+        : new Date().getFullYear()
+      const data = await getW2VerificationData({ year })
+      return renderToBuffer(
+        el(
+          ReportDocument,
+          { title: 'W-2 Verification Report', dateRange: `Tax Year ${data.year}` },
+          el(PDFTableHeader, {
+            columns: [
+              { label: 'Employee' },
+              { label: 'Box 1' },
+              { label: 'Box 2' },
+              { label: 'Box 3' },
+              { label: 'Box 5' },
+              { label: 'Box 16' },
+            ],
+          }),
+          ...data.rows.map((r) =>
+            el(PDFTableRow, {
+              key: `w2-${r.employeeId}`,
+              cells: [
+                `${r.employeeName}${r.hasWageBaseExceeded ? ' *' : ''}`,
+                formatCurrency(r.box1),
+                formatCurrency(r.box2),
+                formatCurrency(r.box3),
+                formatCurrency(r.box5),
+                formatCurrency(r.box16),
+              ],
+            })
+          ),
+          el(PDFSectionDivider),
+          el(PDFTableRow, {
+            cells: [
+              `${data.totalEmployees} employees | SS Wage Base: ${formatCurrency(data.ssWageBase)}`,
+              '',
+              '',
+              '',
+              '',
+              '',
+            ],
+            isBold: true,
+          })
+        )
+      )
+    }
+
+    // -----------------------------------------------------------------------
+    // Report #28: Employer Payroll Cost
+    // -----------------------------------------------------------------------
+    case 'employer-payroll-cost': {
+      const { getEmployerPayrollCostData } = await import(
+        '@/lib/reports/employer-payroll-cost'
+      )
+      const year = params.get('year')
+        ? parseInt(params.get('year')!)
+        : new Date().getFullYear()
+      const data = await getEmployerPayrollCostData({ year })
+      return renderToBuffer(
+        el(
+          ReportDocument,
+          { title: 'Employer Payroll Cost Analysis', dateRange: `FY${data.year}` },
+          el(PDFTableHeader, {
+            columns: [
+              { label: 'Month' },
+              { label: 'Wages' },
+              { label: 'Employer FICA' },
+              { label: 'Total Burden' },
+              { label: 'Budget' },
+            ],
+          }),
+          ...data.months.map((m) =>
+            el(PDFTableRow, {
+              key: `epc-${m.month}`,
+              cells: [
+                m.monthLabel,
+                formatCurrency(m.totalWages),
+                formatCurrency(m.totalEmployerFICA),
+                formatCurrency(m.totalBurden),
+                m.budget !== null ? formatCurrency(m.budget) : '—',
+              ],
+            })
+          ),
+          el(PDFSectionDivider),
+          el(PDFTableRow, {
+            cells: [
+              'YTD Total',
+              formatCurrency(data.ytdWages),
+              formatCurrency(data.ytdTotalFICA),
+              formatCurrency(data.ytdTotalBurden),
+              data.ytdBudget !== null ? formatCurrency(data.ytdBudget) : '—',
+            ],
+            isBold: true,
+          })
+        )
+      )
+    }
+
+    // -----------------------------------------------------------------------
+    // Report #29: Quarterly Tax Prep
+    // -----------------------------------------------------------------------
+    case 'quarterly-tax-prep': {
+      const { getQuarterlyTaxPrepData } = await import(
+        '@/lib/reports/quarterly-tax-prep'
+      )
+      const year = params.get('year')
+        ? parseInt(params.get('year')!)
+        : new Date().getFullYear()
+      const quarter = params.get('quarter')
+        ? parseInt(params.get('quarter')!)
+        : Math.ceil((new Date().getMonth() + 1) / 3)
+      const data = await getQuarterlyTaxPrepData({ year, quarter })
+      const f = data.federal941
+      const m = data.maM941
+      return renderToBuffer(
+        el(
+          ReportDocument,
+          {
+            title: `Quarterly Tax Prep — ${data.quarterLabel}`,
+            dateRange: `${data.periodStart} to ${data.periodEnd}`,
+          },
+          el(PDFTableRow, {
+            cells: ['Federal Form 941', ''],
+            isSectionHeader: true,
+          }),
+          el(PDFTableHeader, {
+            columns: [{ label: 'Line' }, { label: 'Amount' }],
+          }),
+          el(PDFTableRow, { cells: ['Line 1 — Number of employees', String(f.line1_employeeCount)] }),
+          el(PDFTableRow, { cells: ['Line 2 — Total wages', formatCurrency(f.line2_totalWages)] }),
+          el(PDFTableRow, { cells: ['Line 3 — Federal tax withheld', formatCurrency(f.line3_federalTaxWithheld)] }),
+          el(PDFTableRow, { cells: ['Line 5a — SS wages', formatCurrency(f.line5a_ssWages)] }),
+          el(PDFTableRow, { cells: ['Line 5a — SS tax (12.4%)', formatCurrency(f.line5a_ssTax)] }),
+          el(PDFTableRow, { cells: ['Line 5c — Medicare wages', formatCurrency(f.line5c_medicareWages)] }),
+          el(PDFTableRow, { cells: ['Line 5c — Medicare tax (2.9%)', formatCurrency(f.line5c_medicareTax)] }),
+          el(PDFTableRow, { cells: ['Line 6 — Total tax before adj', formatCurrency(f.line6_totalTaxBeforeAdjustments)], isBold: true }),
+          el(PDFTableRow, { cells: ['Line 10 — Total tax after adj', formatCurrency(f.line10_totalTaxAfterAdjustments)], isBold: true }),
+          el(PDFSectionDivider),
+          el(PDFTableRow, {
+            cells: ['MA Form M-941', ''],
+            isSectionHeader: true,
+          }),
+          el(PDFTableRow, { cells: ['Wages subject to MA', formatCurrency(m.totalWagesSubjectToMA)] }),
+          el(PDFTableRow, { cells: ['MA income tax withheld', formatCurrency(m.maIncomeTaxWithheld)], isBold: true })
+        )
+      )
+    }
+
+    // -----------------------------------------------------------------------
     // Fallback for unknown reports
     // -----------------------------------------------------------------------
     default: {

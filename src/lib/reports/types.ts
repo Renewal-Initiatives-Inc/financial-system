@@ -126,7 +126,7 @@ export interface ReportCardDef {
   slug: string
   title: string
   description: string
-  category: 'core' | 'operational' | 'fund' | 'specialized'
+  category: 'core' | 'operational' | 'fund' | 'specialized' | 'compliance' | 'payroll'
   isAvailable: boolean
 }
 
@@ -149,7 +149,25 @@ export const REPORT_DEFINITIONS: ReportCardDef[] = [
   { slug: 'property-expenses', title: 'Property Operating Expense Breakdown', description: '13 property expense categories with budget vs actual', category: 'specialized', isAvailable: true },
   { slug: 'utility-trends', title: 'Utility Trend Analysis', description: 'Electric, gas, water trends over time with line charts', category: 'specialized', isAvailable: true },
   { slug: 'security-deposit-register', title: 'Security Deposit Register', description: 'Tenant deposits, interest accrual, escrow reconciliation', category: 'specialized', isAvailable: true },
-  // Phase 16 reports (Coming Soon)
+  // Phase 16: Audit & Compliance
+  { slug: 'audit-log', title: 'Audit Log', description: 'System audit trail with action, entity, and user filtering', category: 'compliance', isAvailable: true },
+  { slug: 'transaction-history', title: 'Transaction History', description: 'Full transaction journal with multi-field search and export', category: 'core', isAvailable: true },
+  { slug: 'late-entries', title: 'Late Entries Report', description: 'Transactions entered after period close with aging analysis', category: 'compliance', isAvailable: true },
+  { slug: 'compliance-calendar', title: 'Compliance Calendar', description: 'Tax, grant, tenant, and budget deadlines with status tracking', category: 'compliance', isAvailable: true },
+  // Phase 16: Specialized Financial
+  { slug: 'donor-giving-history', title: 'Donor Giving History', description: 'Donation trends by donor for stewardship and 990 reporting', category: 'fund', isAvailable: true },
+  { slug: 'cash-projection', title: 'Cash Projection', description: '90-day forward cash flow forecast with scenario analysis', category: 'operational', isAvailable: true },
+  { slug: 'ahp-loan-summary', title: 'AHP Loan Summary', description: 'AHP loan balance, draw schedule, and compliance status', category: 'fund', isAvailable: true },
+  { slug: 'capital-budget', title: 'Capital Budget', description: 'CIP project budgets, actuals, and remaining authorization', category: 'specialized', isAvailable: true },
+  { slug: 'ahp-annual-package', title: 'AHP Annual Package', description: 'Annual AHP compliance documentation package', category: 'fund', isAvailable: true },
+  { slug: 'form-990-data', title: 'Form 990 Data', description: '990 line-item data export for CPA preparation', category: 'compliance', isAvailable: true },
+  // Phase 16: Payroll Reports
+  { slug: 'payroll-register', title: 'Payroll Register', description: 'Detailed payroll register by pay period with functional allocation', category: 'payroll', isAvailable: true },
+  { slug: 'payroll-tax-liability', title: 'Payroll Tax Liability', description: 'Federal and state payroll tax obligations by quarter', category: 'payroll', isAvailable: true },
+  { slug: 'w2-verification', title: 'W-2 Verification', description: 'Pre-filing W-2 data verification against payroll records', category: 'payroll', isAvailable: true },
+  { slug: 'employer-payroll-cost', title: 'Employer Payroll Cost', description: 'Total employer cost per employee including benefits and taxes', category: 'payroll', isAvailable: true },
+  { slug: 'quarterly-tax-prep', title: 'Quarterly Tax Prep', description: 'Quarterly 941/M-941 data for tax filing preparation', category: 'payroll', isAvailable: true },
+  // Future reports (Coming Soon)
   { slug: 'trial-balance', title: 'Trial Balance', description: 'Full chart of accounts with debit/credit balances', category: 'core', isAvailable: false },
   { slug: 'general-ledger-detail', title: 'General Ledger Detail', description: 'Transaction-level detail by account and date range', category: 'core', isAvailable: false },
   { slug: 'donor-contribution-summary', title: 'Donor Contribution Summary', description: 'Donations by donor for acknowledgement letters and 990', category: 'fund', isAvailable: false },
@@ -163,4 +181,6 @@ export const CATEGORY_LABELS: Record<string, string> = {
   operational: 'Operational Dashboards',
   fund: 'Fund & Grant Reports',
   specialized: 'Specialized Reports',
+  compliance: 'Compliance & Tax',
+  payroll: 'Payroll Reports',
 }

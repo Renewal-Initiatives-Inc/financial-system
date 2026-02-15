@@ -228,9 +228,9 @@ describe('getQuarterRange', () => {
 // ---------------------------------------------------------------------------
 
 describe('REPORT_DEFINITIONS', () => {
-  it('has 14 available Phase 15 reports', () => {
+  it('has 29 available reports (Phase 15 + Phase 16)', () => {
     const available = REPORT_DEFINITIONS.filter((r) => r.isAvailable)
-    expect(available.length).toBe(14)
+    expect(available.length).toBe(29)
   })
 
   it('has coming-soon Phase 16 reports', () => {
