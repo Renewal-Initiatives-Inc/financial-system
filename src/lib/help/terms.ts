@@ -90,6 +90,26 @@ export const helpTerms: Record<string, string> = {
   'percentage-split':
     'Convenience feature for multi-fund allocations. Enter fund percentages that sum to 100%, and the system calculates dollar amounts.',
 
+  // --- Phase 14: Budgeting & Cash Projection ---
+
+  budget:
+    'An annual financial plan that estimates revenue and expenses by GL account and fund. One active budget per fiscal year. Supports four spread methods for distributing annual amounts across months.',
+
+  'spread-method':
+    'Method for allocating an annual budget amount to individual months: Even (÷12), Seasonal (weighted), One-Time (single month), or Custom (manual entry per month).',
+
+  'budget-variance':
+    'The difference between budgeted and actual amounts. Color-coded: green (≤10% deviation), yellow/warning (10-25%), red/critical (>25%). Per RPT-P0-005.',
+
+  'cash-projection':
+    'A 3-month rolling forecast of cash inflows and outflows. Auto-populated from budget data (or 3-month GL average if no budget), with manual override capability. Updated quarterly before board meetings.',
+
+  'mid-year-revision':
+    'Budget edits made after the fiscal year begins. Months with recorded actuals are locked — only future months can be modified. No version history; revisions overwrite.',
+
+  'budget-approval':
+    'A budget moves from Draft to Approved status. Once approved, mid-year lock rules apply (past months frozen). Approval is logged in the audit trail.',
+
   // --- Phase 6: Vendors, Tenants, Donors ---
 
   vendor:

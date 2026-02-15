@@ -9,6 +9,28 @@ export const BUDGET_CYCLE_MILESTONES = [
   { month: 12, label: 'Board Budget Approval — December' },
 ] as const
 
+export interface BudgetCycleDeadline {
+  label: string
+  dueDate: string
+  fiscalYear: number
+  month: number
+}
+
+/**
+ * Generate compliance deadline records from budget cycle milestones for a given FY.
+ * The deadlines fall in the calendar year before the budget's fiscal year
+ * (e.g., FY2027 budget cycle: Sept-Dec 2026).
+ */
+export function getBudgetCycleDeadlines(fiscalYear: number): BudgetCycleDeadline[] {
+  const priorYear = fiscalYear - 1
+  return BUDGET_CYCLE_MILESTONES.map((m) => ({
+    label: m.label,
+    dueDate: `${priorYear}-${String(m.month).padStart(2, '0')}-15`,
+    fiscalYear,
+    month: m.month,
+  }))
+}
+
 /**
  * Public support trajectory review.
  * As rental income enters Total Support denominator (Schedule A Line 10a)

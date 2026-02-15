@@ -4,6 +4,7 @@ import {
   transactionLines,
   transactions,
   accounts,
+  funds,
   budgetLines,
   budgets,
 } from '@/lib/db/schema'
@@ -86,10 +87,12 @@ export async function getThreeMonthActualAverage(
 /**
  * Generate projection lines for a given starting month.
  * Tries budget data first, falls back to 3-month GL average.
+ * Optional fundId parameter for fund-specific projections.
  */
 export async function generateProjectionLines(
   startMonth: number,
-  budgetId?: number
+  budgetId?: number,
+  fundId?: number
 ): Promise<{ month: number; lines: ProjectionLineData[] }[]> {
   const months: { month: number; lines: ProjectionLineData[] }[] = []
 
@@ -99,6 +102,9 @@ export async function generateProjectionLines(
 
     // Try budget-based projection
     if (budgetId) {
+      const conditions = [eq(budgetLines.budgetId, budgetId)]
+      if (fundId) conditions.push(eq(budgetLines.fundId, fundId))
+
       const bLines = await db
         .select({
           accountId: budgetLines.accountId,
@@ -109,7 +115,7 @@ export async function generateProjectionLines(
         })
         .from(budgetLines)
         .innerJoin(accounts, eq(budgetLines.accountId, accounts.id))
-        .where(eq(budgetLines.budgetId, budgetId))
+        .where(and(...conditions))
 
       for (const bl of bLines) {
         const monthly = bl.monthlyAmounts as number[]
@@ -126,22 +132,38 @@ export async function generateProjectionLines(
       }
     }
 
-    // If no budget lines found, fall back to 3-month average for all active accounts with transactions
+    // If no budget lines found, fall back to 3-month average
     if (lines.length === 0) {
-      const activeAccounts = await db
-        .select({
-          accountId: accounts.id,
+      // Find account+fund combos with recent activity
+      const now = new Date()
+      const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1)
+      const startDate = threeMonthsAgo.toISOString().split('T')[0]
+      const endDate = now.toISOString().split('T')[0]
+
+      const fundConditions = [
+        eq(accounts.isActive, true),
+        eq(transactions.isVoided, false),
+        gte(transactions.date, startDate),
+        lte(transactions.date, endDate),
+      ]
+      if (fundId) fundConditions.push(eq(transactionLines.fundId, fundId))
+
+      const activeAccountFunds = await db
+        .selectDistinct({
+          accountId: transactionLines.accountId,
           accountName: accounts.name,
           accountType: accounts.type,
+          fundId: transactionLines.fundId,
         })
-        .from(accounts)
-        .where(and(eq(accounts.isActive, true)))
+        .from(transactionLines)
+        .innerJoin(transactions, eq(transactionLines.transactionId, transactions.id))
+        .innerJoin(accounts, eq(transactionLines.accountId, accounts.id))
+        .where(and(...fundConditions))
 
-      // Only include accounts that have recent GL activity
-      for (const acct of activeAccounts) {
+      for (const acct of activeAccountFunds) {
         if (acct.accountType !== 'REVENUE' && acct.accountType !== 'EXPENSE') continue
-        // Use fund=1 (General) as default for projection
-        const avg = await getThreeMonthActualAverage(acct.accountId, 1)
+
+        const avg = await getThreeMonthActualAverage(acct.accountId, acct.fundId)
         if (Math.abs(avg) < 0.01) continue
 
         const isInflow = acct.accountType === 'REVENUE'

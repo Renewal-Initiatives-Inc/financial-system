@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { auth } from '@/lib/auth'
 import {
   createCashProjection,
   saveCashProjectionLines,
@@ -10,11 +11,16 @@ import {
 import { generateProjectionLines, getStartingCash } from '@/lib/budget/projection'
 import { getBudgetByFiscalYear } from '@/lib/budget/queries'
 
+async function getUserId(): Promise<string> {
+  const session = await auth()
+  return session?.user?.id ?? 'system'
+}
+
 export async function generateProjectionAction(
-  fiscalYear: number,
-  userId: string
-): Promise<{ projectionId: number } | { error: string }> {
+  fiscalYear: number
+): Promise<{ projectionId: number; startingCash: number } | { error: string }> {
   try {
+    const userId = await getUserId()
     const now = new Date()
     const startMonth = now.getMonth() + 2 // Next month (1-indexed)
     const asOfDate = now.toISOString().split('T')[0]
@@ -63,7 +69,7 @@ export async function generateProjectionAction(
     await saveCashProjectionLines(projection.id, allLines)
 
     revalidatePath('/budgets/cash-projection')
-    return { projectionId: projection.id }
+    return { projectionId: projection.id, startingCash }
   } catch (err) {
     return { error: err instanceof Error ? err.message : 'Failed to generate projection' }
   }

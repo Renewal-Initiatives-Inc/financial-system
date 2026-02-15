@@ -6,6 +6,7 @@ import {
   accounts,
   funds,
   budgetLines,
+  budgets,
 } from '@/lib/db/schema'
 
 export type VarianceSeverity = 'normal' | 'warning' | 'critical'
@@ -99,6 +100,16 @@ export async function getBudgetVsActual(
   month?: number,
   fundId?: number
 ): Promise<BudgetVarianceRow[]> {
+  // Fetch the budget record to get its fiscal year
+  const [budget] = await db
+    .select({ fiscalYear: budgets.fiscalYear })
+    .from(budgets)
+    .where(eq(budgets.id, budgetId))
+
+  if (!budget) return []
+
+  const fiscalYear = budget.fiscalYear
+
   // Get budget lines with account and fund info
   const conditions = [eq(budgetLines.budgetId, budgetId)]
   if (fundId) conditions.push(eq(budgetLines.fundId, fundId))
@@ -138,9 +149,7 @@ export async function getBudgetVsActual(
       budgetAmount = monthly.slice(0, currentMonth).reduce((a, b) => a + b, 0)
     }
 
-    // Get actuals from GL
-    // Determine date range based on fiscal year and month
-    const fiscalYear = new Date().getFullYear() // Budget's FY is in the budget row; we use current for actuals range
+    // Determine date range based on budget's fiscal year
     let startDate: string
     let endDate: string
 
@@ -152,7 +161,12 @@ export async function getBudgetVsActual(
       // YTD
       startDate = `${fiscalYear}-01-01`
       const now = new Date()
-      endDate = now.toISOString().split('T')[0]
+      // If viewing current FY, cap at today; otherwise use full year
+      if (fiscalYear === now.getFullYear()) {
+        endDate = now.toISOString().split('T')[0]
+      } else {
+        endDate = `${fiscalYear}-12-31`
+      }
     }
 
     const actualAmount = await getActualsForPeriod(

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { RefreshCw, Save, ArrowLeft } from 'lucide-react'
+import { RefreshCw, Save, ArrowLeft, Landmark } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,6 +15,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
+import { Card, CardContent } from '@/components/ui/card'
+import { HelpTooltip } from '@/components/shared/help-tooltip'
 import { generateProjectionAction, saveProjectionOverridesAction } from './actions'
 
 const MONTH_LABELS = [
@@ -47,11 +49,13 @@ interface Projection {
 interface CashProjectionClientProps {
   initialProjection: Projection | null
   fiscalYear: number
+  ahpContext: { creditLimit: number; drawn: number; available: number } | null
 }
 
 export function CashProjectionClient({
   initialProjection,
   fiscalYear,
+  ahpContext,
 }: CashProjectionClientProps) {
   const router = useRouter()
   const [projection, setProjection] = useState(initialProjection)
@@ -63,7 +67,7 @@ export function CashProjectionClient({
 
   const handleGenerate = async () => {
     setGenerating(true)
-    const result = await generateProjectionAction(fiscalYear, 'system')
+    const result = await generateProjectionAction(fiscalYear)
     if ('error' in result) {
       toast.error(result.error)
       setGenerating(false)
@@ -117,14 +121,14 @@ export function CashProjectionClient({
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <h1 className="text-2xl font-semibold tracking-tight">
-            Cash Projection — FY {fiscalYear}
+            Cash Projection — FY {fiscalYear} <HelpTooltip term="cash-projection" />
           </h1>
         </div>
         <div className="text-center py-12">
           <p className="text-muted-foreground mb-4">
             No cash projection exists yet. Generate one based on your budget data.
           </p>
-          <Button onClick={handleGenerate} disabled={generating} data-testid="generate-btn">
+          <Button onClick={handleGenerate} disabled={generating} data-testid="cash-projection-generate-btn">
             <RefreshCw className="mr-2 h-4 w-4" />
             {generating ? 'Generating...' : 'Generate 3-Month Projection'}
           </Button>
@@ -136,9 +140,17 @@ export function CashProjectionClient({
   // Group lines by month
   const months = [...new Set(projection.lines.map((l) => l.month))].sort((a, b) => a - b)
 
+  // Separate starting cash lines from regular inflows
+  const getStartingCash = (month: number) => {
+    const line = projection.lines.find(
+      (l) => l.month === month && l.sourceLabel === 'Starting Cash'
+    )
+    return line ? Number(line.autoAmount) : 0
+  }
+
   const getLines = (month: number, type: string) =>
     projection.lines
-      .filter((l) => l.month === month && l.lineType === type)
+      .filter((l) => l.month === month && l.lineType === type && l.sourceLabel !== 'Starting Cash')
       .sort((a, b) => a.sortOrder - b.sortOrder)
 
   const getEffectiveAmount = (line: ProjectionLine) => {
@@ -147,6 +159,17 @@ export function CashProjectionClient({
     if (line.overrideAmount != null) return Number(line.overrideAmount)
     return Number(line.autoAmount)
   }
+
+  // Calculate net cash flow for each month (excluding starting cash)
+  const getNetCashFlow = (month: number) => {
+    const inflowLines = getLines(month, 'INFLOW')
+    const outflowLines = getLines(month, 'OUTFLOW')
+    const inflows = inflowLines.reduce((sum, l) => sum + getEffectiveAmount(l), 0)
+    const outflows = outflowLines.reduce((sum, l) => sum + getEffectiveAmount(l), 0)
+    return inflows - outflows
+  }
+
+  const startingCash = months.length > 0 ? getStartingCash(months[0]) : 0
 
   return (
     <div className="space-y-4">
@@ -157,7 +180,7 @@ export function CashProjectionClient({
           </Button>
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">
-              Cash Projection — FY {fiscalYear}
+              Cash Projection — FY {fiscalYear} <HelpTooltip term="cash-projection" />
             </h1>
             <p className="text-sm text-muted-foreground">
               As of {projection.asOfDate}
@@ -189,6 +212,29 @@ export function CashProjectionClient({
             </TableRow>
           </TableHeader>
           <TableBody>
+            {/* Starting Cash Row */}
+            <TableRow className="bg-blue-50 font-semibold" data-testid="starting-cash-row">
+              <TableCell>Starting Cash</TableCell>
+              {months.map((m, i) => {
+                // First month uses GL starting cash; subsequent months use prior month ending cash
+                let cash: number
+                if (i === 0) {
+                  cash = startingCash
+                } else {
+                  // Cumulative: starting cash + sum of net cash flows for prior months
+                  cash = startingCash
+                  for (let j = 0; j < i; j++) {
+                    cash += getNetCashFlow(months[j])
+                  }
+                }
+                return (
+                  <TableCell key={m} className="text-center font-mono">
+                    {formatCurrency(cash)}
+                  </TableCell>
+                )
+              })}
+            </TableRow>
+
             {/* Inflows */}
             <TableRow className="bg-muted/50">
               <TableCell colSpan={months.length + 1} className="font-semibold text-green-700">
@@ -305,19 +351,11 @@ export function CashProjectionClient({
               })}
             </TableRow>
 
-            {/* Net Cash */}
+            {/* Net Cash Flow */}
             <TableRow className="border-t-2 bg-muted font-bold">
               <TableCell>Net Cash Flow</TableCell>
               {months.map((m) => {
-                const inflows = getLines(m, 'INFLOW').reduce(
-                  (sum, l) => sum + getEffectiveAmount(l),
-                  0
-                )
-                const outflows = getLines(m, 'OUTFLOW').reduce(
-                  (sum, l) => sum + getEffectiveAmount(l),
-                  0
-                )
-                const net = inflows - outflows
+                const net = getNetCashFlow(m)
                 return (
                   <TableCell
                     key={m}
@@ -328,9 +366,46 @@ export function CashProjectionClient({
                 )
               })}
             </TableRow>
+
+            {/* Ending Cash Row */}
+            <TableRow className="bg-blue-50 font-semibold" data-testid="ending-cash-row">
+              <TableCell>Ending Cash</TableCell>
+              {months.map((m, i) => {
+                let endingCash = startingCash
+                for (let j = 0; j <= i; j++) {
+                  endingCash += getNetCashFlow(months[j])
+                }
+                return (
+                  <TableCell
+                    key={m}
+                    className={`text-center font-mono ${endingCash >= 0 ? 'text-blue-700' : 'text-red-700'}`}
+                  >
+                    {formatCurrency(endingCash)}
+                  </TableCell>
+                )
+              })}
+            </TableRow>
           </TableBody>
         </Table>
       </div>
+
+      {/* AHP Credit Facility Context */}
+      {ahpContext && (
+        <Card data-testid="ahp-context-card">
+          <CardContent className="flex items-center gap-4 py-3">
+            <Landmark className="h-5 w-5 text-muted-foreground" />
+            <div className="text-sm">
+              <span className="font-medium">AHP Credit Facility</span>{' '}
+              <HelpTooltip term="ahp-loan" />:{' '}
+              {formatCurrency(ahpContext.creditLimit)} |{' '}
+              Drawn: {formatCurrency(ahpContext.drawn)} |{' '}
+              <span className="font-semibold text-green-700">
+                Available: {formatCurrency(ahpContext.available)}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Override Notes */}
       {overrides.size > 0 && (

@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Trash2, ArrowLeft, CheckCircle } from 'lucide-react'
+import { Plus, Trash2, ArrowLeft, CheckCircle, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -88,17 +88,14 @@ export function BudgetEditClient({ budget, accounts, funds }: BudgetEditClientPr
     }
 
     const monthlyAmounts = recalculateSpread('EVEN', 0)
-    const result = await saveBudgetLineAction(
-      {
-        budgetId: budget.id,
-        accountId: newAccountId,
-        fundId: newFundId,
-        annualAmount: 0,
-        spreadMethod: 'EVEN',
-        monthlyAmounts,
-      },
-      'system'
-    )
+    const result = await saveBudgetLineAction({
+      budgetId: budget.id,
+      accountId: newAccountId,
+      fundId: newFundId,
+      annualAmount: 0,
+      spreadMethod: 'EVEN',
+      monthlyAmounts,
+    })
 
     if ('error' in result) {
       toast.error(result.error)
@@ -141,8 +138,7 @@ export function BudgetEditClient({ budget, accounts, funds }: BudgetEditClientPr
       const result = await updateBudgetLineAction(
         lineId,
         { annualAmount: amount, spreadMethod: spreadMethod as any, monthlyAmounts },
-        budget.id,
-        'system'
+        budget.id
       )
       setSaving(null)
 
@@ -180,8 +176,7 @@ export function BudgetEditClient({ budget, accounts, funds }: BudgetEditClientPr
       const result = await updateBudgetLineAction(
         lineId,
         { spreadMethod: method as any, monthlyAmounts },
-        budget.id,
-        'system'
+        budget.id
       )
       setSaving(null)
 
@@ -206,8 +201,7 @@ export function BudgetEditClient({ budget, accounts, funds }: BudgetEditClientPr
       const result = await updateBudgetLineAction(
         lineId,
         { annualAmount, monthlyAmounts: amounts },
-        budget.id,
-        'system'
+        budget.id
       )
       setSaving(null)
 
@@ -217,7 +211,7 @@ export function BudgetEditClient({ budget, accounts, funds }: BudgetEditClientPr
   )
 
   const handleDeleteLine = async (lineId: number) => {
-    const result = await deleteBudgetLineAction(lineId, budget.id, 'system')
+    const result = await deleteBudgetLineAction(lineId, budget.id)
     if ('error' in result) {
       toast.error(result.error)
       return
@@ -227,7 +221,7 @@ export function BudgetEditClient({ budget, accounts, funds }: BudgetEditClientPr
   }
 
   const handleApprove = async () => {
-    const result = await approveBudgetAction(budget.id, 'system')
+    const result = await approveBudgetAction(budget.id)
     if ('error' in result) {
       toast.error(result.error)
       return
@@ -290,6 +284,17 @@ export function BudgetEditClient({ budget, accounts, funds }: BudgetEditClientPr
           )}
         </div>
       </div>
+
+      {/* Mid-Year Lock Notice */}
+      {!isDraft && (
+        <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm" data-testid="mid-year-lock-notice">
+          <Lock className="h-4 w-4 text-amber-600 shrink-0" />
+          <span>
+            Months through <span className="font-medium">{MONTH_LABELS[currentMonth - 1]}</span> are locked (actuals recorded).
+            Only future months can be modified.
+          </span>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex items-center gap-4">

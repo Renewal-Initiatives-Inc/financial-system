@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { getBudgetAction, getBudgetVarianceAction } from '../actions'
+import { getBudgetAction, getBudgetVarianceAction, getCIPVarianceAction } from '../actions'
 import { getFunds } from '@/app/(protected)/funds/actions'
 import { BudgetReviewClient } from './budget-review-client'
 
@@ -12,9 +12,10 @@ export default async function BudgetReviewPage({ params }: Props) {
   const budgetId = parseInt(id)
   if (isNaN(budgetId)) notFound()
 
-  const [budget, variance, funds] = await Promise.all([
+  const [budget, variance, cipVariance, funds] = await Promise.all([
     getBudgetAction(budgetId),
     getBudgetVarianceAction(budgetId),
+    getCIPVarianceAction(budgetId),
     getFunds(),
   ])
 
@@ -24,6 +25,8 @@ export default async function BudgetReviewPage({ params }: Props) {
     <BudgetReviewClient
       budget={budget}
       initialVariance={variance}
+      initialCIPVariance={cipVariance}
+      grantBudgetContext={null}
       funds={funds}
     />
   )

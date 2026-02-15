@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Pencil, ArrowLeft } from 'lucide-react'
+import { Pencil, ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -20,10 +20,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
 import { VarianceIndicator } from '@/components/budgets/variance-indicator'
-import { getBudgetVarianceAction } from '../actions'
+import { HelpTooltip } from '@/components/shared/help-tooltip'
+import { getBudgetVarianceAction, getCIPVarianceAction, getGrantBudgetSummaryAction } from '../actions'
 import type { BudgetWithLines } from '@/lib/budget/queries'
 import type { BudgetVarianceRow } from '@/lib/budget/variance'
+import type { CIPSubAccountVariance } from '@/lib/budget/cip-budget'
 
 const MONTHS = [
   { value: 'ytd', label: 'Year-to-Date' },
@@ -47,27 +54,61 @@ const formatCurrency = (amount: number) =>
 interface BudgetReviewClientProps {
   budget: BudgetWithLines
   initialVariance: BudgetVarianceRow[]
+  initialCIPVariance: CIPSubAccountVariance[]
+  grantBudgetContext: { fundName: string; totalBudgeted: number; totalSpent: number; remaining: number } | null
   funds: { id: number; name: string; isActive: boolean }[]
 }
 
 export function BudgetReviewClient({
   budget,
   initialVariance,
+  initialCIPVariance,
+  grantBudgetContext,
   funds,
 }: BudgetReviewClientProps) {
   const router = useRouter()
   const [variance, setVariance] = useState(initialVariance)
+  const [cipVariance, setCipVariance] = useState(initialCIPVariance)
   const [period, setPeriod] = useState('ytd')
   const [fundFilter, setFundFilter] = useState('all')
   const [loading, setLoading] = useState(false)
+  const [expandedCIP, setExpandedCIP] = useState<Set<number>>(new Set())
+  const [grantContext, setGrantContext] = useState(grantBudgetContext)
 
   const handleFilterChange = async (newPeriod: string, newFund: string) => {
     setLoading(true)
     const month = newPeriod === 'ytd' ? undefined : parseInt(newPeriod)
     const fund = newFund === 'all' ? undefined : parseInt(newFund)
-    const data = await getBudgetVarianceAction(budget.id, month, fund)
+    const [data, cipData] = await Promise.all([
+      getBudgetVarianceAction(budget.id, month, fund),
+      getCIPVarianceAction(budget.id, fund),
+    ])
     setVariance(data)
+    setCipVariance(cipData)
+
+    // Fetch grant context when filtering to a specific fund
+    if (fund) {
+      const summary = await getGrantBudgetSummaryAction(fund)
+      setGrantContext(summary ? {
+        fundName: summary.fundName,
+        totalBudgeted: summary.totalBudgeted,
+        totalSpent: summary.totalSpent,
+        remaining: summary.remaining,
+      } : null)
+    } else {
+      setGrantContext(null)
+    }
+
     setLoading(false)
+  }
+
+  const toggleCIPExpand = (accountId: number) => {
+    setExpandedCIP((prev) => {
+      const next = new Set(prev)
+      if (next.has(accountId)) next.delete(accountId)
+      else next.add(accountId)
+      return next
+    })
   }
 
   const totalBudget = variance.reduce((sum, r) => sum + r.budgetAmount, 0)
@@ -109,6 +150,16 @@ export function BudgetReviewClient({
           Edit Budget
         </Button>
       </div>
+
+      {/* Grant Budget Context Banner */}
+      {grantContext && (
+        <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm" data-testid="grant-budget-context">
+          <span className="font-medium">{grantContext.fundName} — Grant Total:</span>{' '}
+          {formatCurrency(grantContext.totalBudgeted)} budgeted across fiscal years |{' '}
+          {formatCurrency(grantContext.totalSpent)} spent |{' '}
+          <span className="font-semibold">{formatCurrency(grantContext.remaining)} remaining</span>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex items-center gap-4">
@@ -160,9 +211,13 @@ export function BudgetReviewClient({
               <TableHead>Code</TableHead>
               <TableHead>Account</TableHead>
               <TableHead>Fund</TableHead>
-              <TableHead className="text-right">Budget</TableHead>
+              <TableHead className="text-right">
+                Budget <HelpTooltip term="budget" />
+              </TableHead>
               <TableHead className="text-right">Actual</TableHead>
-              <TableHead className="text-right">Variance</TableHead>
+              <TableHead className="text-right">
+                Variance <HelpTooltip term="budget-variance" />
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -197,6 +252,88 @@ export function BudgetReviewClient({
           </TableBody>
         </Table>
       </div>
+
+      {/* CIP Budget Detail */}
+      {cipVariance.length > 0 && (
+        <div className="space-y-2" data-testid="cip-budget-detail">
+          <h2 className="text-lg font-semibold">
+            CIP Budget Detail <HelpTooltip term="cip" />
+          </h2>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[40px]"></TableHead>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Sub-Account</TableHead>
+                  <TableHead className="text-right">Budget</TableHead>
+                  <TableHead className="text-right">Actual</TableHead>
+                  <TableHead className="text-right">Variance</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {cipVariance.map((sub) => (
+                  <Collapsible key={sub.accountId} asChild open={expandedCIP.has(sub.accountId)}>
+                    <>
+                      <CollapsibleTrigger asChild>
+                        <TableRow
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => toggleCIPExpand(sub.accountId)}
+                        >
+                          <TableCell>
+                            {sub.costCodes.length > 0 ? (
+                              expandedCIP.has(sub.accountId) ? (
+                                <ChevronDown className="h-4 w-4" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
+                              )
+                            ) : null}
+                          </TableCell>
+                          <TableCell className="font-mono text-sm">{sub.accountCode}</TableCell>
+                          <TableCell className="font-medium">{sub.accountName}</TableCell>
+                          <TableCell className="text-right font-mono">
+                            {formatCurrency(sub.budgetAmount)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono">
+                            {formatCurrency(sub.actualAmount)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <VarianceIndicator
+                              dollarVariance={sub.dollarVariance}
+                              percentVariance={sub.percentVariance}
+                              severity={sub.severity}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent asChild>
+                        <>
+                          {sub.costCodes.map((cc) => (
+                            <TableRow key={cc.costCodeId} className="bg-muted/30">
+                              <TableCell></TableCell>
+                              <TableCell className="text-xs text-muted-foreground pl-6">
+                                {cc.costCodeCategory}
+                              </TableCell>
+                              <TableCell className="text-sm pl-6">{cc.costCodeName}</TableCell>
+                              <TableCell className="text-right font-mono text-sm text-muted-foreground">
+                                —
+                              </TableCell>
+                              <TableCell className="text-right font-mono text-sm">
+                                {formatCurrency(cc.actual)}
+                              </TableCell>
+                              <TableCell></TableCell>
+                            </TableRow>
+                          ))}
+                        </>
+                      </CollapsibleContent>
+                    </>
+                  </Collapsible>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

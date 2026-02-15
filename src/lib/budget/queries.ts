@@ -1,4 +1,4 @@
-import { eq, and } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
 import { db } from '@/lib/db'
 import {
@@ -8,6 +8,8 @@ import {
   funds,
   cashProjections,
   cashProjectionLines,
+  transactionLines,
+  transactions,
 } from '@/lib/db/schema'
 import {
   insertBudgetSchema,
@@ -309,6 +311,135 @@ export async function getBudgetForMonth(
     fundId: l.fundId,
     amount: (l.monthlyAmounts as number[])[month - 1] ?? 0,
   }))
+}
+
+// --- Grant Budget Summary ---
+
+export interface GrantBudgetSummary {
+  fundId: number
+  fundName: string
+  totalBudgeted: number
+  totalSpent: number
+  remaining: number
+}
+
+/**
+ * Get cross-fiscal-year budget summary for a restricted fund.
+ * Sums budget lines across all fiscal years for the given fund.
+ */
+export async function getGrantBudgetSummary(fundId: number): Promise<GrantBudgetSummary | null> {
+  const [fund] = await db
+    .select({ id: funds.id, name: funds.name, restrictionType: funds.restrictionType })
+    .from(funds)
+    .where(eq(funds.id, fundId))
+
+  if (!fund || fund.restrictionType !== 'RESTRICTED') return null
+
+  const lines = await db
+    .select({ annualAmount: budgetLines.annualAmount })
+    .from(budgetLines)
+    .where(eq(budgetLines.fundId, fundId))
+
+  const totalBudgeted = lines.reduce((sum, l) => sum + Number(l.annualAmount), 0)
+
+  // Get total actuals for this fund across all time
+  const actualsResult = await db
+    .select({
+      totalDebit: sql<string>`COALESCE(SUM(${transactionLines.debit}), 0)`,
+      totalCredit: sql<string>`COALESCE(SUM(${transactionLines.credit}), 0)`,
+    })
+    .from(transactionLines)
+    .innerJoin(transactions, eq(transactionLines.transactionId, transactions.id))
+    .innerJoin(accounts, eq(transactionLines.accountId, accounts.id))
+    .where(
+      and(
+        eq(transactionLines.fundId, fundId),
+        eq(transactions.isVoided, false),
+        eq(accounts.type, 'EXPENSE')
+      )
+    )
+
+  const totalSpent = actualsResult.length > 0
+    ? Number(actualsResult[0].totalDebit) - Number(actualsResult[0].totalCredit)
+    : 0
+
+  return {
+    fundId: fund.id,
+    fundName: fund.name,
+    totalBudgeted,
+    totalSpent: Math.abs(totalSpent),
+    remaining: totalBudgeted - Math.abs(totalSpent),
+  }
+}
+
+// --- Copy Prior Year Budget ---
+
+/**
+ * Copy budget from a prior year with optional percentage adjustment.
+ * Creates a new budget for the target FY with all lines from the source.
+ */
+export async function copyBudgetFromPriorYear(
+  sourceBudgetId: number,
+  targetFiscalYear: number,
+  adjustmentPercent: number,
+  userId: string
+): Promise<BudgetRow> {
+  const source = await getBudget(sourceBudgetId)
+  if (!source) throw new Error(`Source budget ${sourceBudgetId} not found`)
+
+  const existing = await getBudgetByFiscalYear(targetFiscalYear)
+  if (existing) throw new Error(`A budget already exists for fiscal year ${targetFiscalYear}`)
+
+  const multiplier = 1 + adjustmentPercent / 100
+
+  const [newBudget] = await db.transaction(async (tx) => {
+    const result = await tx
+      .insert(budgets)
+      .values({
+        fiscalYear: targetFiscalYear,
+        status: 'DRAFT',
+        createdBy: userId,
+      })
+      .returning()
+
+    // Copy each line with adjustment
+    for (const line of source.lines) {
+      const adjustedAnnual = Math.round(Number(line.annualAmount) * multiplier * 100) / 100
+      const adjustedMonthly = (line.monthlyAmounts as number[]).map(
+        (m) => Math.round(m * multiplier * 100) / 100
+      )
+      // Fix rounding so monthly sums match annual
+      const monthlySum = adjustedMonthly.reduce((a, b) => a + b, 0)
+      if (Math.abs(monthlySum - adjustedAnnual) > 0.001) {
+        adjustedMonthly[11] = Math.round((adjustedAnnual - adjustedMonthly.slice(0, 11).reduce((a, b) => a + b, 0)) * 100) / 100
+      }
+
+      await tx.insert(budgetLines).values({
+        budgetId: result[0].id,
+        accountId: line.accountId,
+        fundId: line.fundId,
+        annualAmount: adjustedAnnual.toFixed(2),
+        spreadMethod: line.spreadMethod,
+        monthlyAmounts: adjustedMonthly,
+      })
+    }
+
+    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+      userId,
+      action: 'created',
+      entityType: 'budget',
+      entityId: result[0].id,
+      afterState: {
+        ...result[0],
+        copiedFrom: sourceBudgetId,
+        adjustmentPercent,
+      } as unknown as Record<string, unknown>,
+    })
+
+    return result
+  })
+
+  return newBudget
 }
 
 // --- Cash Projection CRUD ---
