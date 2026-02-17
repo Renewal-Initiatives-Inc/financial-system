@@ -15,7 +15,7 @@ import { decrypt } from '@/lib/encryption'
  * - Updates cursor after successful sync
  * - Sends Postmark alert on failure per account
  */
-export async function POST(req: Request) {
+export async function GET(req: Request) {
   const authHeader = req.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

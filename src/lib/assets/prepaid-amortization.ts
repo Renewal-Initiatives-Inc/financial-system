@@ -2,7 +2,7 @@ import { and, eq, lte, lt, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { prepaidSchedules, transactions, transactionLines } from '@/lib/db/schema'
 import { createTransaction } from '@/lib/gl/engine'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 
 export interface AmortizationResult {
   entriesCreated: number

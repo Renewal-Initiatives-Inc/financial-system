@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { eq, and, sql, desc, inArray } from 'drizzle-orm'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 import { db } from '@/lib/db'
 import {
   purchaseOrders,
@@ -186,7 +186,7 @@ export async function createPurchaseOrder(
       })
       .returning()
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'created',
       entityType: 'purchase_order',
@@ -247,7 +247,7 @@ export async function updatePurchaseOrder(
       .from(purchaseOrders)
       .where(eq(purchaseOrders.id, id))
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'updated',
       entityType: 'purchase_order',
@@ -292,7 +292,7 @@ export async function updatePurchaseOrderStatus(
       .set({ status, updatedAt: new Date() })
       .where(eq(purchaseOrders.id, id))
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'updated',
       entityType: 'purchase_order',
@@ -393,7 +393,7 @@ export async function createInvoice(
 
   // 7. Audit log for invoice creation
   await db.transaction(async (tx) => {
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'created',
       entityType: 'invoice',
@@ -436,7 +436,7 @@ export async function markPaymentInProcess(
       .set({ paymentStatus: 'PAYMENT_IN_PROCESS', updatedAt: new Date() })
       .where(eq(invoices.id, invoiceId))
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'updated',
       entityType: 'invoice',

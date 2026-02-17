@@ -17,7 +17,7 @@ import {
 import { logAudit } from '@/lib/audit/logger'
 import { collectSecurityDeposit } from '@/lib/security-deposits/collect'
 import { getUserId } from '@/lib/auth'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 
 // --- Types ---
 
@@ -111,7 +111,7 @@ export async function createTenant(
       })
       .returning()
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'created',
       entityType: 'tenant',
@@ -198,7 +198,7 @@ export async function updateTenant(
       .from(tenants)
       .where(eq(tenants.id, id))
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'updated',
       entityType: 'tenant',
@@ -232,7 +232,7 @@ export async function toggleTenantActive(
       .set({ isActive: active, updatedAt: new Date() })
       .where(eq(tenants.id, id))
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: active ? 'updated' : 'deactivated',
       entityType: 'tenant',
@@ -283,7 +283,7 @@ export async function completeReceipt(
       .set({ completedDate: today })
       .where(eq(securityDepositReceipts.id, receiptId))
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'updated',
       entityType: 'security_deposit_receipt',

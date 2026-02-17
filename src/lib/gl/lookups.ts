@@ -1,5 +1,5 @@
 import { eq, inArray } from 'drizzle-orm'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 import {
   accounts,
   funds,
@@ -13,7 +13,7 @@ import type { Account, Fund, TransactionWithLines } from './types'
  */
 export async function getAccountsById(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tx: NeonHttpDatabase<any>,
+  tx: NeonDatabase<any>,
   ids: number[]
 ): Promise<Map<number, Account>> {
   if (ids.length === 0) return new Map()
@@ -32,7 +32,7 @@ export async function getAccountsById(
  */
 export async function getFundsById(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tx: NeonHttpDatabase<any>,
+  tx: NeonDatabase<any>,
   ids: number[]
 ): Promise<Map<number, Fund>> {
   if (ids.length === 0) return new Map()
@@ -52,7 +52,7 @@ export async function getFundsById(
  */
 export async function getNetAssetAccounts(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tx: NeonHttpDatabase<any>
+  tx: NeonDatabase<any>
 ): Promise<{ unrestricted: Account; restricted: Account }> {
   const [unrestricted] = await tx
     .select()
@@ -78,7 +78,7 @@ export async function getNetAssetAccounts(
  */
 export async function getTransactionWithLines(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tx: NeonHttpDatabase<any>,
+  tx: NeonDatabase<any>,
   id: number
 ): Promise<TransactionWithLines | null> {
   const [txnRow] = await tx

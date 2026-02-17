@@ -1,5 +1,5 @@
 import { eq, and, sql } from 'drizzle-orm'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 import { db } from '@/lib/db'
 import {
   budgets,
@@ -51,7 +51,7 @@ export async function createBudget(input: InsertBudget): Promise<BudgetRow> {
       })
       .returning()
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId: validated.createdBy,
       action: 'created',
       entityType: 'budget',
@@ -146,7 +146,7 @@ export async function createBudgetLine(
       })
       .returning()
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'created',
       entityType: 'budget_line',
@@ -212,7 +212,7 @@ export async function updateBudgetLine(
       .where(eq(budgetLines.id, id))
       .returning()
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'updated',
       entityType: 'budget_line',
@@ -238,7 +238,7 @@ export async function deleteBudgetLine(id: number, userId: string): Promise<void
 
     await tx.delete(budgetLines).where(eq(budgetLines.id, id))
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'updated',
       entityType: 'budget_line',
@@ -268,7 +268,7 @@ export async function updateBudgetStatus(
       .where(eq(budgets.id, id))
       .returning()
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'updated',
       entityType: 'budget',
@@ -424,7 +424,7 @@ export async function copyBudgetFromPriorYear(
       })
     }
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'created',
       entityType: 'budget',

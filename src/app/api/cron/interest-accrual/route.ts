@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { generateInterestAccrualEntry } from '@/lib/assets/interest-accrual'
 
-export async function POST(request: Request) {
+export async function GET(request: Request) {
   // Verify Vercel cron authorization
   const authHeader = request.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {

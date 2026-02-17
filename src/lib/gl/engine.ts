@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 import { db } from '@/lib/db'
 import { transactions, transactionLines } from '@/lib/db/schema'
 import {
@@ -70,7 +70,7 @@ export async function createTransaction(
   return await db.transaction(async (tx) => {
     // Step 2: Account validation (INV-002 + INV-004)
     const accountIds = validated.lines.map((l) => l.accountId)
-    const accountMap = await getAccountsById(tx as unknown as NeonHttpDatabase<any>, accountIds)
+    const accountMap = await getAccountsById(tx as unknown as NeonDatabase<any>, accountIds)
 
     for (const line of validated.lines) {
       const account = accountMap.get(line.accountId)
@@ -88,7 +88,7 @@ export async function createTransaction(
 
     // Step 3: Fund validation (INV-003)
     const fundIds = validated.lines.map((l) => l.fundId)
-    const fundMap = await getFundsById(tx as unknown as NeonHttpDatabase<any>, fundIds)
+    const fundMap = await getFundsById(tx as unknown as NeonDatabase<any>, fundIds)
 
     for (const line of validated.lines) {
       const fund = fundMap.get(line.fundId)
@@ -129,7 +129,7 @@ export async function createTransaction(
 
     // Step 6: Audit log (INV-012)
     const result = formatResult(txnRow, insertedLines)
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId: validated.createdBy,
       action: 'created',
       entityType: 'transaction',
@@ -148,7 +148,7 @@ export async function createTransaction(
 
     if (restrictedExpenses.length > 0) {
       const netAssetAccounts = await getNetAssetAccounts(
-        tx as unknown as NeonHttpDatabase<any>
+        tx as unknown as NeonDatabase<any>
       )
       const releaseLines = buildReleaseLines(
         restrictedExpenses,
@@ -187,7 +187,7 @@ export async function createTransaction(
       releaseResult = formatResult(releaseTxnRow, releaseInsertedLines)
 
       // Audit log for release transaction
-      await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+      await logAudit(tx as unknown as NeonDatabase<any>, {
         userId: validated.createdBy,
         action: 'created',
         entityType: 'transaction',
@@ -223,7 +223,7 @@ export async function editTransaction(
 
   return await db.transaction(async (tx) => {
     const existing = await getTransactionWithLines(
-      tx as unknown as NeonHttpDatabase<any>,
+      tx as unknown as NeonDatabase<any>,
       id
     )
     if (!existing) {
@@ -251,7 +251,7 @@ export async function editTransaction(
       // Validate accounts
       const accountIds = validated.lines.map((l) => l.accountId)
       const accountMap = await getAccountsById(
-        tx as unknown as NeonHttpDatabase<any>,
+        tx as unknown as NeonDatabase<any>,
         accountIds
       )
       for (const line of validated.lines) {
@@ -271,7 +271,7 @@ export async function editTransaction(
       // Validate funds
       const fundIds = validated.lines.map((l) => l.fundId)
       const fundMap = await getFundsById(
-        tx as unknown as NeonHttpDatabase<any>,
+        tx as unknown as NeonDatabase<any>,
         fundIds
       )
       for (const line of validated.lines) {
@@ -313,13 +313,13 @@ export async function editTransaction(
 
     // Re-fetch the updated transaction
     const updated = await getTransactionWithLines(
-      tx as unknown as NeonHttpDatabase<any>,
+      tx as unknown as NeonDatabase<any>,
       id
     )
     const afterState = formatResult(updated!, updated!.lines)
 
     // Audit log
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'updated',
       entityType: 'transaction',
@@ -343,7 +343,7 @@ export async function reverseTransaction(
 ): Promise<TransactionResult> {
   return await db.transaction(async (tx) => {
     const existing = await getTransactionWithLines(
-      tx as unknown as NeonHttpDatabase<any>,
+      tx as unknown as NeonDatabase<any>,
       id
     )
     if (!existing) {
@@ -396,7 +396,7 @@ export async function reverseTransaction(
     const reversalResult = formatResult(reversalTxn, reversalLines)
 
     // Audit: 'reversed' on original
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'reversed',
       entityType: 'transaction',
@@ -412,7 +412,7 @@ export async function reverseTransaction(
     })
 
     // Audit: 'created' on reversal
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'created',
       entityType: 'transaction',
@@ -433,7 +433,7 @@ export async function voidTransaction(
 ): Promise<void> {
   await db.transaction(async (tx) => {
     const existing = await getTransactionWithLines(
-      tx as unknown as NeonHttpDatabase<any>,
+      tx as unknown as NeonDatabase<any>,
       id
     )
     if (!existing) {
@@ -448,7 +448,7 @@ export async function voidTransaction(
       .set({ isVoided: true })
       .where(eq(transactions.id, id))
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'voided',
       entityType: 'transaction',

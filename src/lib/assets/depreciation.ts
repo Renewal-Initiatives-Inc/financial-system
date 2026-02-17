@@ -8,7 +8,7 @@ import {
 } from '@/lib/db/schema'
 import { createTransaction } from '@/lib/gl/engine'
 import { logAudit } from '@/lib/audit/logger'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 
 export interface FixedAssetForDepreciation {
   id: number

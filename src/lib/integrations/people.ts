@@ -101,19 +101,21 @@ export async function getActiveEmployees(): Promise<EmployeePayrollData[]> {
         FROM employees WHERE is_active = true`
   )
 
+  // Neon HTTP driver returns numeric/decimal columns as strings to preserve
+  // precision. We must explicitly convert them to numbers for math operations.
   return rows.rows.map((row: Record<string, unknown>) => ({
     id: row.id as string,
     name: row.name as string,
     email: row.email as string,
     compensationType: row.compensation_type as 'PER_TASK' | 'SALARIED',
-    annualSalary: row.annual_salary as number | null,
-    expectedAnnualHours: row.expected_annual_hours as number | null,
+    annualSalary: row.annual_salary != null ? Number(row.annual_salary) : null,
+    expectedAnnualHours: row.expected_annual_hours != null ? Number(row.expected_annual_hours) : null,
     exemptStatus: row.exempt_status as 'EXEMPT' | 'NON_EXEMPT',
     federalFilingStatus: row.federal_filing_status as 'single' | 'married' | 'head_of_household',
-    federalAllowances: row.federal_allowances as number,
-    stateAllowances: row.state_allowances as number,
-    additionalFederalWithholding: row.additional_federal_withholding as number,
-    additionalStateWithholding: row.additional_state_withholding as number,
+    federalAllowances: Number(row.federal_allowances ?? 0),
+    stateAllowances: Number(row.state_allowances ?? 0),
+    additionalFederalWithholding: Number(row.additional_federal_withholding ?? 0),
+    additionalStateWithholding: Number(row.additional_state_withholding ?? 0),
     isHeadOfHousehold: row.is_head_of_household as boolean,
     isBlind: row.is_blind as boolean,
     spouseIsBlind: row.spouse_is_blind as boolean,

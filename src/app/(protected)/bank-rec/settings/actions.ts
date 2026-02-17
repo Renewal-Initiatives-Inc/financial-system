@@ -9,7 +9,7 @@ import { logAudit } from '@/lib/audit/logger'
 import { encrypt, decrypt } from '@/lib/encryption'
 import { exchangePublicToken, syncTransactions, createLinkToken } from '@/lib/integrations/plaid'
 import { sendPlaidSyncFailureEmail } from '@/lib/integrations/plaid-sync-notification'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 
 // --- Types ---
 
@@ -85,10 +85,26 @@ export async function addBankAccount(
   })
 
   // Exchange public token for access token
-  const { accessToken, itemId } = await exchangePublicToken(data.publicToken)
+  let accessToken: string
+  let itemId: string
+  try {
+    const result = await exchangePublicToken(data.publicToken)
+    accessToken = result.accessToken
+    itemId = result.itemId
+  } catch (err: any) {
+    const detail = err?.response?.data ?? err?.message ?? String(err)
+    console.error('[addBankAccount] Token exchange failed:', JSON.stringify(detail))
+    throw new Error(`Plaid token exchange failed: ${typeof detail === 'string' ? detail : JSON.stringify(detail)}`)
+  }
 
   // Encrypt access token before storage (SYS-P0-017)
-  const encryptedToken = encrypt(accessToken)
+  let encryptedToken: string
+  try {
+    encryptedToken = encrypt(accessToken)
+  } catch (err: any) {
+    console.error('[addBankAccount] Encryption failed:', err?.message)
+    throw new Error(`Token encryption failed: ${err?.message}`)
+  }
 
   const [newAccount] = await db.transaction(async (tx) => {
     const result = await tx
@@ -103,7 +119,7 @@ export async function addBankAccount(
       })
       .returning()
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'created',
       entityType: 'bank_account',
@@ -133,7 +149,7 @@ export async function deactivateBankAccount(
       .set({ isActive: false })
       .where(eq(bankAccounts.id, id))
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'deactivated',
       entityType: 'bank_account',

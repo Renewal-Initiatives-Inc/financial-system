@@ -1,8 +1,8 @@
 import { config } from 'dotenv'
 config({ path: '.env.local' })
 
-import { neon } from '@neondatabase/serverless'
-import { drizzle } from 'drizzle-orm/neon-http'
+import { Pool } from '@neondatabase/serverless'
+import { drizzle } from 'drizzle-orm/neon-serverless'
 import { eq } from 'drizzle-orm'
 import * as schema from '../schema'
 import { seedAccounts } from './accounts'
@@ -17,8 +17,8 @@ async function seed() {
     throw new Error('DATABASE_URL is not set. Cannot seed.')
   }
 
-  const sql = neon(connectionString)
-  const db = drizzle(sql, { schema })
+  const pool = new Pool({ connectionString })
+  const db = drizzle(pool, { schema })
 
   console.log('Starting seed...\n')
 
@@ -133,6 +133,8 @@ async function seed() {
   console.log(`  Seeded ${seedAnnualRates.length} annual rates`)
 
   console.log('\nSeed complete!')
+
+  await pool.end()
 }
 
 seed().catch((err) => {

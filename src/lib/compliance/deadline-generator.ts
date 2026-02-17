@@ -2,7 +2,7 @@ import { eq, and } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { complianceDeadlines, tenants } from '@/lib/db/schema'
 import { logAudit } from '@/lib/audit/logger'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 
 interface AnnualDeadline {
   taskName: string
@@ -148,7 +148,7 @@ export async function completeDeadline(
       .set({ status: 'completed' })
       .where(eq(complianceDeadlines.id, deadlineId))
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'updated',
       entityType: 'compliance_deadline',

@@ -10,7 +10,9 @@ For Renewal Initiatives, Inc. staff operating the fund accounting system.
 
 **Navigation:** The left sidebar contains all system sections. Click any item to navigate. Sub-items appear indented under their parent.
 
-**AI Copilot:** Available on every page via the copilot panel. Ask questions like "What is a restricted fund?" or "Show me the current cash position" for contextual help.
+**AI Copilot:** Available on every page via the chat panel. Ask questions like "What is a restricted fund?" or "Show me the current cash position" for contextual help.
+
+**User Menu:** Click your avatar (top right) to access **Back to App Portal** (opens tools.renewalinitiatives.org) and **Sign Out**.
 
 ---
 
@@ -67,10 +69,11 @@ On the 1st of each month, the system auto-generates:
 - **Depreciation** — entries for all in-service fixed assets
 - **Prepaid amortization** — monthly allocation of prepaid expenses (insurance, etc.)
 - **Rent accrual** — tenant rent charges (when tenants are active)
+- **Security deposit interest** — annual interest payment for tenants whose tenancy anniversary falls this month (MA G.L. c. 186 § 15B, capped at 5%)
 
 On the 28th:
 
-- **AHP interest accrual** — loan interest on the drawn balance
+- **AHP interest accrual** — loan interest on the drawn balance (Actual/365 day-count, amount varies by month)
 
 Review these entries in **Transactions** by filtering for the current month and source type "CRON".
 
@@ -114,8 +117,7 @@ The board receives financial reports quarterly.
 
 Required for the Form 990 — allocates shared expenses across Program, Management & General, and Fundraising.
 
-1. Navigate to **Settings** (or follow the year-end prompt)
-2. Open the **Functional Allocation Wizard**
+1. Navigate to **Compliance > Functional Allocation**
 3. The wizard presents each shared expense account with smart defaults based on comparable nonprofits
 4. Adjust percentages as needed for each account
 5. Review the summary showing total allocations per category
@@ -156,12 +158,23 @@ Required for the Form 990 — allocates shared expenses across Program, Manageme
 ### Record a Donation
 
 1. Navigate to **Donors** and verify the donor exists (create if new)
-2. Navigate to **Transactions > New**
-3. Create a journal entry:
-   - DR Cash (1000) — the amount received
-   - CR Revenue (appropriate account) — the donation amount
-   - Select the correct fund (General for unrestricted, specific fund for restricted)
-4. For donations over $250, the system automatically sends a donor acknowledgment letter via email
+2. Navigate to **Revenue > Donations**
+3. Fill in the donation form: donor, date, amount, fund, and payment method
+4. The system creates the journal entry automatically (DR Cash, CR Revenue)
+5. For donations over $250, the system automatically sends a donor acknowledgment letter via email
+
+### Record a Grant Receipt
+
+1. Navigate to **Revenue > Grants** and create the grant record if new (funder, award amount, conditions, fund)
+2. When cash arrives, click **Record Cash Receipt** on the grant detail page
+3. The system creates the journal entry (DR Cash, CR Deferred Revenue or Revenue depending on conditions)
+4. Track grant conditions and milestones on the grant detail page
+
+### Record Rent Payment
+
+1. Navigate to **Revenue > Rent > Payment**
+2. Select the tenant and enter payment details
+3. The system matches against the rent accrual and creates the cash receipt entry
 
 ### Create a Journal Entry
 
@@ -194,6 +207,17 @@ The system tracks six funds:
 | MassSave | Restricted | Energy efficiency program |
 
 Every transaction line is tagged with a fund. Reports can be filtered by fund or shown consolidated. Restricted funds require net asset releases when conditions are met.
+
+---
+
+## Staging Records (Timesheets & Expense Reports)
+
+Data from the timesheets and expense reports apps flows into the financial system automatically via the staging table.
+
+- **Expense reports** are auto-posted to the GL every 15 minutes on weekdays (DR Expense, CR Reimbursements Payable)
+- **Timesheets** are received but not auto-posted — they accumulate for the payroll wizard to process
+- View incoming records at **Settings > Staging Records**
+- Status flow: `received` → `posted` (with GL transaction link)
 
 ---
 

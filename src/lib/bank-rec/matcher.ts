@@ -15,7 +15,7 @@ import {
   accounts,
 } from '@/lib/db/schema'
 import { logAudit } from '@/lib/audit/logger'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 
 // --- Types ---
 
@@ -271,7 +271,7 @@ export async function createMatch(params: CreateMatchParams): Promise<number> {
       })
       .returning()
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId: params.userId,
       action: 'created',
       entityType: 'bank_match',
@@ -345,7 +345,7 @@ export async function removeMatch(
 
     await tx.delete(bankMatches).where(eq(bankMatches.id, matchId))
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'voided',
       entityType: 'bank_match',

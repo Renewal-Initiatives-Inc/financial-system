@@ -70,6 +70,11 @@ export async function getAccessToken(): Promise<string> {
 
   if (!res.ok) {
     const text = await res.text()
+    console.error('[Ramp] Token request failed', {
+      status: res.status,
+      url: `${RAMP_BASE_URL}/developer/v1/token`,
+      body: text,
+    })
     throw new Error(`Ramp token request failed (${res.status}): ${text}`)
   }
 

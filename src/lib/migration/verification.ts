@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 import { transactions, transactionLines, accounts, funds } from '@/lib/db/schema'
 
 export interface VerificationCheck {
@@ -19,7 +19,7 @@ export interface VerificationResult {
  * Verify total debits = total credits across all FY25_IMPORT transactions.
  */
 export async function verifyTotalBalance(
-  db: NeonHttpDatabase<any>
+  db: NeonDatabase<any>
 ): Promise<VerificationCheck> {
   const result = await db.execute(sql`
     SELECT
@@ -51,7 +51,7 @@ export async function verifyTotalBalance(
  * Verify per-fund balance: Sum(debits) = Sum(credits) for each fund (INV-010).
  */
 export async function verifyFundBalance(
-  db: NeonHttpDatabase<any>
+  db: NeonDatabase<any>
 ): Promise<VerificationCheck> {
   const result = await db.execute(sql`
     SELECT
@@ -94,7 +94,7 @@ export async function verifyFundBalance(
  * Verify account balances match expected QBO ending balances.
  */
 export async function verifyAccountBalances(
-  db: NeonHttpDatabase<any>,
+  db: NeonDatabase<any>,
   expectedBalances: Record<string, number> // account code → expected balance (positive = debit, negative = credit)
 ): Promise<VerificationCheck> {
   const result = await db.execute(sql`
@@ -147,7 +147,7 @@ export async function verifyAccountBalances(
  * Verify count of imported transactions matches expected.
  */
 export async function verifyTransactionCount(
-  db: NeonHttpDatabase<any>,
+  db: NeonDatabase<any>,
   expectedCount: number
 ): Promise<VerificationCheck> {
   const result = await db.execute(sql`
@@ -174,7 +174,7 @@ export async function verifyTransactionCount(
  * Verify every imported transaction has a corresponding audit log entry.
  */
 export async function verifyAuditTrail(
-  db: NeonHttpDatabase<any>
+  db: NeonDatabase<any>
 ): Promise<VerificationCheck> {
   const result = await db.execute(sql`
     SELECT t.id
@@ -207,7 +207,7 @@ export async function verifyAuditTrail(
  * Verify that every expense to a restricted fund has a paired net asset release.
  */
 export async function verifyRestrictedFundReleases(
-  db: NeonHttpDatabase<any>
+  db: NeonDatabase<any>
 ): Promise<VerificationCheck> {
   // Find FY25_IMPORT expense lines against restricted funds
   // that don't have a matching SYSTEM release transaction
@@ -264,7 +264,7 @@ export async function verifyRestrictedFundReleases(
  * Run all verification checks and return a combined result.
  */
 export async function runAllVerifications(
-  db: NeonHttpDatabase<any>,
+  db: NeonDatabase<any>,
   options: {
     expectedTransactionCount?: number
     expectedBalances?: Record<string, number>

@@ -54,6 +54,7 @@ const RATE_LABELS: Record<string, string> = {
   ma_state_tax_rate: 'MA State Tax Rate',
   ma_surtax_rate: 'MA Surtax Rate',
   ma_surtax_threshold: 'MA Surtax Threshold',
+  mileage_rate: 'IRS Mileage Rate',
 }
 
 const RATE_TOOLTIPS: Record<string, string> = {

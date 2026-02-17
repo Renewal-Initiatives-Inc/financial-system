@@ -27,7 +27,7 @@
 | Task | Steps |
 |------|-------|
 | **Create a journal entry** | Transactions > New > add lines > Post |
-| **Record a donation** | Transactions > New > DR Cash, CR Revenue > select fund |
+| **Record a donation** | Revenue > Donations > fill form (auto-creates journal entry) |
 | **Categorize Ramp** | Expenses > Ramp > click transaction > select account + fund |
 | **Create Ramp rule** | Expenses > Ramp > Rules > Create Rule |
 | **Run payroll** | Payroll > New Run > follow wizard |
@@ -40,6 +40,10 @@
 | **Review budget variance** | Budgets > select period > view variance tab |
 | **Export to CSV** | Any report > Export > CSV |
 | **Export to PDF** | Any report > Export > PDF |
+| **Record a grant** | Revenue > Grants > New > fill details |
+| **Record rent payment** | Revenue > Rent > Payment > select tenant |
+| **View staging records** | Settings > Staging Records |
+| **Functional allocation** | Compliance > Functional Allocation > wizard |
 
 ## Where to Find...
 
@@ -53,6 +57,9 @@
 | Donor acknowledgments | Donors > select donor > acknowledgment history |
 | 1099 vendor totals | Vendors > filter by 1099-eligible |
 | CIP project costs | Assets > CIP Balances |
+| Staging records | Settings > Staging Records |
+| AHP loan status | Reports > AHP Loan Summary |
+| Functional allocation | Compliance > Functional Allocation |
 
 ## Automated Processes
 
@@ -66,6 +73,7 @@
 | Interest accrual | 28th of month | Transactions (source: CRON) |
 | Prepaid amortization | 1st of month | Transactions (source: CRON) |
 | Rent accrual | 1st of month | Transactions (source: CRON) |
+| Security deposit interest | 1st of month (anniversary) | Transactions (source: CRON) |
 
 ## Key Accounts
 

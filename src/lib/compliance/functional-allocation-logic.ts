@@ -2,7 +2,7 @@ import { eq, and } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { functionalAllocations } from '@/lib/db/schema'
 import { logAudit } from '@/lib/audit/logger'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 
 export interface AllocationInput {
   accountId: number
@@ -97,7 +97,7 @@ export async function saveAllocations(
           })
           .where(eq(functionalAllocations.id, existing.id))
 
-        await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+        await logAudit(tx as unknown as NeonDatabase<any>, {
           userId,
           action: 'updated',
           entityType: 'functional_allocation',
@@ -127,7 +127,7 @@ export async function saveAllocations(
           })
           .returning({ id: functionalAllocations.id })
 
-        await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+        await logAudit(tx as unknown as NeonDatabase<any>, {
           userId,
           action: 'created',
           entityType: 'functional_allocation',

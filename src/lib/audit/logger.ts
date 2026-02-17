@@ -1,4 +1,4 @@
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 import { auditLog } from '@/lib/db/schema'
 import { insertAuditLogSchema, type InsertAuditLog } from '@/lib/validators'
 
@@ -11,7 +11,7 @@ import { insertAuditLogSchema, type InsertAuditLog } from '@/lib/validators'
  */
 export async function logAudit(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tx: NeonHttpDatabase<any>,
+  tx: NeonDatabase<any>,
   params: InsertAuditLog
 ): Promise<void> {
   const validated = insertAuditLogSchema.parse(params)

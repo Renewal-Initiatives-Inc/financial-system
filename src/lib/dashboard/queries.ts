@@ -123,25 +123,35 @@ export async function getAlertsData(): Promise<AlertsData> {
     )
     .orderBy(complianceDeadlines.dueDate)
 
-  // Unmatched bank transactions
-  const unmatchedResult = await db
-    .select({ count: sql<string>`COUNT(*)` })
-    .from(bankTransactions)
-    .leftJoin(bankMatches, eq(bankTransactions.id, bankMatches.bankTransactionId))
-    .where(
-      and(
-        isNull(bankMatches.id),
-        eq(bankTransactions.isPending, false)
+  // Unmatched bank transactions (may not exist pre-Plaid setup)
+  let unmatchedCount = 0
+  try {
+    const unmatchedResult = await db
+      .select({ count: sql<string>`COUNT(*)` })
+      .from(bankTransactions)
+      .leftJoin(bankMatches, eq(bankTransactions.id, bankMatches.bankTransactionId))
+      .where(
+        and(
+          isNull(bankMatches.id),
+          eq(bankTransactions.isPending, false)
+        )
       )
-    )
-  const unmatchedCount = parseInt(unmatchedResult[0]?.count ?? '0')
+    unmatchedCount = parseInt(unmatchedResult[0]?.count ?? '0')
+  } catch {
+    // Table may not exist yet
+  }
 
-  // Uncategorized ramp transactions needing attention
-  const uncategorizedRamp = await db
-    .select({ count: sql<string>`COUNT(*)` })
-    .from(rampTransactions)
-    .where(eq(rampTransactions.status, 'uncategorized'))
-  const uncategorizedCount = parseInt(uncategorizedRamp[0]?.count ?? '0')
+  // Uncategorized ramp transactions (may not exist pre-Ramp setup)
+  let uncategorizedCount = 0
+  try {
+    const uncategorizedRamp = await db
+      .select({ count: sql<string>`COUNT(*)` })
+      .from(rampTransactions)
+      .where(eq(rampTransactions.status, 'uncategorized'))
+    uncategorizedCount = parseInt(uncategorizedRamp[0]?.count ?? '0')
+  } catch {
+    // Table may not exist yet
+  }
 
   const items: AlertItem[] = []
 

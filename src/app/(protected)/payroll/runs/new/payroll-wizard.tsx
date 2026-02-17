@@ -4,7 +4,6 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import {
   Select,
   SelectContent,
@@ -89,8 +88,8 @@ export function PayrollWizard() {
     })
   }
 
-  // Step 1: Create draft
-  const handleCreateDraft = () => {
+  // Step 1: Create draft and immediately calculate
+  const handleCreateAndCalculate = () => {
     startTransition(async () => {
       try {
         const result = await createPayrollRun(
@@ -98,34 +97,19 @@ export function PayrollWizard() {
           'system'
         )
         setRunId(result.id)
+        const calc = await calculatePayroll(result.id, 'system')
+        setCalculation(calc)
         setStep(2)
-        toast.success('Draft payroll run created')
-      } catch (error) {
-        toast.error(
-          error instanceof Error ? error.message : 'Failed to create run'
-        )
-      }
-    })
-  }
-
-  // Step 2: Calculate
-  const handleCalculate = () => {
-    if (!runId) return
-    startTransition(async () => {
-      try {
-        const result = await calculatePayroll(runId, 'system')
-        setCalculation(result)
-        setStep(3)
         toast.success('Payroll calculated successfully')
       } catch (error) {
         toast.error(
-          error instanceof Error ? error.message : 'Calculation failed'
+          error instanceof Error ? error.message : 'Failed to calculate payroll'
         )
       }
     })
   }
 
-  // Step 3: Post
+  // Step 2: Post
   const handlePost = () => {
     if (!runId) return
     startTransition(async () => {
@@ -160,7 +144,7 @@ export function PayrollWizard() {
 
       {/* Step indicator */}
       <div className="flex items-center gap-2">
-        {[1, 2, 3].map((s) => (
+        {[1, 2].map((s) => (
           <div key={s} className="flex items-center gap-2">
             <div
               className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${
@@ -176,13 +160,9 @@ export function PayrollWizard() {
             <span
               className={`text-sm ${s === step ? 'font-medium' : 'text-muted-foreground'}`}
             >
-              {s === 1
-                ? 'Select Period'
-                : s === 2
-                  ? 'Review & Calculate'
-                  : 'Review & Post'}
+              {s === 1 ? 'Select Period' : 'Review & Post'}
             </span>
-            {s < 3 && (
+            {s < 2 && (
               <ArrowRight className="mx-2 h-4 w-4 text-muted-foreground" />
             )}
           </div>
@@ -278,46 +258,27 @@ export function PayrollWizard() {
                 {existingRun && (
                   <p className="text-sm text-yellow-600">
                     Warning: A payroll run already exists for this period
-                    (#{existingRun.id}, status: {existingRun.status}).
+                    (#{existingRun.id}
+                    {existingRun.status === 'POSTED'
+                      ? ' — already posted to GL'
+                      : ' — not yet posted to GL'}
+                    ).{' '}
+                    {existingRun.status !== 'POSTED' && (
+                      <a
+                        href={`/payroll/runs/${existingRun.id}`}
+                        className="underline hover:text-yellow-800"
+                      >
+                        Open existing run
+                      </a>
+                    )}
                   </p>
                 )}
               </div>
             )}
 
             <Button
-              onClick={handleCreateDraft}
+              onClick={handleCreateAndCalculate}
               disabled={isPending || stagingCount === null}
-              data-testid="create-draft-btn"
-            >
-              {isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              Create Draft
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Step 2: Review & Calculate */}
-      {step === 2 && runId && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Review & Calculate</CardTitle>
-            <CardDescription>
-              Click Calculate to compute withholdings for all employees in this
-              pay period.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm">
-              Pay Period: {MONTHS[selectedMonth]} {selectedYear}
-            </p>
-            <p className="text-sm">Run ID: #{runId}</p>
-            <p className="text-sm">Status: <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">DRAFT</Badge></p>
-
-            <Button
-              onClick={handleCalculate}
-              disabled={isPending}
               data-testid="calculate-btn"
             >
               {isPending ? (
@@ -329,15 +290,31 @@ export function PayrollWizard() {
         </Card>
       )}
 
-      {/* Step 3: Review & Post */}
-      {step === 3 && calculation && (
+      {/* Step 2: Review & Post */}
+      {step === 2 && calculation && (
         <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">Payroll Calculation Results</h2>
+              <p className="text-sm text-muted-foreground">
+                Review the results below, then post to the General Ledger.
+              </p>
+            </div>
+            <Button
+              onClick={handlePost}
+              disabled={isPending}
+              data-testid="post-btn"
+            >
+              {isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Post to GL
+            </Button>
+          </div>
+
           <Card>
             <CardHeader>
-              <CardTitle>Payroll Calculation Results</CardTitle>
-              <CardDescription>
-                Review the results below, then post to the General Ledger.
-              </CardDescription>
+              <CardTitle>Employee Payroll Entries</CardTitle>
             </CardHeader>
             <CardContent>
               {/* Summary cards */}
@@ -450,18 +427,6 @@ export function PayrollWizard() {
             </CardContent>
           </Card>
 
-          <div className="flex gap-2">
-            <Button
-              onClick={handlePost}
-              disabled={isPending}
-              data-testid="post-btn"
-            >
-              {isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              Post to GL
-            </Button>
-          </div>
         </div>
       )}
     </div>

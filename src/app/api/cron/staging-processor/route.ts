@@ -9,7 +9,7 @@ import { processReceivedStagingRecords } from '@/lib/staging/processor'
  * - Acknowledges timesheets (left for payroll processing)
  * - Idempotent: already-posted records are skipped
  */
-export async function POST(req: Request) {
+export async function GET(req: Request) {
   const authHeader = req.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

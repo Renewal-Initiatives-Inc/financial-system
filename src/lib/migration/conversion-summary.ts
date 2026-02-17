@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 import { transactions, transactionLines, accounts, funds } from '@/lib/db/schema'
 import type { ImportResult } from './import-engine'
 import type { AdjustmentResult } from './accrual-adjustments'
@@ -43,7 +43,7 @@ export interface ConversionSummaryData {
  * Query trial balance data from the database for FY25_IMPORT transactions.
  */
 async function queryTrialBalance(
-  db: NeonHttpDatabase<any>
+  db: NeonDatabase<any>
 ): Promise<{ accounts: AccountBalanceSummary[]; funds: FundBalanceSummary[] }> {
   // Account-level balances
   const accountResult = await db.execute(sql`
@@ -104,7 +104,7 @@ async function queryTrialBalance(
  * Query import statistics from the database.
  */
 async function queryImportStats(
-  db: NeonHttpDatabase<any>
+  db: NeonDatabase<any>
 ): Promise<ConversionSummaryData['importStats']> {
   const result = await db.execute(sql`
     SELECT
@@ -135,7 +135,7 @@ async function queryImportStats(
  * Generate a complete conversion summary for review.
  */
 export async function generateConversionSummary(
-  db: NeonHttpDatabase<any>,
+  db: NeonDatabase<any>,
   adjustmentResult: AdjustmentResult,
   verificationResult: VerificationResult
 ): Promise<ConversionSummaryData> {

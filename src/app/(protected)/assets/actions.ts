@@ -11,7 +11,7 @@ import {
   type UpdateFixedAsset,
 } from '@/lib/validators'
 import { logAudit } from '@/lib/audit/logger'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 import {
   calculateMonthlyDepreciation,
   calculateAccumulatedDepreciation,
@@ -303,7 +303,7 @@ export async function createFixedAsset(
       })
       .returning()
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'created',
       entityType: 'fixed_asset',
@@ -357,7 +357,7 @@ export async function updateFixedAsset(
       .from(fixedAssets)
       .where(eq(fixedAssets.id, id))
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'updated',
       entityType: 'fixed_asset',
@@ -398,7 +398,7 @@ export async function toggleFixedAssetActive(
       .set({ isActive: active, updatedAt: new Date() })
       .where(eq(fixedAssets.id, id))
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: active ? 'updated' : 'deactivated',
       entityType: 'fixed_asset',

@@ -1,7 +1,7 @@
 'use server'
 
 import { eq, and, sql, desc } from 'drizzle-orm'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import {
@@ -148,7 +148,7 @@ export async function createPayrollRun(
       })
       .returning()
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'created',
       entityType: 'payroll_run',
@@ -202,7 +202,7 @@ export async function deletePayrollRun(
     // Entries cascade-delete via FK
     await tx.delete(payrollRuns).where(eq(payrollRuns.id, runId))
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'voided',
       entityType: 'payroll_run',

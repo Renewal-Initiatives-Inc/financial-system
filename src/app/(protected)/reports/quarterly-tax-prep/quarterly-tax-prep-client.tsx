@@ -208,7 +208,7 @@ function Federal941Panel({ data }: { data: Federal941Data }) {
           Federal Form 941
         </CardTitle>
         <p className="text-xs text-muted-foreground">
-          Employer's Quarterly Federal Tax Return
+          Employer&apos;s Quarterly Federal Tax Return
         </p>
       </CardHeader>
       <CardContent className="p-0">
@@ -286,7 +286,7 @@ function MaM941Panel({ data }: { data: MaM941Data }) {
           Massachusetts Form M-941
         </CardTitle>
         <p className="text-xs text-muted-foreground">
-          Employer's Return of Income Taxes Withheld
+          Employer&apos;s Return of Income Taxes Withheld
         </p>
       </CardHeader>
       <CardContent className="p-0">

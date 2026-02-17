@@ -6,8 +6,8 @@
  * 2. postPayrollRun: Create GL journal entries and update statuses
  */
 
-import { eq, and, sql } from 'drizzle-orm'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import { eq, and, inArray, sql } from 'drizzle-orm'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 import { db } from '@/lib/db'
 import {
   payrollRuns,
@@ -84,7 +84,7 @@ async function getPayrollAccountIds(): Promise<PayrollAccounts> {
   const result = await db
     .select({ id: accounts.id, code: accounts.code })
     .from(accounts)
-    .where(sql`${accounts.code} = ANY(${codes})`)
+    .where(inArray(accounts.code, codes))
 
   const codeMap = new Map(result.map((r) => [r.code, r.id]))
 
@@ -347,7 +347,7 @@ export async function persistCalculation(
       .set({ status: 'CALCULATED' })
       .where(eq(payrollRuns.id, calculation.runId))
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'updated',
       entityType: 'payroll_run',
@@ -610,7 +610,7 @@ export async function postPayrollRun(
 
   // Audit log
   await db.transaction(async (tx) => {
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'posted',
       entityType: 'payroll_run',

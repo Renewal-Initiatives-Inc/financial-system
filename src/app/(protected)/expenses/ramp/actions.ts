@@ -190,17 +190,24 @@ export async function bulkCategorizeRampTransactions(
   return { succeeded, failed }
 }
 
-export async function triggerRampSync(): Promise<{ synced: number; autoCategorized: number }> {
+export async function triggerRampSync(options?: {
+  fullHistory?: boolean
+}): Promise<{ synced: number; autoCategorized: number }> {
   const userId = await getUserId()
-  const now = new Date()
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-  const fromDate = sevenDaysAgo.toISOString().substring(0, 10)
-  const toDate = now.toISOString().substring(0, 10)
+  const fullHistory = options?.fullHistory ?? false
 
-  const transactions = await fetchTransactions({
-    from_date: fromDate,
-    to_date: toDate,
-  })
+  let fetchParams: { from_date?: string; to_date?: string } | undefined
+  if (!fullHistory) {
+    const now = new Date()
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+    fetchParams = {
+      from_date: sevenDaysAgo.toISOString().substring(0, 10),
+      to_date: now.toISOString().substring(0, 10),
+    }
+  }
+  // fullHistory: omit date params to fetch all available transactions
+
+  const transactions = await fetchTransactions(fetchParams)
 
   let synced = 0
   let autoCategorized = 0
@@ -227,12 +234,16 @@ export async function triggerRampSync(): Promise<{ synced: number; autoCategoriz
     }
   }
 
-  for (const id of newIds) {
-    const categorized = await autoCategorize(id)
-    if (categorized) autoCategorized++
-  }
+  // Skip auto-categorization on full history sync — wait for QBO import
+  // before posting to GL to avoid double-counting
+  if (!fullHistory) {
+    for (const id of newIds) {
+      const categorized = await autoCategorize(id)
+      if (categorized) autoCategorized++
+    }
 
-  await batchPostCategorized(userId)
+    await batchPostCategorized(userId)
+  }
 
   revalidatePath('/expenses/ramp')
   return { synced, autoCategorized }

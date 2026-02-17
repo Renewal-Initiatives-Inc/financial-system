@@ -9,7 +9,7 @@ import {
 } from '@/lib/db/schema'
 import { createTransaction } from '@/lib/gl/engine'
 import { logAudit } from '@/lib/audit/logger'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 
 async function getAccountByCode(code: string) {
   const [account] = await db
@@ -167,7 +167,7 @@ export async function collectSecurityDeposit(
 
   // 8. Audit log (outside the GL engine's own audit)
   await db.transaction(async (tx) => {
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'created',
       entityType: 'security_deposit',

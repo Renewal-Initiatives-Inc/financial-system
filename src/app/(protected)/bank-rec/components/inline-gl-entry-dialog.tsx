@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useEffect } from 'react'
+import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -47,19 +47,11 @@ export function InlineGlEntryDialog({
 }: InlineGlEntryDialogProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [date, setDate] = useState('')
-  const [memo, setMemo] = useState('')
+  const [date, setDate] = useState(bankTransaction?.date ?? '')
+  const [memo, setMemo] = useState(bankTransaction?.merchantName ?? '')
   const [accountId, setAccountId] = useState('')
   const [fundId, setFundId] = useState('')
   const [showWarning, setShowWarning] = useState(false)
-
-  // Pre-fill from bank transaction
-  useEffect(() => {
-    if (bankTransaction) {
-      setDate(bankTransaction.date)
-      setMemo(bankTransaction.merchantName ?? '')
-    }
-  }, [bankTransaction])
 
   const amount = bankTransaction ? Math.abs(parseFloat(bankTransaction.amount)) : 0
   const isOverThreshold = amount > THRESHOLD
@@ -209,7 +201,7 @@ export function InlineGlEntryDialog({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={isPending || !accountId || !fundId || !memo}
+            disabled={isPending || !accountId || !fundId}
             data-testid="inline-gl-submit"
           >
             {showWarning ? 'Confirm & Create' : 'Create GL Entry'}

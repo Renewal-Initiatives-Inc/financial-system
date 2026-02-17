@@ -9,7 +9,7 @@ import {
 } from '@/lib/db/schema'
 import { createTransaction } from '@/lib/gl/engine'
 import { logAudit } from '@/lib/audit/logger'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 import type { CipConversionInput } from '@/lib/validators'
 
 export interface CipSubAccountBalance {
@@ -109,7 +109,7 @@ export async function executeCipConversion(
   userId: string
 ): Promise<CipConversionResult> {
   return await db.transaction(async (tx) => {
-    const typedTx = tx as unknown as NeonHttpDatabase<any>
+    const typedTx = tx as unknown as NeonDatabase<any>
 
     // 1. Check for duplicate conversion
     const existing = await tx

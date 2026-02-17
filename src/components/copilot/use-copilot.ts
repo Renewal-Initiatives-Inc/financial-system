@@ -67,7 +67,7 @@ export function useCopilot({ context, userId }: UseCopilotOptions): UseCopilotRe
 
         const decoder = new TextDecoder()
         let assistantContent = ''
-        let toolCalls: CopilotToolCall[] = []
+        const toolCalls: CopilotToolCall[] = []
         let buffer = ''
 
         while (true) {

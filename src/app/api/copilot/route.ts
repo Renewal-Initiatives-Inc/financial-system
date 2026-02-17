@@ -65,7 +65,7 @@ export async function POST(request: Request): Promise<Response> {
       }
 
       try {
-        let currentMessages = [...anthropicMessages]
+        const currentMessages = [...anthropicMessages]
         let toolCallCount = 0
         const allToolCalls: CopilotToolCall[] = []
         let finalContent = ''

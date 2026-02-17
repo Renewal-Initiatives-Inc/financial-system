@@ -19,7 +19,7 @@ import { generateAccrualAdjustments, type AccrualAdjustmentOptions } from './acc
 import { runAllVerifications } from './verification'
 import { generateConversionSummary, formatConversionSummary, toJson } from './conversion-summary'
 import { db } from '@/lib/db'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 import { writeFileSync } from 'fs'
 
 interface CliArgs {
@@ -222,7 +222,7 @@ async function main(): Promise<void> {
 
     // Step 7: Run verification
     log('Step 7: Running verification checks...')
-    const verificationResult = await runAllVerifications(db as unknown as NeonHttpDatabase<any>, {
+    const verificationResult = await runAllVerifications(db as unknown as NeonDatabase<any>, {
       expectedTransactionCount: importResult.imported + adjustmentResult.adjustments.length,
     })
 
@@ -234,7 +234,7 @@ async function main(): Promise<void> {
     // Step 8: Generate summary
     log('Step 8: Generating conversion summary...')
     const summary = await generateConversionSummary(
-      db as unknown as NeonHttpDatabase<any>,
+      db as unknown as NeonDatabase<any>,
       adjustmentResult,
       verificationResult
     )

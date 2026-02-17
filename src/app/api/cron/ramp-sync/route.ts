@@ -15,7 +15,7 @@ import { autoCategorize, batchPostCategorized } from '@/lib/ramp/categorization'
  * - Batch-posts auto-categorized transactions to GL
  * - Sends Postmark alert on failure
  */
-export async function POST(req: Request) {
+export async function GET(req: Request) {
   // Verify cron secret (Vercel cron security)
   const authHeader = req.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {

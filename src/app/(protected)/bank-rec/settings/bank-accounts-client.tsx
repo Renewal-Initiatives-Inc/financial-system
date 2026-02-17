@@ -98,7 +98,7 @@ export function BankAccountsClient({
               className="text-sm text-muted-foreground text-center py-8"
               data-testid="bank-accounts-empty"
             >
-              No bank accounts connected. Click "Connect Bank Account" to get
+              No bank accounts connected. Click &quot;Connect Bank Account&quot; to get
               started.
             </p>
           ) : (

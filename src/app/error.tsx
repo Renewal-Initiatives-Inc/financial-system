@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle } from 'lucide-react'
 
@@ -31,7 +32,7 @@ export default function RootError({
         <div className="flex justify-center gap-2">
           <Button onClick={reset} data-testid="root-error-try-again-btn">Try Again</Button>
           <Button variant="outline" asChild data-testid="root-error-go-home-btn">
-            <a href="/">Go Home</a>
+            <Link href="/">Go Home</Link>
           </Button>
         </div>
       </div>

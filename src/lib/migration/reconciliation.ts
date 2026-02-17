@@ -66,6 +66,7 @@ export function parseQboForRecon(
       : ['2020']
 
   // We need the account mapping to filter — import it inline
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { QBO_ACCOUNT_MAPPING } = require('./account-mapping')
 
   // Build reverse lookup: QBO account name → account code

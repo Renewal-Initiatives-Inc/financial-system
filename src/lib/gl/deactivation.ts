@@ -1,5 +1,5 @@
 import { eq, sql } from 'drizzle-orm'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 import { db } from '@/lib/db'
 import { accounts, funds, transactions, transactionLines } from '@/lib/db/schema'
 import { logAudit } from '@/lib/audit/logger'
@@ -39,7 +39,7 @@ export async function deactivateAccount(
       .set({ isActive: false })
       .where(eq(accounts.id, accountId))
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'deactivated',
       entityType: 'account',
@@ -100,7 +100,7 @@ export async function deactivateFund(
       .set({ isActive: false })
       .where(eq(funds.id, fundId))
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'deactivated',
       entityType: 'fund',

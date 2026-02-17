@@ -13,7 +13,7 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>
+      <SidebarInset className="max-h-svh overflow-hidden">
         <AppTopBar user={session.user} />
         <CopilotWrapper userId={session.user.id}>
           <main className="flex-1 px-4 py-6 md:px-6">{children}</main>

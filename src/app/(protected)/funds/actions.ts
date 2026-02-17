@@ -8,7 +8,7 @@ import { insertFundSchema, updateFundSchema, type InsertFund, type UpdateFund } 
 import { logAudit } from '@/lib/audit/logger'
 import { deactivateFund } from '@/lib/gl/deactivation'
 import { SystemLockedError } from '@/lib/gl/errors'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 
 // --- Types ---
 
@@ -163,7 +163,7 @@ export async function createFund(
       })
       .returning()
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'created',
       entityType: 'fund',
@@ -215,7 +215,7 @@ export async function updateFund(
       .from(funds)
       .where(eq(funds.id, id))
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'updated',
       entityType: 'fund',
@@ -253,7 +253,7 @@ export async function toggleFundActive(
         .set({ isActive: true, updatedAt: new Date() })
         .where(eq(funds.id, id))
 
-      await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+      await logAudit(tx as unknown as NeonDatabase<any>, {
         userId,
         action: 'updated',
         entityType: 'fund',

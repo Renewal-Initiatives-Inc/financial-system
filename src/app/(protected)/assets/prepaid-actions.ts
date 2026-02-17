@@ -9,7 +9,7 @@ import {
   type InsertPrepaidSchedule,
 } from '@/lib/validators'
 import { logAudit } from '@/lib/audit/logger'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 import {
   calculateMonthlyAmortization,
   handleRefundTrueUp,
@@ -96,7 +96,7 @@ export async function createPrepaidSchedule(
       })
       .returning()
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'created',
       entityType: 'prepaid_schedule',

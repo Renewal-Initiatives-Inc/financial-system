@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { RefreshCw, Tag } from 'lucide-react'
+import { RefreshCw, Tag, History } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -95,13 +95,19 @@ export function RampQueueClient({
     .getSelectedRowModel()
     .rows.map((r) => r.original.id)
 
-  const handleSync = () => {
+  const handleSync = (fullHistory = false) => {
     startTransition(async () => {
       try {
-        const result = await triggerRampSync()
-        toast.success(
-          `Synced ${result.synced} transactions, ${result.autoCategorized} auto-categorized`
-        )
+        const result = await triggerRampSync(fullHistory ? { fullHistory: true } : undefined)
+        if (fullHistory) {
+          toast.success(
+            `Full history sync: ${result.synced} transactions imported (uncategorized)`
+          )
+        } else {
+          toast.success(
+            `Synced ${result.synced} transactions, ${result.autoCategorized} auto-categorized`
+          )
+        }
         setRowSelection({})
         router.refresh()
       } catch (err) {
@@ -124,17 +130,30 @@ export function RampQueueClient({
         <h1 className="text-2xl font-semibold tracking-tight">
           Ramp Credit Card
         </h1>
-        <Button
-          variant="outline"
-          onClick={handleSync}
-          disabled={isPending}
-          data-testid="ramp-sync-btn"
-        >
-          <RefreshCw
-            className={`mr-2 h-4 w-4 ${isPending ? 'animate-spin' : ''}`}
-          />
-          Sync Now
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => handleSync(true)}
+            disabled={isPending}
+            data-testid="ramp-full-sync-btn"
+          >
+            <History
+              className={`mr-2 h-4 w-4 ${isPending ? 'animate-spin' : ''}`}
+            />
+            Full History Sync
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => handleSync(false)}
+            disabled={isPending}
+            data-testid="ramp-sync-btn"
+          >
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${isPending ? 'animate-spin' : ''}`}
+            />
+            Sync Now
+          </Button>
+        </div>
       </div>
 
       <Tabs value={tab} onValueChange={(v) => { setTab(v); setRowSelection({}) }}>

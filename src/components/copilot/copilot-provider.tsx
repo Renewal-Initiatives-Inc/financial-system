@@ -58,7 +58,7 @@ export function CopilotProvider({
 
   return (
     <CopilotContext.Provider value={{ open: isOpen, openPanel, closePanel, setPageContext }}>
-      <div className="flex h-full">
+      <div className="flex flex-1 min-h-0 h-full overflow-hidden">
         <div className="flex-1 overflow-auto">{children}</div>
         <CopilotPanel
           open={isOpen}

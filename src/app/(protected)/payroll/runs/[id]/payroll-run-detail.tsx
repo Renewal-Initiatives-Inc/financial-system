@@ -191,6 +191,15 @@ export function PayrollRunDetail({ run, entries }: PayrollRunDetailProps) {
               >
                 Recalculate
               </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={isPending}
+                data-testid="delete-btn"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </Button>
             </>
           )}
         </div>

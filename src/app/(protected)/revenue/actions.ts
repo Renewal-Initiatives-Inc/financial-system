@@ -58,7 +58,7 @@ import {
   getAhpLoanConfig,
   getAvailableCredit,
 } from '@/lib/revenue/ahp-loan'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 
 // --- Types ---
 
@@ -486,7 +486,7 @@ export async function createGrant(
       })
       .returning()
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'created',
       entityType: 'grant',
@@ -633,7 +633,7 @@ export async function createPledge(
       })
       .returning()
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'created',
       entityType: 'pledge',

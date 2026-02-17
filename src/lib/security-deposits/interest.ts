@@ -8,7 +8,7 @@ import {
 } from '@/lib/db/schema'
 import { createTransaction } from '@/lib/gl/engine'
 import { logAudit } from '@/lib/audit/logger'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 
 const MA_RATE_CAP = 0.05 // 5% per MA G.L. c. 186 § 15B
 
@@ -163,7 +163,7 @@ export async function generateInterestEntries(
 
     // Audit
     await db.transaction(async (tx) => {
-      await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+      await logAudit(tx as unknown as NeonDatabase<any>, {
         userId,
         action: 'created',
         entityType: 'security_deposit_interest',

@@ -16,7 +16,7 @@ import {
 } from '@/lib/db/schema'
 import { logAudit } from '@/lib/audit/logger'
 import { getOutstandingItems } from './gl-only-categories'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 
 // --- Types ---
 
@@ -68,7 +68,7 @@ export async function createReconciliationSession(params: {
       })
       .returning()
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId: params.userId,
       action: 'created',
       entityType: 'reconciliation_session',
@@ -323,7 +323,7 @@ export async function signOffReconciliation(
       })
       .where(eq(reconciliationSessions.id, sessionId))
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'signed_off',
       entityType: 'reconciliation_session',
@@ -358,7 +358,7 @@ export async function editReconciledItem(
 
     if (!existing) throw new Error('Match not found')
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'updated',
       entityType: 'bank_match',

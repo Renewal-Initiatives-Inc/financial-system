@@ -12,7 +12,7 @@ import {
 } from '@/lib/validators'
 import { logAudit } from '@/lib/audit/logger'
 import { getUserId } from '@/lib/auth'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 
 // --- Types ---
 
@@ -75,7 +75,7 @@ export async function createDonor(
       })
       .returning()
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'created',
       entityType: 'donor',
@@ -130,7 +130,7 @@ export async function updateDonor(
       .from(donors)
       .where(eq(donors.id, id))
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'updated',
       entityType: 'donor',
@@ -164,7 +164,7 @@ export async function toggleDonorActive(
       .set({ isActive: active, updatedAt: new Date() })
       .where(eq(donors.id, id))
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: active ? 'updated' : 'deactivated',
       entityType: 'donor',

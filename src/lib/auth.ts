@@ -31,7 +31,7 @@ declare module 'next-auth' {
 
 function hasAppAccess(roles: ZitadelRoles | undefined): boolean {
   if (!roles) return false
-  return !!roles['admin'] || !!roles['app:financial-system']
+  return !!roles['admin'] || !!roles['app:finance']
 }
 
 function extractRole(roles: ZitadelRoles | undefined): AppRole {
@@ -41,7 +41,7 @@ function extractRole(roles: ZitadelRoles | undefined): AppRole {
     return 'admin'
   }
 
-  const appRoles = roles['app:financial-system']
+  const appRoles = roles['app:finance']
   if (appRoles) {
     const hasAdmin = Object.values(appRoles).some((role) => role === 'admin')
     if (hasAdmin) return 'admin'

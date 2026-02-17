@@ -1,5 +1,5 @@
 import { eq, sql } from 'drizzle-orm'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 import { bankAccounts, bankTransactions } from '@/lib/db/schema'
 import { syncTransactions, type PlaidTransactionRecord } from '@/lib/integrations/plaid'
 
@@ -25,7 +25,7 @@ export interface HistorySyncSummary {
  * Plaid sign convention: positive = money out, negative = money in (stored as-is).
  */
 export async function syncBankHistory(
-  db: NeonHttpDatabase<any>,
+  db: NeonDatabase<any>,
   bankAccountId: number
 ): Promise<HistorySyncResult> {
   // Load bank account record
@@ -102,7 +102,7 @@ export async function syncBankHistory(
  * Get a summary of synced bank history for a bank account.
  */
 export async function getHistorySyncSummary(
-  db: NeonHttpDatabase<any>,
+  db: NeonDatabase<any>,
   bankAccountId: number
 ): Promise<HistorySyncSummary> {
   // Total count and date range
@@ -152,7 +152,7 @@ export async function getHistorySyncSummary(
 // --- Internal helpers ---
 
 async function insertBankTransactions(
-  db: NeonHttpDatabase<any>,
+  db: NeonDatabase<any>,
   bankAccountId: number,
   records: PlaidTransactionRecord[]
 ): Promise<void> {
@@ -188,7 +188,7 @@ async function insertBankTransactions(
 }
 
 async function updateBankTransactions(
-  db: NeonHttpDatabase<any>,
+  db: NeonDatabase<any>,
   records: PlaidTransactionRecord[]
 ): Promise<void> {
   for (const record of records) {
@@ -209,7 +209,7 @@ async function updateBankTransactions(
 }
 
 async function removeBankTransactions(
-  db: NeonHttpDatabase<any>,
+  db: NeonDatabase<any>,
   plaidTransactionIds: string[]
 ): Promise<void> {
   for (const id of plaidTransactionIds) {
@@ -221,7 +221,7 @@ async function removeBankTransactions(
 }
 
 async function saveCursor(
-  db: NeonHttpDatabase<any>,
+  db: NeonDatabase<any>,
   bankAccountId: number,
   cursor: string
 ): Promise<void> {

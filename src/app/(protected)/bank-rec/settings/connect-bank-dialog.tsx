@@ -96,7 +96,11 @@ export function ConnectBankDialog({
   }
 
   const handleConfirm = () => {
-    if (!plaidData || !glAccountId) return
+    if (!plaidData || !glAccountId) {
+      toast.error('Missing connection data. Please try again.')
+      resetForm()
+      return
+    }
 
     startTransition(async () => {
       try {
@@ -130,7 +134,7 @@ export function ConnectBankDialog({
 
   return (
     <Dialog
-      open={open}
+      open={open && step !== 'plaid-link'}
       onOpenChange={(v) => {
         if (!v) {
           resetForm()

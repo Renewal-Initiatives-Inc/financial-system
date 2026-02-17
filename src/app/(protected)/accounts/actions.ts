@@ -9,7 +9,7 @@ import { logAudit } from '@/lib/audit/logger'
 import { deactivateAccount } from '@/lib/gl/deactivation'
 import { SystemLockedError } from '@/lib/gl/errors'
 import { getUserId } from '@/lib/auth'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 
 // --- Types ---
 
@@ -122,7 +122,7 @@ export async function createAccount(
       })
       .returning()
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'created',
       entityType: 'account',
@@ -175,7 +175,7 @@ export async function updateAccount(
       .from(accounts)
       .where(eq(accounts.id, id))
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'updated',
       entityType: 'account',
@@ -221,7 +221,7 @@ async function reactivateAccount(id: number, userId: string): Promise<void> {
       .set({ isActive: true, updatedAt: new Date() })
       .where(eq(accounts.id, id))
 
-    await logAudit(tx as unknown as NeonHttpDatabase<any>, {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'updated',
       entityType: 'account',
