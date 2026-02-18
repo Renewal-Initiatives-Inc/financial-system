@@ -25,6 +25,7 @@ describe('mapRampTransaction', () => {
       merchantName: 'Home Depot',
       description: 'Building supplies',
       cardholder: 'Jeff Takle',
+      isPending: false,
     })
   })
 
@@ -86,5 +87,25 @@ describe('mapRampTransaction', () => {
       })
     )
     expect(result.date).toBe('2026-01-15')
+  })
+
+  it('sets isPending=true for PENDING state', () => {
+    const result = mapRampTransaction(makeRampTxn({ state: 'PENDING' }))
+    expect(result.isPending).toBe(true)
+  })
+
+  it('sets isPending=true for PENDING_INITIATION state', () => {
+    const result = mapRampTransaction(makeRampTxn({ state: 'PENDING_INITIATION' }))
+    expect(result.isPending).toBe(true)
+  })
+
+  it('sets isPending=false for CLEARED state', () => {
+    const result = mapRampTransaction(makeRampTxn({ state: 'CLEARED' }))
+    expect(result.isPending).toBe(false)
+  })
+
+  it('sets isPending=false for COMPLETION state', () => {
+    const result = mapRampTransaction(makeRampTxn({ state: 'COMPLETION' }))
+    expect(result.isPending).toBe(false)
   })
 })

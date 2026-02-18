@@ -62,8 +62,10 @@ export function RampQueueClient({
 
   const filtered = useMemo(() => {
     let data = initialTransactions
-    if (tab !== 'all') {
-      data = data.filter((t) => t.status === tab)
+    if (tab === 'pending') {
+      data = data.filter((t) => t.isPending)
+    } else if (tab !== 'all') {
+      data = data.filter((t) => !t.isPending && t.status === tab)
     }
     if (search) {
       const q = search.toLowerCase()
@@ -88,7 +90,7 @@ export function RampQueueClient({
     onRowSelectionChange: setRowSelection,
     state: { sorting, rowSelection },
     initialState: { pagination: { pageSize: 25 } },
-    enableRowSelection: (row) => row.original.status === 'uncategorized',
+    enableRowSelection: (row) => !row.original.isPending && row.original.status === 'uncategorized',
   })
 
   const selectedIds = table
@@ -119,7 +121,7 @@ export function RampQueueClient({
   }
 
   const handleCategorize = (row: RampTransactionRow) => {
-    if (row.status !== 'uncategorized') return
+    if (row.isPending || row.status !== 'uncategorized') return
     setSelectedTransaction(row)
     setCategorizeOpen(true)
   }
@@ -172,6 +174,14 @@ export function RampQueueClient({
           <TabsTrigger value="posted" data-testid="ramp-tab-posted">
             Posted
           </TabsTrigger>
+          <TabsTrigger value="pending" data-testid="ramp-tab-pending">
+            Pending
+            {stats.pending > 0 && (
+              <Badge variant="secondary" className="ml-2">
+                {stats.pending}
+              </Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="all" data-testid="ramp-tab-all">
             All
           </TabsTrigger>
@@ -223,9 +233,11 @@ export function RampQueueClient({
                     key={row.id}
                     data-state={row.getIsSelected() && 'selected'}
                     className={
-                      row.original.status === 'uncategorized'
-                        ? 'cursor-pointer hover:bg-muted/50'
-                        : ''
+                      row.original.isPending
+                        ? 'opacity-60'
+                        : row.original.status === 'uncategorized'
+                          ? 'cursor-pointer hover:bg-muted/50'
+                          : ''
                     }
                     onClick={() => handleCategorize(row.original)}
                     data-testid={`ramp-table-row-${row.index}`}

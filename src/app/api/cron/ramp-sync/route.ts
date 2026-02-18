@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { rampTransactions } from '@/lib/db/schema'
 import { fetchTransactions } from '@/lib/integrations/ramp'
@@ -9,9 +10,9 @@ import { autoCategorize, batchPostCategorized } from '@/lib/ramp/categorization'
  * Ramp daily sync cron job (INT-P0-015).
  *
  * Runs daily at 6 AM UTC via Vercel cron.
- * - Fetches cleared transactions from the last 7 days
- * - Deduplicates via ramp_id UNIQUE constraint (ON CONFLICT DO NOTHING)
- * - Runs auto-categorization rules on new transactions
+ * - Fetches cleared AND pending transactions from Ramp
+ * - New transactions inserted; pending→cleared transitions update isPending flag
+ * - Runs auto-categorization rules on newly cleared transactions
  * - Batch-posts auto-categorized transactions to GL
  * - Sends Postmark alert on failure
  */
@@ -23,11 +24,23 @@ export async function GET(req: Request) {
   }
 
   try {
-    // Fetch transactions from the last 7 days (idempotent window)
+    // Support ?full=true for initial full-history pull (all transactions from account opening)
+    const url = new URL(req.url)
+    const fullHistory = url.searchParams.get('full') === 'true'
+
     const now = new Date()
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-    const fromDate = sevenDaysAgo.toISOString().substring(0, 10)
     const toDate = now.toISOString().substring(0, 10)
+    let fromDate: string
+
+    if (fullHistory) {
+      // Pull from well before Ramp account opening
+      fromDate = '2024-01-01'
+      console.log('Ramp sync: full history mode (from 2024-01-01)')
+    } else {
+      // Normal daily sync: last 7 days (idempotent window)
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+      fromDate = sevenDaysAgo.toISOString().substring(0, 10)
+    }
 
     const transactions = await fetchTransactions({
       from_date: fromDate,
@@ -35,11 +48,13 @@ export async function GET(req: Request) {
     })
 
     let synced = 0
+    let cleared = 0
     let autoCategorized = 0
-    const newIds: number[] = []
+    const newClearedIds: number[] = []
 
-    // Insert with dedup via ON CONFLICT DO NOTHING
     for (const txn of transactions) {
+      // Try insert; on conflict (existing ramp_id), update isPending + amount
+      // This handles pending→cleared transitions
       const result = await db
         .insert(rampTransactions)
         .values({
@@ -49,6 +64,7 @@ export async function GET(req: Request) {
           merchantName: txn.merchantName,
           description: txn.description,
           cardholder: txn.cardholder,
+          isPending: txn.isPending,
           status: 'uncategorized',
         })
         .onConflictDoNothing({ target: rampTransactions.rampId })
@@ -56,12 +72,35 @@ export async function GET(req: Request) {
 
       if (result.length > 0) {
         synced++
-        newIds.push(result[0].id)
+        // Only auto-categorize cleared transactions (not pending)
+        if (!txn.isPending) {
+          newClearedIds.push(result[0].id)
+        }
+      } else if (!txn.isPending) {
+        // Existing row — check if it was pending and is now cleared
+        const [existing] = await db
+          .select({ id: rampTransactions.id, isPending: rampTransactions.isPending })
+          .from(rampTransactions)
+          .where(eq(rampTransactions.rampId, txn.rampId))
+
+        if (existing?.isPending) {
+          // Transition: pending → cleared
+          await db
+            .update(rampTransactions)
+            .set({
+              isPending: false,
+              amount: String(txn.amount), // Amount may change when clearing
+              date: txn.date,
+            })
+            .where(eq(rampTransactions.id, existing.id))
+          cleared++
+          newClearedIds.push(existing.id)
+        }
       }
     }
 
-    // Run auto-categorization on new transactions
-    for (const id of newIds) {
+    // Run auto-categorization on newly cleared transactions
+    for (const id of newClearedIds) {
       const categorized = await autoCategorize(id)
       if (categorized) autoCategorized++
     }
@@ -72,6 +111,7 @@ export async function GET(req: Request) {
     return NextResponse.json({
       success: true,
       synced,
+      cleared,
       autoCategorized,
       posted: postResult.posted,
       postFailed: postResult.failed,

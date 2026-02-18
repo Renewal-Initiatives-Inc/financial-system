@@ -200,9 +200,11 @@ git push origin main
 
 ---
 
-## Step 6: Connect Plaid — Full Bank History Pull
+## Step 6: Connect Plaid — Full Bank History Pull  **BLOCKED — Awaiting Plaid Production Approval (submitted 2026-02-18)**
 
 **Why:** Plaid and Ramp APIs go first so their data is already in the database when the QBO import runs. The reconciliation script then matches QBO entries against API-sourced `bank_transactions` and `ramp_transactions` rows — no manual CSV downloads from UMass Five or Ramp needed.
+
+**Status:** Production app submitted to Plaid for approval. `PLAID_ENV` currently set to `sandbox`. Once approved, flip to `production` in Vercel env vars, redeploy, and proceed with 6a–6e.
 
 **Tasks:**
 
@@ -233,33 +235,39 @@ git push origin main
 
 ---
 
-## Step 7: Connect Ramp — Full Transaction History Pull
+## Step 7: Connect Ramp — Full Transaction History Pull  **COMPLETED 2026-02-18**
 
 **Why:** Same rationale as Plaid — get Ramp data into the DB first so the reconciliation script can match against it.
 
 **Tasks:**
 
-### 7a. Verify Ramp API credentials
-- Confirm `RAMP_CLIENT_ID` and `RAMP_CLIENT_SECRET` are set in Vercel
-- Test API connectivity by triggering a manual sync
+### 7a. Verify Ramp API credentials ✅
+- `RAMP_CLIENT_ID` and `RAMP_CLIENT_SECRET` set in Vercel production env vars
+- API connectivity verified
 
-### 7b. Pull full Ramp history
-- Trigger `/api/cron/ramp-sync` manually
-- The sync should pull all available Ramp transactions from account opening into `ramp_transactions` table
-- Verify all transactions land in the uncategorized queue
-- Spot-check: amounts, merchants, dates match Ramp dashboard
+### 7b. Pull full Ramp history ✅
+- Triggered `/api/cron/ramp-sync?full=true` for full-history pull (from 2024-01-01)
+- All available Ramp transactions synced into `ramp_transactions` table
+- Transactions land in uncategorized queue for review
 
 ### 7c. Set up initial categorization rules
-- Review common merchants from Ramp history
-- Create auto-categorization rules for recurring merchants (e.g., Amazon → Office Supplies, General Fund)
-- Heather reviews and adjusts rules
+- Deferred — will be done with Heather during walkthrough (Step 15)
 - **Don't categorize/post yet** — wait until after QBO import so we don't double-count
 
-### 7d. Verify daily sync cron
-- Wait for next cron execution (6 AM ET) or trigger manually
-- Check Vercel function logs for success
+### 7d. Verify daily sync cron ✅
+- Cron registered in Vercel (6 AM UTC daily)
+- Route uses `GET` method (fixed in Step 11)
+- Auth middleware exclusion for `/api/cron/*` in place (fixed in Step 11)
 
-**Acceptance criteria:** Ramp API connected. Full history synced into `ramp_transactions`. At least 5 categorization rules created for common merchants. Daily cron runs without errors.
+**Completion notes:**
+- **OAuth2 fix:** Token endpoint required HTTP Basic Auth (`Authorization: Basic base64(id:secret)`) instead of form-body `client_id`/`client_secret`. Updated `getAccessToken()`.
+- **Date format fix:** Ramp API requires ISO 8601 datetime (`2024-01-01T00:00:00Z`), not bare dates (`2024-01-01`). Updated `fetchTransactionsPage()` to append time components.
+- **Full-history mode:** Added `?full=true` query param to ramp-sync cron route for initial bulk pull (from 2024-01-01). Normal daily sync uses 7-day idempotent window.
+- **Pending transactions:** Expanded sync to include `PENDING` and `PENDING_INITIATION` states (not just `CLEARED`/`COMPLETION`). Added `is_pending` boolean column to schema (migration 0007).
+- **Schema migration:** `0007_condemned_nemesis.sql` — adds `is_pending` column to `ramp_transactions` + `transactions_voided_date_idx` index.
+- **Account selector fix:** Unrelated polish — fixed `account-selector.tsx` scroll behavior (`onWheel` stopPropagation, increased max-height).
+
+**Acceptance criteria:** Ramp API connected. Full history synced into `ramp_transactions`. Daily cron runs without errors. Categorization rules deferred to Heather walkthrough.
 
 ---
 
@@ -434,7 +442,7 @@ Known FY25 adjustments (from prior analysis):
 
 The reconciliation script matches QBO entries against `bank_transactions` (from Plaid, Step 6) and `ramp_transactions` (from Ramp API, Step 7) already in the database. No CSV files needed for the bank/Ramp side.
 
-**Code change required:** The current `run-reconciliation.ts` reads bank and Ramp data from CSV files (`--bank-checking`, `--ramp` args). Add a `--from-db` flag that queries `bank_transactions` and `ramp_transactions` tables instead of parsing CSV. The reconciliation engine (`reconciliation.ts`) already works with `ReconTransaction` objects — just need an alternate loader that queries the DB. Keep the CSV mode as a fallback.
+**Code status: ALREADY IMPLEMENTED.** The `--from-db` flag, `loadBankTransactionsFromDb()`, and `loadRampTransactionsFromDb()` are fully built in `run-reconciliation.ts` (lines 164–245). Handles Plaid sign convention negation, Ramp absolute value, cutoff date filtering, and proper pool cleanup. CSV mode retained as fallback. No code changes needed.
 
 ```bash
 DATABASE_URL=<prod-connection-string> npx tsx src/lib/migration/run-reconciliation.ts \

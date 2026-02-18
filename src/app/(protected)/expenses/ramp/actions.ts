@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { eq, ilike, and, desc, count } from 'drizzle-orm'
+import { and, count, desc, eq, ilike } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import {
   rampTransactions,
@@ -29,6 +29,7 @@ export type RampTransactionRow = typeof rampTransactions.$inferSelect & {
 }
 
 export type RampStats = {
+  pending: number
   uncategorized: number
   categorized: number
   posted: number
@@ -63,6 +64,7 @@ export async function getRampTransactions(filters?: {
       merchantName: rampTransactions.merchantName,
       description: rampTransactions.description,
       cardholder: rampTransactions.cardholder,
+      isPending: rampTransactions.isPending,
       status: rampTransactions.status,
       glAccountId: rampTransactions.glAccountId,
       fundId: rampTransactions.fundId,
@@ -87,15 +89,18 @@ export async function getRampStats(): Promise<RampStats> {
   const result = await db
     .select({
       status: rampTransactions.status,
+      isPending: rampTransactions.isPending,
       count: count(),
     })
     .from(rampTransactions)
-    .groupBy(rampTransactions.status)
+    .groupBy(rampTransactions.status, rampTransactions.isPending)
 
-  const stats: RampStats = { uncategorized: 0, categorized: 0, posted: 0 }
+  const stats: RampStats = { pending: 0, uncategorized: 0, categorized: 0, posted: 0 }
   for (const row of result) {
-    if (row.status in stats) {
-      stats[row.status as keyof RampStats] = row.count
+    if (row.isPending) {
+      stats.pending += row.count
+    } else if (row.status in stats) {
+      stats[row.status as keyof Omit<RampStats, 'pending'>] = row.count
     }
   }
   return stats
@@ -108,6 +113,15 @@ export async function categorizeRampTransaction(
 ): Promise<void> {
   const userId = await getUserId()
   const validated = categorizeRampTransactionSchema.parse(data)
+
+  // Guard: cannot categorize pending transactions
+  const [txnCheck] = await db
+    .select({ isPending: rampTransactions.isPending })
+    .from(rampTransactions)
+    .where(eq(rampTransactions.id, validated.rampTransactionId))
+  if (txnCheck?.isPending) {
+    throw new Error('Cannot categorize a pending transaction. Wait for it to clear.')
+  }
 
   // Set categorization
   await db
@@ -192,7 +206,7 @@ export async function bulkCategorizeRampTransactions(
 
 export async function triggerRampSync(options?: {
   fullHistory?: boolean
-}): Promise<{ synced: number; autoCategorized: number }> {
+}): Promise<{ synced: number; autoCategorized: number; cleared: number }> {
   const userId = await getUserId()
   const fullHistory = options?.fullHistory ?? false
 
@@ -210,8 +224,9 @@ export async function triggerRampSync(options?: {
   const transactions = await fetchTransactions(fetchParams)
 
   let synced = 0
+  let cleared = 0
   let autoCategorized = 0
-  const newIds: number[] = []
+  const newClearedIds: number[] = []
 
   for (const txn of transactions) {
     const result = await db
@@ -223,6 +238,7 @@ export async function triggerRampSync(options?: {
         merchantName: txn.merchantName,
         description: txn.description,
         cardholder: txn.cardholder,
+        isPending: txn.isPending,
         status: 'uncategorized',
       })
       .onConflictDoNothing({ target: rampTransactions.rampId })
@@ -230,14 +246,35 @@ export async function triggerRampSync(options?: {
 
     if (result.length > 0) {
       synced++
-      newIds.push(result[0].id)
+      if (!txn.isPending) {
+        newClearedIds.push(result[0].id)
+      }
+    } else if (!txn.isPending) {
+      // Check for pending→cleared transition
+      const [existing] = await db
+        .select({ id: rampTransactions.id, isPending: rampTransactions.isPending })
+        .from(rampTransactions)
+        .where(eq(rampTransactions.rampId, txn.rampId))
+
+      if (existing?.isPending) {
+        await db
+          .update(rampTransactions)
+          .set({
+            isPending: false,
+            amount: String(txn.amount),
+            date: txn.date,
+          })
+          .where(eq(rampTransactions.id, existing.id))
+        cleared++
+        newClearedIds.push(existing.id)
+      }
     }
   }
 
   // Skip auto-categorization on full history sync — wait for QBO import
   // before posting to GL to avoid double-counting
   if (!fullHistory) {
-    for (const id of newIds) {
+    for (const id of newClearedIds) {
       const categorized = await autoCategorize(id)
       if (categorized) autoCategorized++
     }
@@ -246,7 +283,7 @@ export async function triggerRampSync(options?: {
   }
 
   revalidatePath('/expenses/ramp')
-  return { synced, autoCategorized }
+  return { synced, autoCategorized, cleared }
 }
 
 // --- Shared data fetchers ---

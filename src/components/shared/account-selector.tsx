@@ -95,10 +95,10 @@ export function AccountSelector({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[350px] p-0" align="start">
+      <PopoverContent className="w-[350px] p-0" align="start" onWheel={(e) => e.stopPropagation()}>
         <Command>
           <CommandInput placeholder="Search by code or name..." />
-          <CommandList>
+          <CommandList className="max-h-[min(400px,60vh)]">
             <CommandEmpty>No accounts found.</CommandEmpty>
             {grouped.map((group) => (
               <CommandGroup key={group.type} heading={group.label}>

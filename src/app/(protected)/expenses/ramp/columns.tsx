@@ -8,6 +8,8 @@ import { DataTableColumnHeader } from '@/components/shared/data-table-column-hea
 import type { RampTransactionRow } from './actions'
 
 const statusColors: Record<string, string> = {
+  pending:
+    'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
   uncategorized:
     'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
   categorized:
@@ -17,6 +19,7 @@ const statusColors: Record<string, string> = {
 }
 
 const statusLabels: Record<string, string> = {
+  pending: 'Pending',
   uncategorized: 'Uncategorized',
   categorized: 'Categorized',
   posted: 'Posted',
@@ -107,10 +110,11 @@ export const rampColumns: ColumnDef<RampTransactionRow, unknown>[] = [
       <DataTableColumnHeader column={column} title="Status" />
     ),
     cell: ({ row }) => {
-      const status = row.getValue('status') as string
+      const isPending = row.original.isPending
+      const displayStatus = isPending ? 'pending' : (row.getValue('status') as string)
       return (
-        <Badge variant="outline" className={statusColors[status] ?? ''}>
-          {statusLabels[status] ?? status}
+        <Badge variant="outline" className={statusColors[displayStatus] ?? ''}>
+          {statusLabels[displayStatus] ?? displayStatus}
         </Badge>
       )
     },

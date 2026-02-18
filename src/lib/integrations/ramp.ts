@@ -35,6 +35,7 @@ export interface MappedRampTransaction {
   merchantName: string
   description: string | null
   cardholder: string
+  isPending: boolean
 }
 
 // --- Token cache ---
@@ -57,13 +58,16 @@ export async function getAccessToken(): Promise<string> {
     throw new Error('RAMP_CLIENT_ID and RAMP_CLIENT_SECRET must be set')
   }
 
+  const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
+
   const res = await fetch(`${RAMP_BASE_URL}/developer/v1/token`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Authorization: `Basic ${basicAuth}`,
+    },
     body: new URLSearchParams({
       grant_type: 'client_credentials',
-      client_id: clientId,
-      client_secret: clientSecret,
       scope: 'transactions:read',
     }),
   })
@@ -116,8 +120,15 @@ async function fetchTransactionsPage(
 ): Promise<RampPageResponse> {
   const token = await getAccessToken()
   const url = new URL(`${RAMP_BASE_URL}/developer/v1/transactions`)
-  if (params.from_date) url.searchParams.set('from_date', params.from_date)
-  if (params.to_date) url.searchParams.set('to_date', params.to_date)
+  // Ramp API requires ISO 8601 datetime, not bare dates
+  if (params.from_date) {
+    const val = params.from_date.includes('T') ? params.from_date : `${params.from_date}T00:00:00Z`
+    url.searchParams.set('from_date', val)
+  }
+  if (params.to_date) {
+    const val = params.to_date.includes('T') ? params.to_date : `${params.to_date}T23:59:59Z`
+    url.searchParams.set('to_date', val)
+  }
   if (params.state) url.searchParams.set('state', params.state)
   if (params.start) url.searchParams.set('start', params.start)
   url.searchParams.set('page_size', String(params.page_size ?? 100))
@@ -139,8 +150,12 @@ async function fetchTransactionsPage(
   return res.json() as Promise<RampPageResponse>
 }
 
+/** States we sync — cleared/completed + pending. Declined/error are excluded. */
+const SYNC_STATES = new Set(['CLEARED', 'COMPLETION', 'PENDING', 'PENDING_INITIATION'])
+
 /**
- * Fetch all cleared/completed transactions from Ramp, handling pagination.
+ * Fetch all syncable transactions from Ramp, handling pagination.
+ * Includes both cleared and pending transactions.
  * Returns mapped transactions ready for DB insert.
  */
 export async function fetchTransactions(params?: {
@@ -159,8 +174,7 @@ export async function fetchTransactions(params?: {
     })
 
     for (const txn of page.data) {
-      // Only sync CLEARED and COMPLETION states
-      if (txn.state !== 'CLEARED' && txn.state !== 'COMPLETION') continue
+      if (!SYNC_STATES.has(txn.state)) continue
       results.push(mapRampTransaction(txn))
     }
 
@@ -204,6 +218,7 @@ export async function fetchTransaction(
  * - Prefers user_transaction_time over accounting_date for date
  * - Takes Math.abs() of amount (Ramp returns negative for charges)
  * - Concatenates cardholder first + last name
+ * - Sets isPending based on Ramp state
  */
 export function mapRampTransaction(txn: RampApiTransaction): MappedRampTransaction {
   const rawDate = txn.user_transaction_time ?? txn.accounting_date ?? ''
@@ -218,5 +233,6 @@ export function mapRampTransaction(txn: RampApiTransaction): MappedRampTransacti
     cardholder: txn.card_holder
       ? `${txn.card_holder.first_name} ${txn.card_holder.last_name}`
       : 'Unknown',
+    isPending: txn.state === 'PENDING' || txn.state === 'PENDING_INITIATION',
   }
 }

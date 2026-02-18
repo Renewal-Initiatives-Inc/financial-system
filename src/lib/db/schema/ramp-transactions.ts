@@ -1,4 +1,5 @@
 import {
+  boolean,
   index,
   integer,
   numeric,
@@ -25,6 +26,7 @@ export const rampTransactions = pgTable(
     merchantName: varchar('merchant_name', { length: 500 }).notNull(),
     description: text('description'),
     cardholder: varchar('cardholder', { length: 255 }).notNull(),
+    isPending: boolean('is_pending').notNull().default(false),
     status: rampTransactionStatusEnum('status').notNull().default('uncategorized'),
     glAccountId: integer('gl_account_id').references(() => accounts.id),
     fundId: integer('fund_id').references(() => funds.id),

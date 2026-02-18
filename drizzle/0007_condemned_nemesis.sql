@@ -1,0 +1,2 @@
+ALTER TABLE "ramp_transactions" ADD COLUMN "is_pending" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+CREATE INDEX "transactions_voided_date_idx" ON "transactions" USING btree ("is_voided","date");
