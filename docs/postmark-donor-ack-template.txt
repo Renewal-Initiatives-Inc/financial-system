@@ -1,0 +1,29 @@
+RENEWAL INITIATIVES, INC.
+A 501(c)(3) Nonprofit Organization | EIN: 93-2289938
+---
+
+{{donation_date}}
+
+Dear {{donor_name}},
+
+Thank you for your generous contribution to Renewal Initiatives, Inc. Your support makes a meaningful difference in our mission to strengthen communities through housing and neighborhood revitalization.
+
+DONATION DETAILS
+  Amount:     ${{donation_amount}}
+  Date:       {{donation_date}}
+  Fund:       {{fund_name}}
+
+{{no_goods_or_services_statement}}
+
+This letter serves as your official written acknowledgment for tax purposes, as required under IRC § 170(f)(8). Please retain this receipt for your records.
+
+We are deeply grateful for your partnership. If you have any questions about your contribution, please don't hesitate to reach out.
+
+With gratitude,
+
+Heather Takle
+Executive Director
+Renewal Initiatives, Inc.
+
+---
+Renewal Initiatives, Inc. is a tax-exempt organization under Section 501(c)(3) of the Internal Revenue Code. Contributions are tax-deductible to the extent permitted by law. EIN: 93-2289938

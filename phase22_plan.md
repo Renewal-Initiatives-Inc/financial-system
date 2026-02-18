@@ -266,6 +266,9 @@ git push origin main
 - **Pending transactions:** Expanded sync to include `PENDING` and `PENDING_INITIATION` states (not just `CLEARED`/`COMPLETION`). Added `is_pending` boolean column to schema (migration 0007).
 - **Schema migration:** `0007_condemned_nemesis.sql` — adds `is_pending` column to `ramp_transactions` + `transactions_voided_date_idx` index.
 - **Account selector fix:** Unrelated polish — fixed `account-selector.tsx` scroll behavior (`onWheel` stopPropagation, increased max-height).
+- **Migration 0007 applied to prod:** Ran directly via SQL (`ALTER TABLE ... ADD COLUMN IF NOT EXISTS`). Bootstrapped `__drizzle_migrations` tracking table in prod (was missing — prior migrations applied via `drizzle-kit push`). All 8 migrations (0000–0007) now tracked; future `drizzle-kit migrate` runs will work cleanly.
+- **Pending transaction synced:** Full-history re-sync picked up 1 pending Anytime Mailbox $1 transaction (`is_pending = true`). Pending tab in UI confirmed working (60% opacity, non-selectable, non-categorizable).
+- **Deployment note:** Code on `phase-22-implementation` branch must be deployed via `vercel --prod` (manual). Git push to branch triggers preview deployment only; production auto-deploys from `main`.
 
 **Acceptance criteria:** Ramp API connected. Full history synced into `ramp_transactions`. Daily cron runs without errors. Categorization rules deferred to Heather walkthrough.
 
@@ -505,29 +508,37 @@ After GL import + accrual conversion, these entities need manual entry in the ap
 
 ---
 
-## Step 9: Configure External Integrations — Postmark
+## Step 9: Configure External Integrations — Postmark  **PARTIALLY COMPLETED 2026-02-18**
 
 **Why:** Donor acknowledgment letters and compliance reminders go through Postmark.
 
 **Tasks:**
 
-### 9a. Configure Postmark template
-- Create (or verify) donor acknowledgment letter template in Postmark
-- Template includes: Heather's signature image, RI letterhead, IRS-required language
-- Test template rendering with sample data
+### 9a. Configure Postmark template ✅
+- Created donor acknowledgment template in Postmark ("Code your own" → custom HTML)
+- Template alias: `renewal-initiatives-donor-receipt-v1` (matches `POSTMARK_DONOR_ACK_TEMPLATE` env var)
+- Template includes: RI letterhead with green branding, Heather's signature block, IRS-required language, EIN
+- Template variables: `donor_name`, `donation_date`, `donation_amount`, `fund_name`, `no_goods_or_services_statement`
+- Code updated: `postmark.ts` now formats date as "February 15, 2026" and amount as "5,000.00" before sending
+- HTML template saved locally at `docs/postmark-donor-ack-template.html` for reference
 
-### 9b. Send test acknowledgment
-- Create a test donation in production ($100 to test donor)
-- Verify Postmark sends the acknowledgment email (amount > $250 threshold — create one above threshold to test auto-send)
-- Verify email formatting: donor name, date, amount, no-goods-or-services statement
-- Verify Heather's signature and letterhead render correctly
+### 9b. Send test acknowledgment ✅
+- Test email sent via Postmark API to `jeff@takle.me` with sample data (Jane Smith, $5,000 AHP Fund donation)
+- API returned `ErrorCode: 0` (success), MessageID: `b37e35b1-ea66-4aa7-878d-87e5cd3cde34`
+- Delivery pending — Postmark free tier at 100/100 sends for the period; resets in 2 days
+- Domain `renewalinitiatives.org` fully verified (DKIM + Return-Path)
+- Will confirm email receipt after limit resets
 
-### 9c. Verify compliance reminder emails
-- Check that compliance reminder cron (`/api/cron/compliance-reminders`) is running
-- Verify it sends test emails for deadlines within 30 days
-- Confirm Postmark delivery tracking shows successful delivery
+### 9c. Verify compliance reminder emails — DEFERRED
+- Compliance reminder cron is registered and running
+- Email delivery verification deferred until Postmark send limit resets
 
-**Acceptance criteria:** Donor acknowledgment email sends correctly with proper formatting. Compliance reminders deliver. Postmark delivery logs show success.
+**Completion notes:**
+- Postmark server: "My First Server" (ID: 17913281)
+- Free tier limit hit (100/100) — renews ~Feb 20. Consider upgrading to paid plan ($15/mo for 10,000 sends) for production reliability.
+- `POSTMARK_FROM_EMAIL` = `finance@renewalinitiatives.org` (verified domain)
+
+**Acceptance criteria:** Donor acknowledgment template created and API-tested. Full delivery verification pending Postmark limit reset. Compliance reminder verification deferred.
 
 ---
 
@@ -814,21 +825,21 @@ Note: Phase 22 is primarily operational (configuration, API connections, data im
 ## Execution Order & Parallelization
 
 ```
-Step 1  (pre-deployment check)    ─── GATE: must pass before proceeding
-Step 2  (env vars)                ─── do first after gate passes
-Step 3  (DB migrations + seed)    ─── depends on Step 2 (needs DATABASE_URL)
-Step 4  (deploy to production)    ─── depends on Steps 2, 3
-Step 5  (auth verification)       ─── depends on Step 4
-Step 6  (Plaid — full history)    ─┐─ connect APIs FIRST so data is in DB
-Step 7  (Ramp — full history)     ─┘  for reconciliation
-Step 8  (QBO import + recon)      ─── depends on Steps 6, 7 (reconciles against API data)
-Step 9  (Postmark verification)   ─── can parallel with Steps 6-8
-Step 10 (cron job verification)   ─── depends on Steps 6, 7 (needs live integrations)
-Step 11 (cross-DB connectivity)   ─── depends on Step 4
-Step 12 (smoke tests)             ─── depends on Steps 8-11 (needs full system)
+Step 1  (pre-deployment check)    ─── COMPLETED 2026-02-16
+Step 2  (env vars)                ─── COMPLETED 2026-02-16
+Step 3  (DB migrations + seed)    ─── COMPLETED 2026-02-16
+Step 4  (deploy to production)    ─── COMPLETED 2026-02-16
+Step 5  (auth verification)       ─── COMPLETED 2026-02-16
+Step 6  (Plaid — full history)    ─── BLOCKED (Plaid production approval pending, submitted 2026-02-18)
+Step 7  (Ramp — full history)     ─── COMPLETED 2026-02-18 (3 API fixes + pending txn support)
+Step 8  (QBO import + recon)      ─── READY (can start; Plaid recon deferred until Step 6 unblocked)
+Step 9  (Postmark verification)   ─── READY (can parallel)
+Step 10 (cron job verification)   ─── PARTIAL (Ramp cron verified; Plaid cron blocked on Step 6)
+Step 11 (cross-DB connectivity)   ─── COMPLETED 2026-02-17
+Step 12 (smoke tests)             ─── depends on Steps 8-10
 Step 13 (error monitoring)        ─── can parallel with Step 12
-Step 14 (user documentation)      ─── can start anytime after Step 5
-Step 15 (Heather walkthrough)     ─── depends on Steps 12, 14 (needs working system + docs)
+Step 14 (user documentation)      ─── COMPLETED 2026-02-17
+Step 15 (Heather walkthrough)     ─── depends on Steps 12, 14
 Step 16 (staging environment)     ─── can parallel with Steps 14-15
 ```
 
