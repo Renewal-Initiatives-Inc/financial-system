@@ -3,7 +3,7 @@ config({ path: '.env.local' })
 
 import { Pool } from '@neondatabase/serverless'
 import { drizzle } from 'drizzle-orm/neon-serverless'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import * as schema from '../schema'
 import { seedAccounts } from './accounts'
 import { seedFunds } from './funds'
@@ -119,12 +119,12 @@ async function seed() {
     const existing = await db
       .select({ id: schema.annualRateConfig.id })
       .from(schema.annualRateConfig)
-      .where(
+      .where(and(
+        eq(schema.annualRateConfig.fiscalYear, rate.fiscalYear),
         eq(schema.annualRateConfig.configKey, rate.configKey)
-      )
+      ))
       .limit(1)
 
-    // Simple check: if any rate with this key exists, skip all (idempotent)
     if (existing.length === 0) {
       await db.insert(schema.annualRateConfig).values(rate)
     }

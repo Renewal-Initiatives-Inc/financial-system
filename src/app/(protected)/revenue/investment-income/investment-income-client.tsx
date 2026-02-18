@@ -12,7 +12,11 @@ import { HelpTooltip } from '@/components/shared/help-tooltip'
 import { toast } from 'sonner'
 import { recordInvestmentIncome } from '../actions'
 
-export function InvestmentIncomeClient() {
+interface Props {
+  recentEntries: Array<{ id: number; date: string; memo: string; createdAt: Date }>
+}
+
+export function InvestmentIncomeClient({ recentEntries }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [amount, setAmount] = useState('')
@@ -84,6 +88,26 @@ export function InvestmentIncomeClient() {
               {isPending ? 'Recording...' : 'Record Investment Income'}
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Entries</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {recentEntries.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No investment income recorded yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {recentEntries.map((e) => (
+                <div key={e.id} className="flex justify-between text-sm border-b pb-2">
+                  <span>{e.memo}</span>
+                  <span className="text-muted-foreground">{e.date}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

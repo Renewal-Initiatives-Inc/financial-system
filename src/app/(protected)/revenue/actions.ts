@@ -258,6 +258,82 @@ export async function getDonations(limit = 50) {
     .limit(limit)
 }
 
+export async function getRecentEarnedIncome(limit = 20) {
+  return db
+    .select({
+      id: transactions.id,
+      date: transactions.date,
+      memo: transactions.memo,
+      createdAt: transactions.createdAt,
+    })
+    .from(transactions)
+    .where(
+      and(
+        ilike(transactions.memo, 'Earned income%'),
+        eq(transactions.isVoided, false)
+      )
+    )
+    .orderBy(desc(transactions.date))
+    .limit(limit)
+}
+
+export async function getRecentInvestmentIncome(limit = 20) {
+  return db
+    .select({
+      id: transactions.id,
+      date: transactions.date,
+      memo: transactions.memo,
+      createdAt: transactions.createdAt,
+    })
+    .from(transactions)
+    .where(
+      and(
+        ilike(transactions.memo, 'Investment income%'),
+        eq(transactions.isVoided, false)
+      )
+    )
+    .orderBy(desc(transactions.date))
+    .limit(limit)
+}
+
+export async function getRecentInKindContributions(limit = 20) {
+  return db
+    .select({
+      id: transactions.id,
+      date: transactions.date,
+      memo: transactions.memo,
+      createdAt: transactions.createdAt,
+    })
+    .from(transactions)
+    .where(
+      and(
+        ilike(transactions.memo, 'In-kind contribution%'),
+        eq(transactions.isVoided, false)
+      )
+    )
+    .orderBy(desc(transactions.date))
+    .limit(limit)
+}
+
+export async function getRecentAhpForgiveness(limit = 20) {
+  return db
+    .select({
+      id: transactions.id,
+      date: transactions.date,
+      memo: transactions.memo,
+      createdAt: transactions.createdAt,
+    })
+    .from(transactions)
+    .where(
+      and(
+        ilike(transactions.memo, '%forgiveness%'),
+        eq(transactions.isVoided, false)
+      )
+    )
+    .orderBy(desc(transactions.date))
+    .limit(limit)
+}
+
 export async function getAhpLoanStatus() {
   return getAhpLoanConfig()
 }

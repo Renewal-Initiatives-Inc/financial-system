@@ -93,7 +93,7 @@ export function TransactionsClient({
             data-testid="txn-show-voided"
           />
           <Label htmlFor="show-voided" className="text-sm">
-            Show voided
+            Include voided
           </Label>
         </div>
         {isPending && (

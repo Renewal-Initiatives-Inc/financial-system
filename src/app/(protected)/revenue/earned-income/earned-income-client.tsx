@@ -22,9 +22,10 @@ import { recordEarnedIncome } from '../actions'
 interface Props {
   funds: { id: number; name: string; restrictionType: string }[]
   revenueAccounts: { id: number; name: string; code: string }[]
+  recentEntries: Array<{ id: number; date: string; memo: string; createdAt: Date }>
 }
 
-export function EarnedIncomeClient({ funds, revenueAccounts }: Props) {
+export function EarnedIncomeClient({ funds, revenueAccounts, recentEntries }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [amount, setAmount] = useState('')
@@ -148,6 +149,26 @@ export function EarnedIncomeClient({ funds, revenueAccounts }: Props) {
               {isPending ? 'Recording...' : 'Record Earned Income'}
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Entries</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {recentEntries.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No earned income recorded yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {recentEntries.map((e) => (
+                <div key={e.id} className="flex justify-between text-sm border-b pb-2">
+                  <span>{e.memo}</span>
+                  <span className="text-muted-foreground">{e.date}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -22,9 +22,10 @@ function formatCurrency(value: string | number) {
 
 interface Props {
   loanStatus: AhpLoanStatus | null
+  recentEntries: Array<{ id: number; date: string; memo: string; createdAt: Date }>
 }
 
-export function AhpForgivenessClient({ loanStatus }: Props) {
+export function AhpForgivenessClient({ loanStatus, recentEntries }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [amount, setAmount] = useState('')
@@ -150,6 +151,26 @@ export function AhpForgivenessClient({ loanStatus }: Props) {
               {isPending ? 'Recording...' : 'Record Forgiveness'}
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Entries</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {recentEntries.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No forgiveness entries recorded yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {recentEntries.map((e) => (
+                <div key={e.id} className="flex justify-between text-sm border-b pb-2">
+                  <span>{e.memo}</span>
+                  <span className="text-muted-foreground">{e.date}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
