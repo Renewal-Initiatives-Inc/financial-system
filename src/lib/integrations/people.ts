@@ -93,7 +93,7 @@ export async function getActiveEmployees(): Promise<EmployeePayrollData[]> {
   const peopleDb = drizzle(peopleSql)
 
   const rows = await peopleDb.execute(
-    sql`SELECT id, name, email, compensation_type, annual_salary,
+    sql`SELECT zitadel_user_id, name, email, compensation_type, annual_salary,
         expected_annual_hours, exempt_status, federal_filing_status,
         federal_allowances, state_allowances, additional_federal_withholding,
         additional_state_withholding, is_head_of_household, is_blind,
@@ -104,7 +104,7 @@ export async function getActiveEmployees(): Promise<EmployeePayrollData[]> {
   // Neon HTTP driver returns numeric/decimal columns as strings to preserve
   // precision. We must explicitly convert them to numbers for math operations.
   return rows.rows.map((row: Record<string, unknown>) => ({
-    id: row.id as string,
+    id: row.zitadel_user_id as string,
     name: row.name as string,
     email: row.email as string,
     compensationType: row.compensation_type as 'PER_TASK' | 'SALARIED',
