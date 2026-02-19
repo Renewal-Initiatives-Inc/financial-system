@@ -27,12 +27,14 @@ interface ConnectBankDialogProps {
   open: boolean
   onClose: () => void
   glAccountOptions: { id: number; name: string; code: string }[]
+  userId: string
 }
 
 export function ConnectBankDialog({
   open,
   onClose,
   glAccountOptions,
+  userId,
 }: ConnectBankDialogProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -81,7 +83,7 @@ export function ConnectBankDialog({
 
     startTransition(async () => {
       try {
-        const token = await getLinkToken('system')
+        const token = await getLinkToken(userId)
         setLinkToken(token)
         setStep('plaid-link')
       } catch (err) {
@@ -112,7 +114,7 @@ export function ConnectBankDialog({
             last4: plaidData.accountMask,
             glAccountId: parseInt(glAccountId, 10),
           },
-          'system'
+          userId
         )
         toast.success('Bank account connected')
         resetForm()

@@ -27,11 +27,13 @@ import type { BankAccountRow } from './actions'
 interface BankAccountsClientProps {
   initialAccounts: BankAccountRow[]
   glAccountOptions: { id: number; name: string; code: string }[]
+  userId: string
 }
 
 export function BankAccountsClient({
   initialAccounts,
   glAccountOptions,
+  userId,
 }: BankAccountsClientProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -42,7 +44,7 @@ export function BankAccountsClient({
     setSyncingId(accountId)
     startTransition(async () => {
       try {
-        const result = await triggerManualSync(accountId, 'system')
+        const result = await triggerManualSync(accountId, userId)
         toast.success(
           `Synced: ${result.added} added, ${result.modified} modified`
         )
@@ -61,7 +63,7 @@ export function BankAccountsClient({
     }
     startTransition(async () => {
       try {
-        await deactivateBankAccount(accountId, 'system')
+        await deactivateBankAccount(accountId, userId)
         toast.success('Bank account disconnected')
         router.refresh()
       } catch (err) {
@@ -208,6 +210,7 @@ export function BankAccountsClient({
         open={connectOpen}
         onClose={() => setConnectOpen(false)}
         glAccountOptions={glAccountOptions}
+        userId={userId}
       />
     </div>
   )
