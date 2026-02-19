@@ -20,13 +20,13 @@ interface ComplianceCalendarClientProps {
 export function ComplianceCalendarClient({
   initialDeadlines,
 }: ComplianceCalendarClientProps) {
-  const [categoryFilter, setCategoryFilter] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
   const [selected, setSelected] = useState<number | null>(null)
 
   const filtered = initialDeadlines.filter((d) => {
-    if (categoryFilter && d.category !== categoryFilter) return false
-    if (statusFilter && d.status !== statusFilter) return false
+    if (categoryFilter !== 'all' && d.category !== categoryFilter) return false
+    if (statusFilter !== 'all' && d.status !== statusFilter) return false
     return true
   })
 
@@ -61,7 +61,7 @@ export function ComplianceCalendarClient({
             <SelectValue placeholder="All Categories" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Categories</SelectItem>
+            <SelectItem value="all">All Categories</SelectItem>
             <SelectItem value="tax">Tax</SelectItem>
             <SelectItem value="tenant">Tenant</SelectItem>
             <SelectItem value="grant">Grant</SelectItem>
@@ -77,7 +77,7 @@ export function ComplianceCalendarClient({
             <SelectValue placeholder="All Statuses" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Statuses</SelectItem>
+            <SelectItem value="all">All Statuses</SelectItem>
             <SelectItem value="upcoming">Upcoming</SelectItem>
             <SelectItem value="reminded">Reminded</SelectItem>
             <SelectItem value="completed">Completed</SelectItem>

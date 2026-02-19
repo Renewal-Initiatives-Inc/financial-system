@@ -24,13 +24,13 @@ interface DonorsClientProps {
 export function DonorsClient({ initialDonors }: DonorsClientProps) {
   const router = useRouter()
   const [search, setSearch] = useState('')
-  const [typeFilter, setTypeFilter] = useState('')
+  const [typeFilter, setTypeFilter] = useState('all')
   const [showActive, setShowActive] = useState<'all' | 'active'>('active')
   const [createOpen, setCreateOpen] = useState(false)
 
   const filtered = initialDonors.filter((donor) => {
     if (showActive === 'active' && !donor.isActive) return false
-    if (typeFilter && donor.type !== typeFilter) return false
+    if (typeFilter !== 'all' && donor.type !== typeFilter) return false
     if (search) {
       const q = search.toLowerCase()
       return (
@@ -70,7 +70,7 @@ export function DonorsClient({ initialDonors }: DonorsClientProps) {
             <SelectValue placeholder="All Types" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Types</SelectItem>
+            <SelectItem value="all">All Types</SelectItem>
             <SelectItem value="INDIVIDUAL">Individual</SelectItem>
             <SelectItem value="CORPORATE">Corporate</SelectItem>
             <SelectItem value="FOUNDATION">Foundation</SelectItem>

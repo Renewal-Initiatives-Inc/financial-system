@@ -53,7 +53,7 @@ export function CreateAccountDialog({
   const [name, setName] = useState('')
   const [type, setType] = useState('')
   const [subType, setSubType] = useState('')
-  const [parentAccountId, setParentAccountId] = useState<string>('')
+  const [parentAccountId, setParentAccountId] = useState<string>('none')
   const [form990Line, setForm990Line] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
@@ -94,7 +94,7 @@ export function CreateAccountDialog({
             type: type as 'ASSET' | 'LIABILITY' | 'NET_ASSET' | 'REVENUE' | 'EXPENSE',
             normalBalance: deriveNormalBalance(type),
             subType: subType.trim() || null,
-            parentAccountId: parentAccountId ? parseInt(parentAccountId, 10) : null,
+            parentAccountId: parentAccountId !== 'none' ? parseInt(parentAccountId, 10) : null,
             form990Line: form990Line.trim() || null,
           }
         )
@@ -236,7 +236,7 @@ export function CreateAccountDialog({
                 <SelectValue placeholder={type ? 'None (top-level)' : 'Select type first'} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None (top-level)</SelectItem>
+                <SelectItem value="none">None (top-level)</SelectItem>
                 {parentOptions.map((a) => (
                   <SelectItem key={a.id} value={String(a.id)}>
                     {a.code} - {a.name}

@@ -30,8 +30,8 @@ export function VendorsClient({
 }: VendorsClientProps) {
   const router = useRouter()
   const [search, setSearch] = useState('')
-  const [eligibleFilter, setEligibleFilter] = useState('')
-  const [w9Filter, setW9Filter] = useState('')
+  const [eligibleFilter, setEligibleFilter] = useState('all')
+  const [w9Filter, setW9Filter] = useState('all')
   const [showActive, setShowActive] = useState<'all' | 'active'>('active')
   const [createOpen, setCreateOpen] = useState(false)
 
@@ -39,7 +39,7 @@ export function VendorsClient({
     if (showActive === 'active' && !vendor.isActive) return false
     if (eligibleFilter === 'yes' && !vendor.is1099Eligible) return false
     if (eligibleFilter === 'no' && vendor.is1099Eligible) return false
-    if (w9Filter && vendor.w9Status !== w9Filter) return false
+    if (w9Filter !== 'all' && vendor.w9Status !== w9Filter) return false
     if (search) {
       const q = search.toLowerCase()
       return vendor.name.toLowerCase().includes(q)
@@ -76,7 +76,7 @@ export function VendorsClient({
             <SelectValue placeholder="1099 Eligible" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All</SelectItem>
+            <SelectItem value="all">All</SelectItem>
             <SelectItem value="yes">Yes</SelectItem>
             <SelectItem value="no">No</SelectItem>
           </SelectContent>
@@ -89,7 +89,7 @@ export function VendorsClient({
             <SelectValue placeholder="W-9 Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All</SelectItem>
+            <SelectItem value="all">All</SelectItem>
             <SelectItem value="COLLECTED">Collected</SelectItem>
             <SelectItem value="PENDING">Pending</SelectItem>
             <SelectItem value="NOT_REQUIRED">Not Required</SelectItem>

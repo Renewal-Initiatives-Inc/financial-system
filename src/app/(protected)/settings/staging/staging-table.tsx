@@ -23,13 +23,13 @@ interface StagingTableProps {
 }
 
 export function StagingTable({ initialRecords, counts }: StagingTableProps) {
-  const [statusFilter, setStatusFilter] = useState('')
-  const [sourceFilter, setSourceFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [sourceFilter, setSourceFilter] = useState('all')
   const [isPending, startTransition] = useTransition()
 
   const filtered = initialRecords.filter((record) => {
-    if (statusFilter && record.status !== statusFilter) return false
-    if (sourceFilter && record.sourceApp !== sourceFilter) return false
+    if (statusFilter !== 'all' && record.status !== statusFilter) return false
+    if (sourceFilter !== 'all' && record.sourceApp !== sourceFilter) return false
     return true
   })
 
@@ -81,7 +81,7 @@ export function StagingTable({ initialRecords, counts }: StagingTableProps) {
             <SelectValue placeholder="All Statuses" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Statuses</SelectItem>
+            <SelectItem value="all">All Statuses</SelectItem>
             <SelectItem value="received">Received</SelectItem>
             <SelectItem value="posted">Posted</SelectItem>
             <SelectItem value="matched_to_payment">Matched</SelectItem>
@@ -97,7 +97,7 @@ export function StagingTable({ initialRecords, counts }: StagingTableProps) {
             <SelectValue placeholder="All Sources" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Sources</SelectItem>
+            <SelectItem value="all">All Sources</SelectItem>
             <SelectItem value="timesheets">Timesheets</SelectItem>
             <SelectItem value="expense_reports">Expense Reports</SelectItem>
           </SelectContent>

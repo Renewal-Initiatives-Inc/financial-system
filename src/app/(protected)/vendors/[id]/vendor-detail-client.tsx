@@ -95,13 +95,13 @@ export function VendorDetailClient({
   const [name, setName] = useState(vendor.name)
   const [address, setAddress] = useState(vendor.address ?? '')
   const [taxId, setTaxId] = useState(vendor.taxId ?? '')
-  const [entityType, setEntityType] = useState(vendor.entityType ?? '')
+  const [entityType, setEntityType] = useState(vendor.entityType ?? 'none')
   const [is1099Eligible, setIs1099Eligible] = useState(vendor.is1099Eligible)
   const [defaultAccountId, setDefaultAccountId] = useState(
-    vendor.defaultAccountId ? String(vendor.defaultAccountId) : ''
+    vendor.defaultAccountId ? String(vendor.defaultAccountId) : 'none'
   )
   const [defaultFundId, setDefaultFundId] = useState(
-    vendor.defaultFundId ? String(vendor.defaultFundId) : ''
+    vendor.defaultFundId ? String(vendor.defaultFundId) : 'none'
   )
   const [w9Status, setW9Status] = useState(vendor.w9Status)
   const [w9CollectedDate, setW9CollectedDate] = useState(
@@ -122,22 +122,22 @@ export function VendorDetailClient({
             ...(taxId !== (vendor.taxId ?? '')
               ? { taxId: taxId || null }
               : {}),
-            ...(entityType !== (vendor.entityType ?? '')
-              ? { entityType: entityType || null }
+            ...(entityType !== (vendor.entityType ?? 'none')
+              ? { entityType: entityType !== 'none' ? entityType : null }
               : {}),
             ...(is1099Eligible !== vendor.is1099Eligible
               ? { is1099Eligible }
               : {}),
-            ...(defaultAccountId !== (vendor.defaultAccountId ? String(vendor.defaultAccountId) : '')
+            ...(defaultAccountId !== (vendor.defaultAccountId ? String(vendor.defaultAccountId) : 'none')
               ? {
-                  defaultAccountId: defaultAccountId
+                  defaultAccountId: defaultAccountId !== 'none'
                     ? parseInt(defaultAccountId, 10)
                     : null,
                 }
               : {}),
-            ...(defaultFundId !== (vendor.defaultFundId ? String(vendor.defaultFundId) : '')
+            ...(defaultFundId !== (vendor.defaultFundId ? String(vendor.defaultFundId) : 'none')
               ? {
-                  defaultFundId: defaultFundId
+                  defaultFundId: defaultFundId !== 'none'
                     ? parseInt(defaultFundId, 10)
                     : null,
                 }
@@ -300,7 +300,7 @@ export function VendorDetailClient({
                     <SelectValue placeholder="None" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     <SelectItem value="INDIVIDUAL">Individual</SelectItem>
                     <SelectItem value="SOLE_PROPRIETOR">Sole Proprietor</SelectItem>
                     <SelectItem value="LLC">LLC</SelectItem>
@@ -325,7 +325,7 @@ export function VendorDetailClient({
                     <SelectValue placeholder="None" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {accountOptions.map((a) => (
                       <SelectItem key={a.id} value={String(a.id)}>
                         {a.code} - {a.name}
@@ -348,7 +348,7 @@ export function VendorDetailClient({
                     <SelectValue placeholder="None" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {fundOptions.map((f) => (
                       <SelectItem key={f.id} value={String(f.id)}>
                         {f.name}

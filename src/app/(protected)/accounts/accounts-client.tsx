@@ -27,13 +27,13 @@ interface AccountsClientProps {
 export function AccountsClient({ initialAccounts }: AccountsClientProps) {
   const router = useRouter()
   const [search, setSearch] = useState('')
-  const [typeFilter, setTypeFilter] = useState('')
+  const [typeFilter, setTypeFilter] = useState('all')
   const [showActive, setShowActive] = useState<'all' | 'active'>('active')
   const [createOpen, setCreateOpen] = useState(false)
 
   // Client-side filtering (69 accounts is small enough)
   const filtered = initialAccounts.filter((account) => {
-    if (typeFilter && account.type !== typeFilter) return false
+    if (typeFilter !== 'all' && account.type !== typeFilter) return false
     if (showActive === 'active' && !account.isActive) return false
     if (search) {
       const q = search.toLowerCase()
@@ -78,7 +78,7 @@ export function AccountsClient({ initialAccounts }: AccountsClientProps) {
                 <SelectValue placeholder="All Types" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="ASSET">Asset</SelectItem>
                 <SelectItem value="LIABILITY">Liability</SelectItem>
                 <SelectItem value="NET_ASSET">Net Asset</SelectItem>

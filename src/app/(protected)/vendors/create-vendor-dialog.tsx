@@ -52,10 +52,10 @@ export function CreateVendorDialog({
   const [name, setName] = useState('')
   const [address, setAddress] = useState('')
   const [taxId, setTaxId] = useState('')
-  const [entityType, setEntityType] = useState('')
+  const [entityType, setEntityType] = useState('none')
   const [is1099Eligible, setIs1099Eligible] = useState(false)
-  const [defaultAccountId, setDefaultAccountId] = useState<string>('')
-  const [defaultFundId, setDefaultFundId] = useState<string>('')
+  const [defaultAccountId, setDefaultAccountId] = useState<string>('none')
+  const [defaultFundId, setDefaultFundId] = useState<string>('none')
   const [w9Status, setW9Status] = useState('NOT_REQUIRED')
   const [w9CollectedDate, setW9CollectedDate] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
@@ -89,12 +89,12 @@ export function CreateVendorDialog({
             name: name.trim(),
             address: address.trim() || null,
             taxId: taxId.trim() || null,
-            entityType: entityType || null,
+            entityType: entityType !== 'none' ? entityType : null,
             is1099Eligible,
-            defaultAccountId: defaultAccountId
+            defaultAccountId: defaultAccountId !== 'none'
               ? parseInt(defaultAccountId, 10)
               : null,
-            defaultFundId: defaultFundId
+            defaultFundId: defaultFundId !== 'none'
               ? parseInt(defaultFundId, 10)
               : null,
             w9Status: w9Status as 'COLLECTED' | 'PENDING' | 'NOT_REQUIRED',
@@ -182,7 +182,7 @@ export function CreateVendorDialog({
                 <SelectValue placeholder="Select entity type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="none">None</SelectItem>
                 {ENTITY_TYPES.map((t) => (
                   <SelectItem key={t.value} value={t.value}>
                     {t.label}
@@ -219,7 +219,7 @@ export function CreateVendorDialog({
                 <SelectValue placeholder="None" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="none">None</SelectItem>
                 {accountOptions.map((a) => (
                   <SelectItem key={a.id} value={String(a.id)}>
                     {a.code} - {a.name}
@@ -236,7 +236,7 @@ export function CreateVendorDialog({
                 <SelectValue placeholder="None" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="none">None</SelectItem>
                 {fundOptions.map((f) => (
                   <SelectItem key={f.id} value={String(f.id)}>
                     {f.name}

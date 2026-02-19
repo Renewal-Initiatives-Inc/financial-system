@@ -24,13 +24,13 @@ interface TenantsClientProps {
 export function TenantsClient({ initialTenants }: TenantsClientProps) {
   const router = useRouter()
   const [search, setSearch] = useState('')
-  const [fundingFilter, setFundingFilter] = useState('')
+  const [fundingFilter, setFundingFilter] = useState('all')
   const [showActive, setShowActive] = useState<'all' | 'active'>('active')
   const [createOpen, setCreateOpen] = useState(false)
 
   const filtered = initialTenants.filter((tenant) => {
     if (showActive === 'active' && !tenant.isActive) return false
-    if (fundingFilter && tenant.fundingSourceType !== fundingFilter)
+    if (fundingFilter !== 'all' && tenant.fundingSourceType !== fundingFilter)
       return false
     if (search) {
       const q = search.toLowerCase()
@@ -71,7 +71,7 @@ export function TenantsClient({ initialTenants }: TenantsClientProps) {
             <SelectValue placeholder="Funding Source" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All</SelectItem>
+            <SelectItem value="all">All</SelectItem>
             <SelectItem value="TENANT_DIRECT">Self-Pay</SelectItem>
             <SelectItem value="VASH">VASH</SelectItem>
             <SelectItem value="MRVP">MRVP</SelectItem>

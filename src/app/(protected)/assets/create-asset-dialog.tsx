@@ -52,7 +52,7 @@ export function CreateAssetDialog({
   const [glAssetAccountId, setGlAssetAccountId] = useState('')
   const [glAccumDeprAccountId, setGlAccumDeprAccountId] = useState('')
   const [glExpenseAccountId, setGlExpenseAccountId] = useState('')
-  const [parentAssetId, setParentAssetId] = useState('')
+  const [parentAssetId, setParentAssetId] = useState('none')
 
   // Filter accounts by subType for intelligent dropdowns
   const assetAccounts = accountOptions.filter(
@@ -123,7 +123,7 @@ export function CreateAssetDialog({
             glAssetAccountId: Number(glAssetAccountId),
             glAccumDeprAccountId: Number(glAccumDeprAccountId),
             glExpenseAccountId: Number(glExpenseAccountId),
-            parentAssetId: parentAssetId ? Number(parentAssetId) : null,
+            parentAssetId: parentAssetId !== 'none' ? Number(parentAssetId) : null,
           },
           'current-user'
         )
@@ -375,7 +375,7 @@ export function CreateAssetDialog({
                   <SelectValue placeholder="None (top-level asset)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {parentAssetOptions.map((a) => (
                     <SelectItem key={a.id} value={String(a.id)}>
                       {a.name}
