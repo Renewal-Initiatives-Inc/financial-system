@@ -4,7 +4,6 @@ import { useState, useTransition, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
@@ -19,9 +18,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { usePlaidLink } from 'react-plaid-link'
-import { getLinkToken, addBankAccount } from './actions'
+import { getLinkToken, addBankAccounts } from './actions'
 import { toast } from 'sonner'
+
+interface PlaidAccountMeta {
+  plaidAccountId: string
+  name: string
+  mask: string
+  type: string
+  subtype: string | null
+  glAccountId: string
+  displayName: string
+}
 
 interface ConnectBankDialogProps {
   open: boolean
@@ -38,31 +55,35 @@ export function ConnectBankDialog({
 }: ConnectBankDialogProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [step, setStep] = useState<'select-account' | 'plaid-link' | 'confirm'>(
-    'select-account'
+  const [step, setStep] = useState<'plaid-link' | 'assign-accounts' | 'confirm'>(
+    'plaid-link'
   )
-  const [glAccountId, setGlAccountId] = useState<string>('')
   const [linkToken, setLinkToken] = useState<string | null>(null)
-  const [plaidData, setPlaidData] = useState<{
-    publicToken: string
-    institutionName: string
-    accountName: string
-    accountMask: string
-  } | null>(null)
-  const [accountName, setAccountName] = useState('')
+  const [publicToken, setPublicToken] = useState<string | null>(null)
+  const [institutionName, setInstitutionName] = useState('')
+  const [plaidAccounts, setPlaidAccounts] = useState<PlaidAccountMeta[]>([])
+  const [linkInitiated, setLinkInitiated] = useState(false)
 
   const onPlaidSuccess = useCallback(
-    (publicToken: string, metadata: any) => {
-      const account = metadata.accounts?.[0]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (token: string, metadata: Record<string, any>) => {
       const institution = metadata.institution
-      setPlaidData({
-        publicToken,
-        institutionName: institution?.name ?? 'Unknown',
-        accountName: account?.name ?? 'Bank Account',
-        accountMask: account?.mask ?? '0000',
-      })
-      setAccountName(account?.name ?? 'Bank Account')
-      setStep('confirm')
+      const accounts: PlaidAccountMeta[] = (metadata.accounts ?? []).map(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (acc: Record<string, any>) => ({
+          plaidAccountId: acc.id,
+          name: acc.name ?? 'Account',
+          mask: acc.mask ?? '0000',
+          type: acc.type ?? 'unknown',
+          subtype: acc.subtype ?? null,
+          glAccountId: '',
+          displayName: acc.name ?? 'Account',
+        })
+      )
+      setPublicToken(token)
+      setInstitutionName(institution?.name ?? 'Unknown')
+      setPlaidAccounts(accounts)
+      setStep('assign-accounts')
     },
     []
   )
@@ -76,16 +97,11 @@ export function ConnectBankDialog({
   })
 
   const handleStartLink = () => {
-    if (!glAccountId) {
-      toast.error('Please select a GL account first')
-      return
-    }
-
     startTransition(async () => {
       try {
         const token = await getLinkToken(userId)
         setLinkToken(token)
-        setStep('plaid-link')
+        setLinkInitiated(true)
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to initialize Plaid')
       }
@@ -93,30 +109,54 @@ export function ConnectBankDialog({
   }
 
   // Open Plaid Link when token is ready
-  if (step === 'plaid-link' && linkToken && plaidReady) {
+  if (step === 'plaid-link' && linkToken && plaidReady && linkInitiated) {
+    setLinkInitiated(false)
     openPlaid()
   }
 
+  const updateAccountField = (
+    index: number,
+    field: keyof PlaidAccountMeta,
+    value: string
+  ) => {
+    setPlaidAccounts((prev) =>
+      prev.map((acc, i) => (i === index ? { ...acc, [field]: value } : acc))
+    )
+  }
+
+  const allAccountsAssigned = plaidAccounts.every((acc) => acc.glAccountId !== '')
+
   const handleConfirm = () => {
-    if (!plaidData || !glAccountId) {
+    if (!publicToken || plaidAccounts.length === 0) {
       toast.error('Missing connection data. Please try again.')
       resetForm()
       return
     }
 
+    if (!allAccountsAssigned) {
+      toast.error('Please assign a GL account to each bank account.')
+      return
+    }
+
     startTransition(async () => {
       try {
-        await addBankAccount(
+        await addBankAccounts(
           {
-            publicToken: plaidData.publicToken,
-            name: accountName || plaidData.accountName,
-            institution: plaidData.institutionName,
-            last4: plaidData.accountMask,
-            glAccountId: parseInt(glAccountId, 10),
+            publicToken,
+            institution: institutionName,
+            accounts: plaidAccounts.map((acc) => ({
+              plaidAccountId: acc.plaidAccountId,
+              name: acc.displayName,
+              last4: acc.mask,
+              type: acc.type,
+              glAccountId: parseInt(acc.glAccountId, 10),
+            })),
           },
           userId
         )
-        toast.success('Bank account connected')
+        toast.success(
+          `Connected ${plaidAccounts.length} account${plaidAccounts.length > 1 ? 's' : ''}`
+        )
         resetForm()
         onClose()
         router.refresh()
@@ -127,11 +167,12 @@ export function ConnectBankDialog({
   }
 
   const resetForm = () => {
-    setStep('select-account')
-    setGlAccountId('')
+    setStep('plaid-link')
     setLinkToken(null)
-    setPlaidData(null)
-    setAccountName('')
+    setPublicToken(null)
+    setInstitutionName('')
+    setPlaidAccounts([])
+    setLinkInitiated(false)
   }
 
   return (
@@ -144,56 +185,108 @@ export function ConnectBankDialog({
         }
       }}
     >
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="sm:max-w-[640px]">
         <DialogHeader>
-          <DialogTitle>Connect Bank Account</DialogTitle>
+          <DialogTitle>
+            {step === 'assign-accounts'
+              ? `Assign GL Accounts — ${institutionName}`
+              : 'Confirm Connection'}
+          </DialogTitle>
         </DialogHeader>
 
-        {step === 'select-account' && (
+        {step === 'assign-accounts' && (
           <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label>
-                GL Account <span className="text-destructive">*</span>
-              </Label>
-              <p className="text-sm text-muted-foreground">
-                Select the GL cash account this bank account maps to.
-              </p>
-              <Select value={glAccountId} onValueChange={setGlAccountId}>
-                <SelectTrigger data-testid="connect-bank-gl-account">
-                  <SelectValue placeholder="Select GL account" />
-                </SelectTrigger>
-                <SelectContent>
-                  {glAccountOptions.map((a) => (
-                    <SelectItem key={a.id} value={String(a.id)}>
-                      {a.code} - {a.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <p className="text-sm text-muted-foreground">
+              Plaid found {plaidAccounts.length} account
+              {plaidAccounts.length > 1 ? 's' : ''} at {institutionName}. Assign
+              each to a GL cash account.
+            </p>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Account</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Last 4</TableHead>
+                  <TableHead>Display Name</TableHead>
+                  <TableHead>
+                    GL Account <span className="text-destructive">*</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {plaidAccounts.map((acc, i) => (
+                  <TableRow
+                    key={acc.plaidAccountId}
+                    data-testid={`plaid-account-row-${i}`}
+                  >
+                    <TableCell className="font-medium">{acc.name}</TableCell>
+                    <TableCell className="capitalize">{acc.subtype ?? acc.type}</TableCell>
+                    <TableCell>****{acc.mask}</TableCell>
+                    <TableCell>
+                      <Input
+                        value={acc.displayName}
+                        onChange={(e) =>
+                          updateAccountField(i, 'displayName', e.target.value)
+                        }
+                        className="h-8 w-40"
+                        data-testid={`plaid-account-name-${i}`}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        value={acc.glAccountId}
+                        onValueChange={(v) =>
+                          updateAccountField(i, 'glAccountId', v)
+                        }
+                      >
+                        <SelectTrigger
+                          className="h-8 w-48"
+                          data-testid={`plaid-account-gl-${i}`}
+                        >
+                          <SelectValue placeholder="Select GL account" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {glAccountOptions.map((a) => (
+                            <SelectItem key={a.id} value={String(a.id)}>
+                              {a.code} - {a.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         )}
 
-        {step === 'confirm' && plaidData && (
+        {step === 'confirm' && (
           <div className="grid gap-4 py-4">
-            <div className="rounded-lg border p-4 space-y-2">
-              <p className="text-sm font-medium">
-                {plaidData.institutionName}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Account ending in ****{plaidData.accountMask}
-              </p>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="account-name">Display Name</Label>
-              <Input
-                id="account-name"
-                value={accountName}
-                onChange={(e) => setAccountName(e.target.value)}
-                placeholder="e.g., Operating Checking"
-                data-testid="connect-bank-name"
-              />
-            </div>
+            <p className="text-sm font-medium">{institutionName}</p>
+            {plaidAccounts.map((acc) => (
+              <div
+                key={acc.plaidAccountId}
+                className="rounded-lg border p-3 flex items-center justify-between"
+              >
+                <div>
+                  <p className="text-sm font-medium">{acc.displayName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    ****{acc.mask} · {acc.subtype ?? acc.type}
+                  </p>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  →{' '}
+                  {glAccountOptions.find(
+                    (g) => String(g.id) === acc.glAccountId
+                  )?.code ?? 'N/A'}{' '}
+                  -{' '}
+                  {glAccountOptions.find(
+                    (g) => String(g.id) === acc.glAccountId
+                  )?.name ?? ''}
+                </p>
+              </div>
+            ))}
           </div>
         )}
 
@@ -208,26 +301,54 @@ export function ConnectBankDialog({
           >
             Cancel
           </Button>
-          {step === 'select-account' && (
+          {step === 'assign-accounts' && (
             <Button
-              onClick={handleStartLink}
-              disabled={isPending || !glAccountId}
-              data-testid="connect-bank-link-btn"
+              onClick={() => setStep('confirm')}
+              disabled={!allAccountsAssigned}
+              data-testid="connect-bank-review"
             >
-              Connect via Plaid
+              Review
             </Button>
           )}
           {step === 'confirm' && (
-            <Button
-              onClick={handleConfirm}
-              disabled={isPending}
-              data-testid="connect-bank-confirm"
-            >
-              Save Connection
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                onClick={() => setStep('assign-accounts')}
+                data-testid="connect-bank-back"
+              >
+                Back
+              </Button>
+              <Button
+                onClick={handleConfirm}
+                disabled={isPending}
+                data-testid="connect-bank-confirm"
+              >
+                Save Connection{plaidAccounts.length > 1 ? 's' : ''}
+              </Button>
+            </>
           )}
         </DialogFooter>
       </DialogContent>
+
+      {/* Invisible trigger: when dialog is open and we're on plaid-link step, auto-start */}
+      {open && step === 'plaid-link' && !linkToken && !isPending && (
+        <AutoStartLink onStart={handleStartLink} />
+      )}
     </Dialog>
   )
+}
+
+/**
+ * Auto-starts Plaid Link token fetch when the dialog opens.
+ * Uses a ref to ensure it only fires once per mount.
+ */
+function AutoStartLink({ onStart }: { onStart: () => void }) {
+  const [fired, setFired] = useState(false)
+  if (!fired) {
+    setFired(true)
+    // Schedule after render to avoid setState-during-render
+    setTimeout(onStart, 0)
+  }
+  return null
 }

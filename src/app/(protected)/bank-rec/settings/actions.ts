@@ -7,7 +7,12 @@ import { bankAccounts, bankTransactions, accounts } from '@/lib/db/schema'
 import { insertBankAccountSchema } from '@/lib/validators'
 import { logAudit } from '@/lib/audit/logger'
 import { encrypt, decrypt } from '@/lib/encryption'
-import { exchangePublicToken, syncTransactions, createLinkToken } from '@/lib/integrations/plaid'
+import {
+  exchangePublicToken,
+  syncTransactions,
+  createLinkToken,
+  createUpdateLinkToken,
+} from '@/lib/integrations/plaid'
 import { sendPlaidSyncFailureEmail } from '@/lib/integrations/plaid-sync-notification'
 import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 
@@ -67,24 +72,31 @@ export async function getBankAccounts(): Promise<BankAccountRow[]> {
   return result
 }
 
-export async function addBankAccount(
+export async function addBankAccounts(
   data: {
     publicToken: string
-    name: string
     institution: string
-    last4: string
-    glAccountId: number
+    accounts: Array<{
+      plaidAccountId: string
+      name: string
+      last4: string
+      type: string
+      glAccountId: number
+    }>
   },
   userId: string
-): Promise<{ id: number }> {
-  const validated = insertBankAccountSchema.parse({
-    name: data.name,
-    institution: data.institution,
-    last4: data.last4,
-    glAccountId: data.glAccountId,
-  })
+): Promise<{ ids: number[] }> {
+  // Validate each account
+  for (const acc of data.accounts) {
+    insertBankAccountSchema.parse({
+      name: acc.name,
+      institution: data.institution,
+      last4: acc.last4,
+      glAccountId: acc.glAccountId,
+    })
+  }
 
-  // Exchange public token for access token
+  // Exchange public token ONCE for access token
   let accessToken: string
   let itemId: string
   try {
@@ -93,7 +105,7 @@ export async function addBankAccount(
     itemId = result.itemId
   } catch (err: any) {
     const detail = err?.response?.data ?? err?.message ?? String(err)
-    console.error('[addBankAccount] Token exchange failed:', JSON.stringify(detail))
+    console.error('[addBankAccounts] Token exchange failed:', JSON.stringify(detail))
     throw new Error(`Plaid token exchange failed: ${typeof detail === 'string' ? detail : JSON.stringify(detail)}`)
   }
 
@@ -102,41 +114,50 @@ export async function addBankAccount(
   try {
     encryptedToken = encrypt(accessToken)
   } catch (err: any) {
-    console.error('[addBankAccount] Encryption failed:', err?.message)
+    console.error('[addBankAccounts] Encryption failed:', err?.message)
     throw new Error(`Token encryption failed: ${err?.message}`)
   }
 
-  const [newAccount] = await db.transaction(async (tx) => {
-    const result = await tx
-      .insert(bankAccounts)
-      .values({
-        name: validated.name,
-        institution: validated.institution,
-        last4: validated.last4,
-        plaidAccessToken: encryptedToken,
-        plaidItemId: itemId,
-        glAccountId: validated.glAccountId,
+  // Insert N rows in a transaction (one per Plaid account)
+  const ids = await db.transaction(async (tx) => {
+    const insertedIds: number[] = []
+
+    for (const acc of data.accounts) {
+      const [newAccount] = await tx
+        .insert(bankAccounts)
+        .values({
+          name: acc.name,
+          institution: data.institution,
+          last4: acc.last4,
+          plaidAccessToken: encryptedToken,
+          plaidItemId: itemId,
+          plaidAccountId: acc.plaidAccountId,
+          glAccountId: acc.glAccountId,
+        })
+        .returning()
+
+      await logAudit(tx as unknown as NeonDatabase<any>, {
+        userId,
+        action: 'created',
+        entityType: 'bank_account',
+        entityId: newAccount.id,
+        afterState: {
+          name: newAccount.name,
+          institution: newAccount.institution,
+          last4: newAccount.last4,
+          plaidAccountId: acc.plaidAccountId,
+          glAccountId: newAccount.glAccountId,
+        },
       })
-      .returning()
 
-    await logAudit(tx as unknown as NeonDatabase<any>, {
-      userId,
-      action: 'created',
-      entityType: 'bank_account',
-      entityId: result[0].id,
-      afterState: {
-        name: result[0].name,
-        institution: result[0].institution,
-        last4: result[0].last4,
-        glAccountId: result[0].glAccountId,
-      },
-    })
+      insertedIds.push(newAccount.id)
+    }
 
-    return result
+    return insertedIds
   })
 
   revalidatePath('/bank-rec/settings')
-  return { id: newAccount.id }
+  return { ids }
 }
 
 export async function deactivateBankAccount(
@@ -181,7 +202,11 @@ export async function triggerManualSync(
     let totalModified = 0
 
     while (hasMore) {
-      const result = await syncTransactions(accessToken, cursor)
+      const result = await syncTransactions(
+        accessToken,
+        cursor,
+        account.plaidAccountId ?? undefined
+      )
 
       for (const txn of result.added) {
         await db
@@ -247,6 +272,21 @@ export async function triggerManualSync(
     await sendPlaidSyncFailureEmail(message, account.name)
     throw new Error(`Sync failed: ${message}`)
   }
+}
+
+export async function getUpdateLinkToken(
+  bankAccountId: number,
+  userId: string
+): Promise<string> {
+  const [account] = await db
+    .select()
+    .from(bankAccounts)
+    .where(eq(bankAccounts.id, bankAccountId))
+
+  if (!account) throw new Error('Bank account not found')
+
+  const accessToken = decrypt(account.plaidAccessToken)
+  return createUpdateLinkToken(userId, accessToken)
 }
 
 export async function getGlAccountOptions(): Promise<

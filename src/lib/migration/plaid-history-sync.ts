@@ -47,7 +47,11 @@ export async function syncBankHistory(
   let hasMore = true
   while (hasMore) {
     try {
-      const result = await syncTransactions(bankAccount.plaidAccessToken, cursor)
+      const result = await syncTransactions(
+        bankAccount.plaidAccessToken,
+        cursor,
+        bankAccount.plaidAccountId ?? undefined
+      )
 
       // Insert added transactions
       if (result.added.length > 0) {

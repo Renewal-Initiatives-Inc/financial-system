@@ -29,6 +29,7 @@ export interface PlaidSyncResult {
 
 export interface PlaidTransactionRecord {
   plaidTransactionId: string
+  plaidAccountId: string
   amount: number
   date: string
   merchantName: string | null
@@ -112,15 +113,20 @@ export async function exchangePublicToken(
  * Incremental transaction sync using cursor-based /transactions/sync.
  * Plaid sign convention: positive = money out, negative = money in.
  * We store as-is to match GL debit convention.
+ *
+ * When accountId is provided, transactions are filtered to that single
+ * Plaid account and a separate per-account cursor is maintained.
  */
 export async function syncTransactions(
   accessToken: string,
-  cursor: string | null
+  cursor: string | null,
+  accountId?: string
 ): Promise<PlaidSyncResult> {
   const client = getClient()
   const response = await client.transactionsSync({
     access_token: accessToken,
     ...(cursor ? { cursor } : {}),
+    ...(accountId ? { options: { account_id: accountId } } : {}),
   })
 
   const { added, modified, removed, next_cursor, has_more } = response.data
@@ -132,6 +138,26 @@ export async function syncTransactions(
     nextCursor: next_cursor,
     hasMore: has_more,
   }
+}
+
+/**
+ * Create a Plaid Link token in update mode for re-authentication.
+ * Uses access_token instead of products — frontend opens Link in re-auth mode.
+ * On success, the access_token stays the same (no token exchange needed).
+ */
+export async function createUpdateLinkToken(
+  userId: string,
+  accessToken: string
+): Promise<string> {
+  const client = getClient()
+  const response = await client.linkTokenCreate({
+    user: { client_user_id: userId },
+    client_name: 'Renewal Initiatives Finance',
+    country_codes: [CountryCode.Us],
+    language: 'en',
+    access_token: accessToken,
+  })
+  return response.data.link_token
 }
 
 /**
@@ -159,6 +185,7 @@ export async function getAccounts(
 function mapPlaidTransaction(txn: PlaidTransaction): PlaidTransactionRecord {
   return {
     plaidTransactionId: txn.transaction_id,
+    plaidAccountId: txn.account_id,
     amount: txn.amount,
     date: txn.date,
     merchantName: txn.merchant_name ?? txn.name ?? null,

@@ -118,22 +118,53 @@ curl -X GET "https://finance.renewalinitiatives.org/api/cron/plaid-sync" \
 
 ## Staging Environment
 
+| Setting | Value |
+|---------|-------|
+| **Branch** | `staging` |
+| **Database** | `financial-system-staging` (Neon) |
+| **Plaid** | `sandbox` mode |
+| **Ramp** | Not connected (no staging Ramp credentials) |
+
+### Development Workflow
+
+```
+feature-branch → staging → main
+     ↓              ↓        ↓
+  local dev     preview    production
+                deploy     deploy
+```
+
+1. Create feature branch from `main`
+2. Develop and test locally against `financial-system-dev`
+3. Merge to `staging` — Vercel auto-deploys preview
+4. Test in staging with staging DB (sandbox APIs)
+5. Merge `staging` to `main` — Vercel auto-deploys production
+
 ### Resetting Staging Database
 
 ```bash
-# Drop and recreate all tables
-DATABASE_URL=<staging-url> npx drizzle-kit migrate
+# Pull staging DB URL from Vercel
+vercel env run --environment preview -- printenv DATABASE_URL_UNPOOLED
 
-# Re-seed reference data
-DATABASE_URL=<staging-url> npx tsx src/lib/db/seed/index.ts
+# Run migrations (use unpooled URL)
+DATABASE_URL=<staging-unpooled-url> npx drizzle-kit migrate
+
+# Re-seed reference data (use pooled URL)
+DATABASE_URL=<staging-pooled-url> npx tsx src/lib/db/seed/index.ts
+
+# Re-seed compliance deadlines
+DATABASE_URL=<staging-pooled-url> npx tsx -e "
+import { seedComplianceDeadlines } from './src/lib/db/seed/compliance-deadlines';
+seedComplianceDeadlines().then(r => console.log(r));
+"
 ```
 
 ### Testing Cron Jobs in Staging
 
-Staging crons run on the same schedule. To test manually:
+Staging crons run on the same schedule as production. To test manually, get the staging preview URL from Vercel and the staging `CRON_SECRET`:
 
 ```bash
-curl -X GET "https://<staging-preview-url>/api/cron/plaid-sync" \
+curl "https://<staging-preview-url>/api/cron/depreciation" \
   -H "Authorization: Bearer $STAGING_CRON_SECRET"
 ```
 

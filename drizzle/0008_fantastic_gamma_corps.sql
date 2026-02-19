@@ -1,0 +1,2 @@
+ALTER TABLE "bank_accounts" ADD COLUMN "plaid_account_id" varchar(255);--> statement-breakpoint
+CREATE UNIQUE INDEX "bank_accounts_item_account_idx" ON "bank_accounts" USING btree ("plaid_item_id","plaid_account_id");

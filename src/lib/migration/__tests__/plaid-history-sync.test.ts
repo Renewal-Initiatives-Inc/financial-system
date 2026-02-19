@@ -17,8 +17,8 @@ describe('syncBankHistory', () => {
     // Page 1: has more
     syncMock.mockResolvedValueOnce({
       added: [
-        { plaidTransactionId: 'txn1', amount: -100, date: '2025-01-15', merchantName: 'Tenant A', category: 'INCOME', isPending: false, paymentChannel: 'other', rawData: {} },
-        { plaidTransactionId: 'txn2', amount: 50, date: '2025-01-20', merchantName: 'Utility Co', category: 'UTILITIES', isPending: false, paymentChannel: 'other', rawData: {} },
+        { plaidTransactionId: 'txn1', plaidAccountId: 'acct1', amount: -100, date: '2025-01-15', merchantName: 'Tenant A', category: 'INCOME', isPending: false, paymentChannel: 'other', rawData: {} },
+        { plaidTransactionId: 'txn2', plaidAccountId: 'acct1', amount: 50, date: '2025-01-20', merchantName: 'Utility Co', category: 'UTILITIES', isPending: false, paymentChannel: 'other', rawData: {} },
       ],
       modified: [],
       removed: [],
@@ -29,7 +29,7 @@ describe('syncBankHistory', () => {
     // Page 2: no more
     syncMock.mockResolvedValueOnce({
       added: [
-        { plaidTransactionId: 'txn3', amount: -200, date: '2025-02-01', merchantName: 'Tenant B', category: 'INCOME', isPending: false, paymentChannel: 'other', rawData: {} },
+        { plaidTransactionId: 'txn3', plaidAccountId: 'acct1', amount: -200, date: '2025-02-01', merchantName: 'Tenant B', category: 'INCOME', isPending: false, paymentChannel: 'other', rawData: {} },
       ],
       modified: [],
       removed: [],
@@ -57,7 +57,7 @@ describe('syncBankHistory', () => {
 
     syncMock.mockResolvedValueOnce({
       added: [
-        { plaidTransactionId: 'txn1', amount: -500, date: '2025-03-01', merchantName: 'Test', category: null, isPending: false, paymentChannel: null, rawData: {} },
+        { plaidTransactionId: 'txn1', plaidAccountId: 'acct1', amount: -500, date: '2025-03-01', merchantName: 'Test', category: null, isPending: false, paymentChannel: null, rawData: {} },
       ],
       modified: [],
       removed: [],

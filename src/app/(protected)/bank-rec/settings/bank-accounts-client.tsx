@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, RefreshCw, Power } from 'lucide-react'
+import { Plus, RefreshCw, Power, LinkIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -20,6 +20,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ConnectBankDialog } from './connect-bank-dialog'
+import { ReconnectBankDialog } from './reconnect-bank-dialog'
 import { deactivateBankAccount, triggerManualSync } from './actions'
 import { toast } from 'sonner'
 import type { BankAccountRow } from './actions'
@@ -38,6 +39,7 @@ export function BankAccountsClient({
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [connectOpen, setConnectOpen] = useState(false)
+  const [reconnectAccountId, setReconnectAccountId] = useState<number | null>(null)
   const [syncingId, setSyncingId] = useState<number | null>(null)
 
   const handleSync = (accountId: number) => {
@@ -151,6 +153,16 @@ export function BankAccountsClient({
                           Sync Now
                         </Button>
                         <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setReconnectAccountId(account.id)}
+                          disabled={isPending}
+                          data-testid={`reconnect-bank-${account.id}`}
+                        >
+                          <LinkIcon className="mr-1 h-3 w-3" />
+                          Reconnect
+                        </Button>
+                        <Button
                           variant="ghost"
                           size="sm"
                           onClick={() =>
@@ -210,6 +222,12 @@ export function BankAccountsClient({
         open={connectOpen}
         onClose={() => setConnectOpen(false)}
         glAccountOptions={glAccountOptions}
+        userId={userId}
+      />
+
+      <ReconnectBankDialog
+        bankAccountId={reconnectAccountId}
+        onClose={() => setReconnectAccountId(null)}
         userId={userId}
       />
     </div>

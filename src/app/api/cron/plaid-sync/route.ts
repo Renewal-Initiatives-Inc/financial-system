@@ -38,7 +38,11 @@ export async function GET(req: Request) {
       let hasMore = true
 
       while (hasMore) {
-        const result = await syncTransactions(accessToken, cursor)
+        const result = await syncTransactions(
+          accessToken,
+          cursor,
+          account.plaidAccountId ?? undefined
+        )
 
         // Handle added transactions
         for (const txn of result.added) {

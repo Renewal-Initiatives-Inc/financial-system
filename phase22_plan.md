@@ -776,36 +776,38 @@ Walk through with Heather:
 
 ---
 
-## Step 16: Configure Staging Environment
+## Step 16: Configure Staging Environment  **COMPLETED 2026-02-19**
 
 **Why:** Ongoing development needs a pre-production test bed. Changes go to staging before production.
 
 **Tasks:**
 
-### 16a. Verify staging Vercel environment
-- Confirm Vercel deploys `staging` branch to preview URL
-- Set all staging environment variables (staging DB, sandbox Plaid, etc.)
-- Verify staging is separate from production (different DB, different Plaid env)
+### 16a. Verify staging Vercel environment ✅
+- `staging` branch pushes auto-deploy to Vercel preview
+- 19 staging env vars set (15 new + 4 pre-existing)
+- Staging uses separate DB (`financial-system-staging`), Plaid in `sandbox` mode
+- Ramp credentials intentionally omitted (no staging Ramp connection)
+- Vercel deployment protection active on preview URLs (use `vercel curl` to test)
 
-### 16b. Run migrations and seed against staging DB
-```bash
-DATABASE_URL=<staging-connection-string> npx drizzle-kit migrate
-DATABASE_URL=<staging-connection-string> npx tsx src/lib/db/seed/index.ts
-```
+### 16b. Run migrations and seed against staging DB ✅
+- All 8 migrations (0000–0007) applied via `drizzle-kit migrate`
+- Seed results: 72 accounts, 6 funds, 17 CIP cost codes, 16 annual rates, 54 compliance deadlines
 
-### 16c. Establish workflow
-- Document the development workflow:
-  1. Feature branches for development
-  2. Merge to `staging` → auto-deploy to staging environment
-  3. Test in staging with staging DB
-  4. Merge `staging` → `main` → auto-deploy to production
-- Update CI/CD to run on staging branch pushes (already configured)
+### 16c. Establish workflow ✅
+- Workflow: `feature-branch → staging → main`
+- CI/CD runs on staging branch pushes (already configured)
+- Staging cron endpoint verified working (`/api/cron/depreciation` returned `success: true`)
 
-### 16d. Add staging to docs
-Update `docs/operations-runbook.md` with staging environment details:
-- Staging URL
-- How to reset staging DB (re-run migrations + seed)
-- How to test cron jobs in staging
+### 16d. Add staging to docs ✅
+- `docs/operations-runbook.md` updated with:
+  - Development workflow diagram (`feature → staging → main`)
+  - Staging DB reset instructions (unpooled URL for migrations, pooled for seed)
+  - Cron testing instructions via `vercel curl`
+
+**Completion notes:**
+- Initial deploy failed: `echo` adds trailing newline → CRON_SECRET had whitespace. Removed all 15 vars and re-added with `printf` (no trailing newline).
+- Staging preview URL: `financial-system-git-staging-renewal-initiatives.vercel.app` (behind Vercel deployment protection)
+- Empty commit pushed to staging to trigger clean rebuild after env var fix — deployed successfully.
 
 **Acceptance criteria:** Staging environment functional with its own DB. Deployment workflow documented. CI runs on staging pushes.
 
@@ -845,7 +847,7 @@ Step 12 (smoke tests)             ─── depends on Steps 8-10
 Step 13 (error monitoring)        ─── can parallel with Step 12
 Step 14 (user documentation)      ─── COMPLETED 2026-02-17
 Step 15 (Heather walkthrough)     ─── depends on Steps 12, 14
-Step 16 (staging environment)     ─── can parallel with Steps 14-15
+Step 16 (staging environment)     ─── COMPLETED 2026-02-19 (19 env vars, DB seeded, deploy verified)
 ```
 
 ---
