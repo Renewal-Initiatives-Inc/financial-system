@@ -57,9 +57,9 @@ export const seedAccounts: SeedAccount[] = [
 
   // ── Revenue (12) ──
   { code: '4000', name: 'Rental Income', type: 'REVENUE', subType: 'Operating', normalBalance: 'CREDIT', isSystemLocked: true, form990Line: '2' },
-  { code: '4010', name: 'Rental Income - Proration Adj.', type: 'REVENUE', subType: 'Contra', normalBalance: 'DEBIT', isSystemLocked: false },
-  { code: '4020', name: 'Rental Income - Hardship Adj.', type: 'REVENUE', subType: 'Contra', normalBalance: 'DEBIT', isSystemLocked: false },
-  { code: '4030', name: 'Rental Income - Vacate Adj.', type: 'REVENUE', subType: 'Contra', normalBalance: 'DEBIT', isSystemLocked: false },
+  { code: '4010', name: 'Rental Income - Proration Adj.', type: 'REVENUE', subType: 'Contra-Revenue', normalBalance: 'DEBIT', isSystemLocked: false },
+  { code: '4020', name: 'Rental Income - Hardship Adj.', type: 'REVENUE', subType: 'Contra-Revenue', normalBalance: 'DEBIT', isSystemLocked: false },
+  { code: '4030', name: 'Rental Income - Vacate Adj.', type: 'REVENUE', subType: 'Contra-Revenue', normalBalance: 'DEBIT', isSystemLocked: false },
   { code: '4040', name: 'Vacancy Loss', type: 'REVENUE', subType: 'Contra-Revenue', normalBalance: 'DEBIT', isSystemLocked: false },
   { code: '4100', name: 'Grant Revenue', type: 'REVENUE', subType: 'Restricted', normalBalance: 'CREDIT', isSystemLocked: true, form990Line: '1e' },
   { code: '4200', name: 'Donation Income', type: 'REVENUE', subType: 'Contribution', normalBalance: 'CREDIT', isSystemLocked: true, form990Line: '1a' },
@@ -76,7 +76,7 @@ export const seedAccounts: SeedAccount[] = [
   { code: '5300', name: 'Bad Debt Expense', type: 'EXPENSE', subType: 'Operating', normalBalance: 'DEBIT', isSystemLocked: false, form990Line: '24a' },
   { code: '5400', name: 'Property Taxes', type: 'EXPENSE', subType: 'Property Ops', normalBalance: 'DEBIT', isSystemLocked: false, form990Line: '24a' },
   { code: '5410', name: 'Property Insurance', type: 'EXPENSE', subType: 'Property Ops', normalBalance: 'DEBIT', isSystemLocked: false, form990Line: '24a' },
-  { code: '5420', name: 'Management Fees', type: 'EXPENSE', subType: 'Property Ops', normalBalance: 'DEBIT', isSystemLocked: false, form990Line: '11g' },
+  { code: '5420', name: 'Management & Professional Fees', type: 'EXPENSE', subType: 'Property Ops', normalBalance: 'DEBIT', isSystemLocked: false, form990Line: '11g' },
   { code: '5430', name: 'Commissions', type: 'EXPENSE', subType: 'Property Ops', normalBalance: 'DEBIT', isSystemLocked: false, form990Line: '24a' },
   { code: '5440', name: 'Landscaping & Grounds', type: 'EXPENSE', subType: 'Property Ops', normalBalance: 'DEBIT', isSystemLocked: false, form990Line: '24a' },
   { code: '5450', name: 'Repairs & Maintenance', type: 'EXPENSE', subType: 'Property Ops', normalBalance: 'DEBIT', isSystemLocked: false, form990Line: '24a' },

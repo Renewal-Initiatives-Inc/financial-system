@@ -24,6 +24,7 @@ export const complianceDeadlines = pgTable('compliance_deadlines', {
   hasReminder30dSent: boolean('reminder_30d_sent').notNull().default(false),
   hasReminder7dSent: boolean('reminder_7d_sent').notNull().default(false),
   tenantId: integer('tenant_id'),
+  fundId: integer('fund_id'),
   notes: text('notes'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })

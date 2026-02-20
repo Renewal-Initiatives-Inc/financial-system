@@ -38,6 +38,9 @@ export const purchaseOrders = pgTable(
     extractedMilestones: jsonb('extracted_milestones'),
     extractedTerms: jsonb('extracted_terms'),
     extractedCovenants: jsonb('extracted_covenants'),
+    dismissedWarnings: jsonb('dismissed_warnings').$type<
+      { type: string; message: string; dismissedAt: string; dismissedBy: string }[]
+    >(),
     createdBy: varchar('created_by', { length: 255 }).notNull(),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),

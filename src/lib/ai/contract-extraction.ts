@@ -59,33 +59,43 @@ export async function extractContractTerms(
 ): Promise<ExtractedTerms> {
   const client = new Anthropic()
 
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-5-20250929',
-    max_tokens: 4096,
-    messages: [
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'document',
-            source: {
-              type: 'base64',
-              media_type: 'application/pdf',
-              data: pdfBase64,
+  let response
+  try {
+    response = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 4096,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'document',
+              source: {
+                type: 'base64',
+                media_type: 'application/pdf',
+                data: pdfBase64,
+              },
             },
-          },
-          {
-            type: 'text',
-            text: EXTRACTION_PROMPT,
-          },
-        ],
-      },
-    ],
-  })
+            {
+              type: 'text',
+              text: EXTRACTION_PROMPT,
+            },
+          ],
+        },
+      ],
+    })
+  } catch (err) {
+    console.error('Claude API error during contract extraction:', err)
+    throw new Error(
+      'Failed to extract contract terms. You can enter terms manually or retry your upload. The file may be too large or the request timed out.'
+    )
+  }
 
   const textBlock = response.content.find((block) => block.type === 'text')
   if (!textBlock || textBlock.type !== 'text') {
-    throw new Error('No text response from extraction')
+    throw new Error(
+      'Failed to extract contract terms — no text in response. You can enter terms manually.'
+    )
   }
 
   // Parse JSON from response, handling markdown code blocks
@@ -94,12 +104,18 @@ export async function extractContractTerms(
     jsonStr = jsonStr.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '')
   }
 
-  const parsed = JSON.parse(jsonStr) as ExtractedTerms
-
-  return {
-    milestones: parsed.milestones ?? [],
-    paymentTerms: parsed.paymentTerms ?? [],
-    deliverables: parsed.deliverables ?? [],
-    covenants: parsed.covenants ?? [],
+  try {
+    const parsed = JSON.parse(jsonStr) as ExtractedTerms
+    return {
+      milestones: parsed.milestones ?? [],
+      paymentTerms: parsed.paymentTerms ?? [],
+      deliverables: parsed.deliverables ?? [],
+      covenants: parsed.covenants ?? [],
+    }
+  } catch {
+    console.error('Failed to parse extraction JSON:', jsonStr.slice(0, 200))
+    throw new Error(
+      'Failed to parse extracted terms. You can enter terms manually or retry your upload.'
+    )
   }
 }

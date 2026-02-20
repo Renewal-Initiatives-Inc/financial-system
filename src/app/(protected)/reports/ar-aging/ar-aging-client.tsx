@@ -73,8 +73,8 @@ export function ARAgingClient({ data }: ARAgingClientProps) {
       Total: r.aging.total,
     })),
     // Grant rows
-    ...data.grantAR.rows.map((r) => ({
-      Section: 'Grant AR',
+    ...data.fundingSourceAR.rows.map((r) => ({
+      Section: 'Funding Source AR',
       Name: r.funderName,
       Unit: '',
       'Funding Source': '',
@@ -162,27 +162,27 @@ export function ARAgingClient({ data }: ARAgingClientProps) {
           </div>
         </section>
 
-        {/* --- Grant AR Section --- */}
+        {/* --- Funding Source AR Section --- */}
         <section>
-          <h2 className="text-lg font-semibold mb-3">Grants Receivable</h2>
+          <h2 className="text-lg font-semibold mb-3">Funding Source Receivable</h2>
           <div className="rounded-md border">
             <Table>
               <AgingTableHeader />
               <TableBody>
-                {data.grantAR.rows.length === 0 ? (
+                {data.fundingSourceAR.rows.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="h-16 text-center text-muted-foreground">
-                      No outstanding grant receivables.
+                      No outstanding funding source receivables.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  data.grantAR.rows.map((row) => (
-                    <TableRow key={row.grantId}>
+                  data.fundingSourceAR.rows.map((row) => (
+                    <TableRow key={row.fundId}>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{row.funderName}</span>
                           <span className="text-sm text-muted-foreground">
-                            (Award: {formatCurrency(row.grantAmount)})
+                            (Award: {formatCurrency(row.fundingAmount)})
                           </span>
                         </div>
                       </TableCell>
@@ -191,8 +191,8 @@ export function ARAgingClient({ data }: ARAgingClientProps) {
                   ))
                 )}
               </TableBody>
-              {data.grantAR.rows.length > 0 && (
-                <SectionTotal label="Grant AR Subtotal" aging={data.grantAR.total} />
+              {data.fundingSourceAR.rows.length > 0 && (
+                <SectionTotal label="Funding Source AR Subtotal" aging={data.fundingSourceAR.total} />
               )}
             </Table>
           </div>

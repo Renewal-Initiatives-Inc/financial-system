@@ -21,11 +21,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(terms)
   } catch (error) {
     console.error('Contract extraction failed:', error)
-    return NextResponse.json(
-      {
-        error: 'Failed to extract contract terms. You can enter terms manually.',
-      },
-      { status: 500 }
-    )
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Failed to extract contract terms. You can enter terms manually or retry your upload.'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

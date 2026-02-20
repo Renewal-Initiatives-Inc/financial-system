@@ -59,14 +59,14 @@ export const inKindContributionSchema = z.object({
   }),
 })
 
-export const grantCashReceiptSchema = z.object({
-  grantId: z.number().int().positive('Grant is required'),
+export const fundCashReceiptSchema = z.object({
+  fundId: z.number().int().positive('Funding source is required'),
   amount: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid amount'),
   date: z.string().date('Must be a valid date'),
 })
 
-export const grantConditionMetSchema = z.object({
-  grantId: z.number().int().positive('Grant is required'),
+export const fundConditionMetSchema = z.object({
+  fundId: z.number().int().positive('Funding source is required'),
   amount: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid amount'),
   date: z.string().date('Must be a valid date'),
   note: z.string().min(1, 'Note is required for condition recognition'),
@@ -79,5 +79,5 @@ export type EarnedIncome = z.infer<typeof earnedIncomeSchema>
 export type InvestmentIncome = z.infer<typeof investmentIncomeSchema>
 export type AhpLoanForgiveness = z.infer<typeof ahpLoanForgivenessSchema>
 export type InKindContribution = z.infer<typeof inKindContributionSchema>
-export type GrantCashReceipt = z.infer<typeof grantCashReceiptSchema>
-export type GrantConditionMet = z.infer<typeof grantConditionMetSchema>
+export type FundCashReceipt = z.infer<typeof fundCashReceiptSchema>
+export type FundConditionMet = z.infer<typeof fundConditionMetSchema>

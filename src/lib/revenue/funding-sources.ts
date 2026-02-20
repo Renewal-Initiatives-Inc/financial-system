@@ -1,24 +1,23 @@
 /**
- * Grant revenue operations.
+ * Funding source revenue operations.
  *
- * Handles unconditional grants (immediate revenue recognition),
- * conditional grants (refundable advance until conditions met),
+ * Handles unconditional funding (immediate revenue recognition),
+ * conditional funding (refundable advance until conditions met),
  * and cash receipts.
  */
 
 import { eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { grants, accounts, funds } from '@/lib/db/schema'
+import { accounts } from '@/lib/db/schema'
 import { createTransaction } from '@/lib/gl/engine'
 
 /**
- * Record an unconditional grant.
+ * Record an unconditional funding source.
  * GL: DR Grants Receivable (1110), CR Grant Revenue (4100) — coded to restricted fund.
  */
-export async function recordUnconditionalGrant(
-  grantId: number,
-  amount: number,
+export async function recordUnconditionalFunding(
   fundId: number,
+  amount: number,
   date: string,
   userId: string
 ): Promise<{ transactionId: number }> {
@@ -39,9 +38,9 @@ export async function recordUnconditionalGrant(
 
   const txnResult = await createTransaction({
     date,
-    memo: `Unconditional grant revenue recognition - Grant #${grantId}`,
+    memo: `Unconditional funding revenue recognition - Fund #${fundId}`,
     sourceType: 'MANUAL',
-    sourceReferenceId: `grant:${grantId}`,
+    sourceReferenceId: `fund:${fundId}`,
     createdBy: userId,
     lines: [
       {
@@ -63,13 +62,12 @@ export async function recordUnconditionalGrant(
 }
 
 /**
- * Record cash receipt on an unconditional grant.
+ * Record cash receipt on an unconditional funding source.
  * GL: DR Cash (1000), CR Grants Receivable (1110)
  */
-export async function recordGrantCashReceipt(
-  grantId: number,
-  amount: number,
+export async function recordFundCashReceipt(
   fundId: number,
+  amount: number,
   date: string,
   userId: string
 ): Promise<{ transactionId: number }> {
@@ -90,9 +88,9 @@ export async function recordGrantCashReceipt(
 
   const txnResult = await createTransaction({
     date,
-    memo: `Grant cash receipt - Grant #${grantId}`,
+    memo: `Funding source cash receipt - Fund #${fundId}`,
     sourceType: 'MANUAL',
-    sourceReferenceId: `grant-receipt:${grantId}`,
+    sourceReferenceId: `fund-receipt:${fundId}`,
     createdBy: userId,
     lines: [
       {
@@ -114,14 +112,13 @@ export async function recordGrantCashReceipt(
 }
 
 /**
- * Record cash received on a conditional grant.
+ * Record cash received on a conditional funding source.
  * GL: DR Cash (1000), CR Refundable Advance (2050)
  * No revenue recognition until conditions are met.
  */
-export async function recordConditionalGrantCash(
-  grantId: number,
-  amount: number,
+export async function recordConditionalFundingCash(
   fundId: number,
+  amount: number,
   date: string,
   userId: string
 ): Promise<{ transactionId: number }> {
@@ -142,9 +139,9 @@ export async function recordConditionalGrantCash(
 
   const txnResult = await createTransaction({
     date,
-    memo: `Conditional grant cash received - Grant #${grantId}`,
+    memo: `Conditional funding cash received - Fund #${fundId}`,
     sourceType: 'MANUAL',
-    sourceReferenceId: `grant-conditional-cash:${grantId}`,
+    sourceReferenceId: `fund-conditional-cash:${fundId}`,
     createdBy: userId,
     lines: [
       {
@@ -166,13 +163,12 @@ export async function recordConditionalGrantCash(
 }
 
 /**
- * Recognize revenue for a conditional grant when conditions are met.
+ * Recognize revenue for a conditional funding source when conditions are met.
  * GL: DR Refundable Advance (2050), CR Grant Revenue (4100)
  */
-export async function recognizeConditionalGrant(
-  grantId: number,
-  amount: number,
+export async function recognizeConditionalRevenue(
   fundId: number,
+  amount: number,
   date: string,
   note: string,
   userId: string
@@ -194,9 +190,9 @@ export async function recognizeConditionalGrant(
 
   const txnResult = await createTransaction({
     date,
-    memo: `Conditional grant revenue recognition - Grant #${grantId}: ${note}`,
+    memo: `Conditional funding revenue recognition - Fund #${fundId}: ${note}`,
     sourceType: 'MANUAL',
-    sourceReferenceId: `grant-condition-met:${grantId}`,
+    sourceReferenceId: `fund-condition-met:${fundId}`,
     createdBy: userId,
     lines: [
       {

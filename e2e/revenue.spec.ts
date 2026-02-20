@@ -26,7 +26,7 @@ test.describe('Revenue hub', () => {
     await page.goto('/revenue')
     await expect(page.getByText('Revenue')).toBeVisible()
     await expect(page.getByText('Rent')).toBeVisible()
-    await expect(page.getByText('Grants')).toBeVisible()
+    await expect(page.getByText('Funding Sources')).toBeVisible()
     await expect(page.getByText('Donations')).toBeVisible()
     await expect(page.getByText('Pledges')).toBeVisible()
   })
@@ -96,7 +96,7 @@ test.describe('Donation workflow', () => {
   })
 })
 
-test.describe('Grant workflow', () => {
+test.describe('Funding Source workflow', () => {
   test.beforeAll(() => {
     if (!fs.existsSync(AUTH_STATE_PATH)) {
       test.skip()
@@ -105,35 +105,38 @@ test.describe('Grant workflow', () => {
 
   test.use({ storageState: AUTH_STATE_PATH })
 
-  test('navigate to grants list', async ({ page }) => {
-    await page.goto('/revenue/grants')
-    await expect(page.getByText('Grants')).toBeVisible()
-    await expect(page.getByTestId('grants-new-btn')).toBeVisible()
+  test('navigate to funding sources list', async ({ page }) => {
+    await page.goto('/revenue/funding-sources')
+    await expect(page.getByText('Funding Sources')).toBeVisible()
+    await expect(page.getByTestId('create-funding-source-btn')).toBeVisible()
   })
 
-  test('create an unconditional grant', async ({ page }) => {
-    await page.goto('/revenue/grants/new')
+  test('create a restricted funding source', async ({ page }) => {
+    await page.goto('/revenue/funding-sources/new')
+
+    // Enter name
+    await page.getByTestId('funding-source-name').fill('Test Grant Fund')
+
+    // Select restriction type (Restricted)
+    await page.getByTestId('funding-source-restriction-select').click()
+    await page.getByRole('option', { name: 'Restricted' }).click()
 
     // Select funder (vendor)
-    await page.getByTestId('grant-funder-select').click()
+    await page.getByTestId('funding-source-funder-select').click()
     await page.getByRole('option').first().click()
 
     // Enter amount
-    await page.getByTestId('grant-amount').fill('50000.00')
+    await page.getByTestId('funding-source-amount').fill('50000.00')
 
     // Select type (unconditional)
-    await page.getByTestId('grant-type-select').click()
+    await page.getByTestId('funding-source-type-select').click()
     await page.getByRole('option', { name: 'Unconditional' }).click()
 
-    // Select fund
-    await page.getByTestId('grant-fund-select').click()
-    await page.getByRole('option').first().click()
-
     // Submit
-    await page.getByTestId('grant-submit').click()
+    await page.getByTestId('funding-source-submit').click()
 
-    // Should redirect to grants list or show success
-    await expect(page.getByText('Grant created')).toBeVisible()
+    // Should redirect to funding sources list or show success
+    await expect(page.getByText('Funding source created')).toBeVisible()
   })
 })
 

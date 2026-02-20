@@ -15,8 +15,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ReportShell } from '@/components/reports/report-shell'
 import { formatCurrency } from '@/lib/reports/types'
 import type {
-  GrantComplianceData,
-  GrantComplianceRow,
+  FundingComplianceData,
+  FundingComplianceRow,
 } from '@/lib/reports/grant-compliance'
 
 // ---------------------------------------------------------------------------
@@ -61,7 +61,7 @@ function formatPercent(value: number): string {
 // Expandable Row
 // ---------------------------------------------------------------------------
 
-function GrantRow({ row }: { row: GrantComplianceRow }) {
+function ComplianceRow({ row }: { row: FundingComplianceRow }) {
   const [isExpanded, setIsExpanded] = useState(false)
 
   return (
@@ -71,7 +71,7 @@ function GrantRow({ row }: { row: GrantComplianceRow }) {
           row.isAtRisk ? 'border-l-4 border-l-destructive' : ''
         }`}
         onClick={() => setIsExpanded(!isExpanded)}
-        data-testid={`grant-row-${row.grantId}`}
+        data-testid={`compliance-row-${row.fundId}`}
       >
         <TableCell className="font-medium">{row.funderName}</TableCell>
         <TableCell>{row.fundName}</TableCell>
@@ -104,7 +104,7 @@ function GrantRow({ row }: { row: GrantComplianceRow }) {
 
       {/* Expanded detail */}
       {isExpanded && (
-        <TableRow data-testid={`grant-detail-${row.grantId}`}>
+        <TableRow data-testid={`compliance-detail-${row.fundId}`}>
           <TableCell colSpan={9} className="bg-muted/30 px-6 py-4">
             <div className="space-y-3">
               {/* Conditions (conditional grants) */}
@@ -176,7 +176,7 @@ function GrantRow({ row }: { row: GrantComplianceRow }) {
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  No milestones found for this grant.
+                  No milestones found for this funding source.
                 </p>
               )}
 
@@ -185,8 +185,8 @@ function GrantRow({ row }: { row: GrantComplianceRow }) {
                 <div className="rounded-md border border-destructive bg-destructive/10 p-3">
                   <p className="text-sm font-medium text-destructive">
                     {row.daysRemaining !== null && row.daysRemaining < 0
-                      ? `This grant is ${Math.abs(row.daysRemaining)} days past its end date and still active.`
-                      : `This grant ends in ${row.daysRemaining} days with only ${formatPercent(row.spentPercent)} spent.`}
+                      ? `This funding source is ${Math.abs(row.daysRemaining)} days past its end date and still active.`
+                      : `This funding source ends in ${row.daysRemaining} days with only ${formatPercent(row.spentPercent)} spent.`}
                   </p>
                 </div>
               )}
@@ -203,7 +203,7 @@ function GrantRow({ row }: { row: GrantComplianceRow }) {
 // ---------------------------------------------------------------------------
 
 function buildExportData(
-  rows: GrantComplianceRow[]
+  rows: FundingComplianceRow[]
 ): Record<string, string>[] {
   return rows.map((r) => ({
     Funder: r.funderName,
@@ -223,16 +223,16 @@ function buildExportData(
 // Component
 // ---------------------------------------------------------------------------
 
-interface GrantComplianceClientProps {
-  data: GrantComplianceData
+interface FundingComplianceClientProps {
+  data: FundingComplianceData
 }
 
-export function GrantComplianceClient({ data }: GrantComplianceClientProps) {
+export function FundingComplianceClient({ data }: FundingComplianceClientProps) {
   const exportData = buildExportData(data.rows)
 
   return (
     <ReportShell
-      title="Grant Compliance Tracking"
+      title="Funding Compliance Tracking"
       reportSlug="grant-compliance"
       exportData={exportData}
       exportColumns={[
@@ -251,17 +251,17 @@ export function GrantComplianceClient({ data }: GrantComplianceClientProps) {
       {/* Summary cards */}
       <div
         className="grid grid-cols-1 md:grid-cols-4 gap-4"
-        data-testid="grant-compliance-summary"
+        data-testid="funding-compliance-summary"
       >
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Active Grants
+              Active Sources
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="active-grants-count">
-              {data.activeGrants}
+            <div className="text-2xl font-bold" data-testid="active-funding-sources-count">
+              {data.activeFundingSources}
             </div>
           </CardContent>
         </Card>
@@ -289,29 +289,29 @@ export function GrantComplianceClient({ data }: GrantComplianceClientProps) {
             </div>
           </CardContent>
         </Card>
-        <Card className={data.atRiskGrants > 0 ? 'border-destructive/50 bg-destructive/5' : ''}>
+        <Card className={data.atRiskFundingSources > 0 ? 'border-destructive/50 bg-destructive/5' : ''}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              At-Risk Grants
+              At-Risk Sources
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div
               className={`text-2xl font-bold ${
-                data.atRiskGrants > 0
+                data.atRiskFundingSources > 0
                   ? 'text-destructive'
                   : 'text-green-600 dark:text-green-400'
               }`}
               data-testid="at-risk-count"
             >
-              {data.atRiskGrants}
+              {data.atRiskFundingSources}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Grants table */}
-      <div className="rounded-md border" data-testid="grant-compliance-table">
+      {/* Funding Sources table */}
+      <div className="rounded-md border" data-testid="funding-compliance-table">
         <Table>
           <TableHeader>
             <TableRow>
@@ -330,12 +330,12 @@ export function GrantComplianceClient({ data }: GrantComplianceClientProps) {
             {data.rows.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} className="h-24 text-center">
-                  No grants found.
+                  No funding sources found.
                 </TableCell>
               </TableRow>
             ) : (
               data.rows.map((row) => (
-                <GrantRow key={row.grantId} row={row} />
+                <ComplianceRow key={row.fundId} row={row} />
               ))
             )}
           </TableBody>

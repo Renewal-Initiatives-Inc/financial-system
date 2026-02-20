@@ -2,7 +2,6 @@ import { eq, and, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import {
   funds,
-  grants,
   vendors,
   accounts,
   transactionLines,
@@ -23,14 +22,12 @@ export interface FundDrawdownRow {
   totalReleased: number
   remaining: number
   drawdownPercent: number
-  relatedGrants: {
-    grantId: number
-    funderName: string
-    amount: number
-    type: string
-    conditions: string | null
-    status: string
-  }[]
+  // Contract terms (from enriched fund)
+  funderName: string | null
+  fundingAmount: string | null
+  fundingType: string | null
+  conditions: string | null
+  fundingStatus: string | null
   milestones: { description: string; completed: boolean }[]
 }
 
@@ -46,14 +43,21 @@ export interface FundDrawdownData {
 // ---------------------------------------------------------------------------
 
 export async function getFundDrawdownData(): Promise<FundDrawdownData> {
-  // 1. Get all RESTRICTED funds
+  // 1. Get all RESTRICTED funds with optional funder join
   const restrictedFunds = await db
     .select({
       id: funds.id,
       name: funds.name,
       restrictionType: funds.restrictionType,
+      funderId: funds.funderId,
+      amount: funds.amount,
+      type: funds.type,
+      conditions: funds.conditions,
+      status: funds.status,
+      funderName: vendors.name,
     })
     .from(funds)
+    .leftJoin(vendors, eq(funds.funderId, vendors.id))
     .where(eq(funds.restrictionType, 'RESTRICTED'))
     .orderBy(funds.name)
 
@@ -61,7 +65,6 @@ export async function getFundDrawdownData(): Promise<FundDrawdownData> {
 
   for (const fund of restrictedFunds) {
     // 2a. totalAwarded: sum of REVENUE account activity in this fund
-    //     REVENUE accounts have CREDIT normal balance: amount = credits - debits
     const awardedResult = await db
       .select({
         total: sql<string>`COALESCE(SUM(
@@ -88,7 +91,6 @@ export async function getFundDrawdownData(): Promise<FundDrawdownData> {
     const totalAwarded = parseFloat(awardedResult[0]?.total ?? '0')
 
     // 2b. totalSpent: sum of EXPENSE account activity in this fund
-    //     EXPENSE accounts have DEBIT normal balance: amount = debits - credits
     const spentResult = await db
       .select({
         total: sql<string>`COALESCE(SUM(
@@ -114,7 +116,7 @@ export async function getFundDrawdownData(): Promise<FundDrawdownData> {
 
     const totalSpent = parseFloat(spentResult[0]?.total ?? '0')
 
-    // 2c. totalReleased: net asset releases (SYSTEM entries with 'release' in memo)
+    // 2c. totalReleased: net asset releases
     const releasedResult = await db
       .select({
         total: sql<string>`COALESCE(SUM(
@@ -137,38 +139,13 @@ export async function getFundDrawdownData(): Promise<FundDrawdownData> {
 
     const totalReleased = parseFloat(releasedResult[0]?.total ?? '0')
 
-    // 2d. remaining and drawdownPercent
     const remaining = totalAwarded - totalSpent
     const drawdownPercent =
       totalAwarded > 0
         ? Math.round((totalSpent / totalAwarded) * 10000) / 100
         : 0
 
-    // 3. Related grants
-    const relatedGrantRows = await db
-      .select({
-        grantId: grants.id,
-        funderName: vendors.name,
-        amount: grants.amount,
-        type: grants.type,
-        conditions: grants.conditions,
-        status: grants.status,
-      })
-      .from(grants)
-      .innerJoin(vendors, eq(grants.funderId, vendors.id))
-      .where(eq(grants.fundId, fund.id))
-      .orderBy(grants.id)
-
-    const relatedGrants = relatedGrantRows.map((g) => ({
-      grantId: g.grantId,
-      funderName: g.funderName,
-      amount: parseFloat(g.amount),
-      type: g.type,
-      conditions: g.conditions,
-      status: g.status,
-    }))
-
-    // 4. Milestones from related purchase orders' extractedMilestones
+    // 3. Milestones from purchase orders
     const relatedPOs = await db
       .select({
         extractedMilestones: purchaseOrders.extractedMilestones,
@@ -202,7 +179,11 @@ export async function getFundDrawdownData(): Promise<FundDrawdownData> {
       totalReleased,
       remaining,
       drawdownPercent,
-      relatedGrants,
+      funderName: fund.funderName ?? null,
+      fundingAmount: fund.amount,
+      fundingType: fund.type,
+      conditions: fund.conditions,
+      fundingStatus: fund.status,
       milestones,
     })
   }

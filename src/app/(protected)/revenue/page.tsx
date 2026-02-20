@@ -19,9 +19,9 @@ const revenueCards = [
     icon: Home,
   },
   {
-    label: 'Grants',
-    description: 'Record, cash receipts, condition met',
-    href: '/revenue/grants',
+    label: 'Funding Sources',
+    description: 'Manage funds, cash receipts, revenue recognition',
+    href: '/revenue/funding-sources',
     icon: FileText,
   },
   {

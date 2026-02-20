@@ -1,7 +1,6 @@
-import { eq, and, sql } from 'drizzle-orm'
+import { eq, and, sql, isNotNull } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import {
-  grants,
   vendors,
   funds,
   purchaseOrders,
@@ -14,8 +13,8 @@ import {
 // Types
 // ---------------------------------------------------------------------------
 
-export interface GrantComplianceRow {
-  grantId: number
+export interface FundingComplianceRow {
+  fundId: number
   funderName: string
   fundName: string
   awardAmount: number
@@ -32,44 +31,43 @@ export interface GrantComplianceRow {
   isAtRisk: boolean
 }
 
-export interface GrantComplianceData {
-  rows: GrantComplianceRow[]
+export interface FundingComplianceData {
+  rows: FundingComplianceRow[]
   totalAwards: number
   totalSpent: number
-  activeGrants: number
-  atRiskGrants: number
+  activeFundingSources: number
+  atRiskFundingSources: number
 }
 
 // ---------------------------------------------------------------------------
 // Main query
 // ---------------------------------------------------------------------------
 
-export async function getGrantComplianceData(): Promise<GrantComplianceData> {
+export async function getFundingComplianceData(): Promise<FundingComplianceData> {
   const today = new Date()
   const todayStr = today.toISOString().split('T')[0]
 
-  // 1. Fetch all grants with funder and fund names
-  const grantRows = await db
+  // 1. Fetch all restricted funds with funder data (funding sources)
+  const fundRows = await db
     .select({
-      grantId: grants.id,
+      fundId: funds.id,
       funderName: vendors.name,
       fundName: funds.name,
-      amount: grants.amount,
-      type: grants.type,
-      conditions: grants.conditions,
-      startDate: grants.startDate,
-      endDate: grants.endDate,
-      status: grants.status,
-      fundId: grants.fundId,
+      amount: funds.amount,
+      type: funds.type,
+      conditions: funds.conditions,
+      startDate: funds.startDate,
+      endDate: funds.endDate,
+      status: funds.status,
+      extractedMilestones: funds.extractedMilestones,
     })
-    .from(grants)
-    .innerJoin(vendors, eq(grants.funderId, vendors.id))
-    .innerJoin(funds, eq(grants.fundId, funds.id))
-    .orderBy(grants.status, grants.endDate)
+    .from(funds)
+    .innerJoin(vendors, eq(funds.funderId, vendors.id))
+    .where(isNotNull(funds.funderId))
+    .orderBy(funds.status, funds.endDate)
 
-  // 2. For each grant's fundId, get total expense debits (non-voided, EXPENSE
-  //    accounts with DEBIT normal balance: sum debits - credits)
-  const fundIds = [...new Set(grantRows.map((g) => g.fundId))]
+  // 2. For each fund, get total expense debits
+  const fundIds = fundRows.map((f) => f.fundId)
 
   const spentByFund = new Map<number, number>()
 
@@ -106,7 +104,7 @@ export async function getGrantComplianceData(): Promise<GrantComplianceData> {
     }
   }
 
-  // 3. Fetch milestones from purchase orders matching each fund
+  // 3. Fetch milestones from purchase orders + fund-level extracted milestones
   const milestonesByFund = new Map<
     number,
     { description: string; completed: boolean }[]
@@ -117,7 +115,6 @@ export async function getGrantComplianceData(): Promise<GrantComplianceData> {
       .select({
         fundId: purchaseOrders.fundId,
         extractedMilestones: purchaseOrders.extractedMilestones,
-        poStatus: purchaseOrders.status,
       })
       .from(purchaseOrders)
       .where(
@@ -129,10 +126,7 @@ export async function getGrantComplianceData(): Promise<GrantComplianceData> {
 
     for (const po of poRows) {
       const existing = milestonesByFund.get(po.fundId) ?? []
-      if (
-        po.extractedMilestones &&
-        Array.isArray(po.extractedMilestones)
-      ) {
+      if (po.extractedMilestones && Array.isArray(po.extractedMilestones)) {
         for (const m of po.extractedMilestones as Array<{
           description?: string
           completed?: boolean
@@ -149,26 +143,42 @@ export async function getGrantComplianceData(): Promise<GrantComplianceData> {
     }
   }
 
+  // Also pull milestones from the fund itself (extractedMilestones)
+  for (const f of fundRows) {
+    if (f.extractedMilestones && Array.isArray(f.extractedMilestones)) {
+      const existing = milestonesByFund.get(f.fundId) ?? []
+      for (const m of f.extractedMilestones as Array<{
+        description?: string
+        completed?: boolean
+      }>) {
+        if (m && typeof m.description === 'string') {
+          existing.push({
+            description: m.description,
+            completed: m.completed === true,
+          })
+        }
+      }
+      milestonesByFund.set(f.fundId, existing)
+    }
+  }
+
   // 4. Build compliance rows
-  const rows: GrantComplianceRow[] = grantRows.map((g) => {
-    const awardAmount = parseFloat(g.amount) || 0
-    const amountSpent = spentByFund.get(g.fundId) ?? 0
+  const rows: FundingComplianceRow[] = fundRows.map((f) => {
+    const awardAmount = parseFloat(f.amount ?? '0') || 0
+    const amountSpent = spentByFund.get(f.fundId) ?? 0
     const amountRemaining = awardAmount - amountSpent
     const spentPercent = awardAmount > 0 ? (amountSpent / awardAmount) * 100 : 0
 
-    // Days remaining
     let daysRemaining: number | null = null
-    if (g.endDate) {
-      const endMs = new Date(g.endDate + 'T00:00:00').getTime()
+    if (f.endDate) {
+      const endMs = new Date(f.endDate + 'T00:00:00').getTime()
       const todayMs = new Date(todayStr + 'T00:00:00').getTime()
       daysRemaining = Math.ceil((endMs - todayMs) / (1000 * 60 * 60 * 24))
     }
 
-    // At-risk: endDate within 90 days AND spentPercent < 50, OR endDate passed and still ACTIVE
     let isAtRisk = false
-    if (g.status === 'ACTIVE' && g.endDate) {
+    if (f.status === 'ACTIVE' && f.endDate) {
       if (daysRemaining !== null && daysRemaining < 0) {
-        // Overdue
         isAtRisk = true
       } else if (
         daysRemaining !== null &&
@@ -179,18 +189,18 @@ export async function getGrantComplianceData(): Promise<GrantComplianceData> {
       }
     }
 
-    const milestones = milestonesByFund.get(g.fundId) ?? []
+    const milestones = milestonesByFund.get(f.fundId) ?? []
 
     return {
-      grantId: g.grantId,
-      funderName: g.funderName,
-      fundName: g.fundName,
+      fundId: f.fundId,
+      funderName: f.funderName,
+      fundName: f.fundName,
       awardAmount,
-      type: g.type,
-      conditions: g.conditions,
-      startDate: g.startDate,
-      endDate: g.endDate,
-      status: g.status,
+      type: f.type ?? 'UNCONDITIONAL',
+      conditions: f.conditions,
+      startDate: f.startDate,
+      endDate: f.endDate,
+      status: f.status ?? 'ACTIVE',
       amountSpent,
       amountRemaining,
       spentPercent,
@@ -200,17 +210,16 @@ export async function getGrantComplianceData(): Promise<GrantComplianceData> {
     }
   })
 
-  // 5. Compute summary
   const totalAwards = rows.reduce((s, r) => s + r.awardAmount, 0)
   const totalSpent = rows.reduce((s, r) => s + r.amountSpent, 0)
-  const activeGrants = rows.filter((r) => r.status === 'ACTIVE').length
-  const atRiskGrants = rows.filter((r) => r.isAtRisk).length
+  const activeFundingSources = rows.filter((r) => r.status === 'ACTIVE').length
+  const atRiskFundingSources = rows.filter((r) => r.isAtRisk).length
 
   return {
     rows,
     totalAwards,
     totalSpent,
-    activeGrants,
-    atRiskGrants,
+    activeFundingSources,
+    atRiskFundingSources,
   }
 }

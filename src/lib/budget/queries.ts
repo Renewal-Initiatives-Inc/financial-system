@@ -313,9 +313,9 @@ export async function getBudgetForMonth(
   }))
 }
 
-// --- Grant Budget Summary ---
+// --- Funding Budget Summary ---
 
-export interface GrantBudgetSummary {
+export interface FundingBudgetSummary {
   fundId: number
   fundName: string
   totalBudgeted: number
@@ -327,7 +327,7 @@ export interface GrantBudgetSummary {
  * Get cross-fiscal-year budget summary for a restricted fund.
  * Sums budget lines across all fiscal years for the given fund.
  */
-export async function getGrantBudgetSummary(fundId: number): Promise<GrantBudgetSummary | null> {
+export async function getFundingBudgetSummary(fundId: number): Promise<FundingBudgetSummary | null> {
   const [fund] = await db
     .select({ id: funds.id, name: funds.name, restrictionType: funds.restrictionType })
     .from(funds)

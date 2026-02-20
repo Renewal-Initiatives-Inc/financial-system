@@ -12,17 +12,20 @@ import { invoicePaymentStatusEnum } from './enums'
 import { purchaseOrders } from './purchase-orders'
 import { vendors } from './vendors'
 import { transactions } from './transactions'
+import { funds } from './funds'
 
 export const invoices = pgTable(
   'invoices',
   {
     id: serial('id').primaryKey(),
-    purchaseOrderId: integer('purchase_order_id')
-      .notNull()
-      .references(() => purchaseOrders.id),
-    vendorId: integer('vendor_id')
-      .notNull()
-      .references(() => vendors.id),
+    // 'AP' = accounts payable (vendor invoice against PO)
+    // 'AR' = accounts receivable (billing a funder)
+    direction: varchar('direction', { length: 2 }).notNull().default('AP'),
+    purchaseOrderId: integer('purchase_order_id').references(
+      () => purchaseOrders.id
+    ),
+    fundId: integer('fund_id').references(() => funds.id),
+    vendorId: integer('vendor_id').references(() => vendors.id),
     invoiceNumber: varchar('invoice_number', { length: 100 }),
     amount: numeric('amount', { precision: 15, scale: 2 }).notNull(),
     invoiceDate: date('invoice_date', { mode: 'string' }).notNull(),
@@ -41,5 +44,7 @@ export const invoices = pgTable(
     index('invoices_purchase_order_id_idx').on(table.purchaseOrderId),
     index('invoices_vendor_id_idx').on(table.vendorId),
     index('invoices_payment_status_idx').on(table.paymentStatus),
+    index('invoices_fund_id_idx').on(table.fundId),
+    index('invoices_direction_idx').on(table.direction),
   ]
 )

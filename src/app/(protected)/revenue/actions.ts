@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { eq, and, desc, ilike, sql } from 'drizzle-orm'
+import { eq, and, desc, ilike, sql, isNotNull, count } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import {
   transactions,
@@ -11,9 +11,9 @@ import {
   tenants,
   donors,
   vendors,
-  grants,
   pledges,
   ahpLoanConfig,
+  invoices,
 } from '@/lib/db/schema'
 import {
   rentPaymentSchema,
@@ -23,11 +23,13 @@ import {
   investmentIncomeSchema,
   ahpLoanForgivenessSchema,
   inKindContributionSchema,
-  grantCashReceiptSchema,
-  grantConditionMetSchema,
-  insertGrantSchema,
-  updateGrantSchema,
+  fundCashReceiptSchema,
+  fundConditionMetSchema,
+  insertFundingSourceSchema,
+  insertFundSchema,
+  updateFundSchema,
   insertPledgeSchema,
+  insertArInvoiceSchema,
   type RentPayment,
   type RentAdjustment,
   type Donation,
@@ -35,10 +37,13 @@ import {
   type InvestmentIncome,
   type AhpLoanForgiveness,
   type InKindContribution,
-  type GrantCashReceipt,
-  type GrantConditionMet,
-  type InsertGrant,
+  type FundCashReceipt,
+  type FundConditionMet,
+  type InsertFundingSource,
+  type InsertFund,
+  type UpdateFund,
   type InsertPledge,
+  type InsertArInvoice,
 } from '@/lib/validators'
 import { createTransaction } from '@/lib/gl/engine'
 import { logAudit } from '@/lib/audit/logger'
@@ -48,27 +53,44 @@ import {
 } from '@/lib/revenue/donor-acknowledgment'
 import { sendDonorAcknowledgmentEmail } from '@/lib/integrations/postmark'
 import {
-  recordUnconditionalGrant,
-  recordGrantCashReceipt as recordGrantCashReceiptLogic,
-  recordConditionalGrantCash,
-  recognizeConditionalGrant,
-} from '@/lib/revenue/grants'
+  recordUnconditionalFunding,
+  recordFundCashReceipt as recordFundCashReceiptLogic,
+  recordConditionalFundingCash,
+  recognizeConditionalRevenue,
+} from '@/lib/revenue/funding-sources'
 import {
   recordLoanForgiveness,
   getAhpLoanConfig,
   getAvailableCredit,
 } from '@/lib/revenue/ahp-loan'
+import { deactivateFund } from '@/lib/gl/deactivation'
+import { SystemLockedError } from '@/lib/gl/errors'
 import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 
 // --- Types ---
 
-export type GrantRow = typeof grants.$inferSelect
-export type PledgeRow = typeof pledges.$inferSelect
+export type FundRow = typeof funds.$inferSelect
 
-export type GrantWithFunder = GrantRow & {
-  funderName: string
-  fundName: string
+export type FundingSourceRow = FundRow & {
+  funderName: string | null
 }
+
+export type FundWithBalance = FundRow & {
+  balance: string
+  transactionCount: number
+}
+
+export type FundDetail = FundRow & {
+  balance: string
+  transactionCount: number
+  assetTotal: string
+  liabilityTotal: string
+  netAssetTotal: string
+  revenueTotal: string
+  expenseTotal: string
+}
+
+export type PledgeRow = typeof pledges.$inferSelect
 
 export type PledgeWithDonor = PledgeRow & {
   donorName: string
@@ -90,6 +112,82 @@ async function getGeneralFund() {
   const [fund] = await db.select().from(funds).where(eq(funds.name, 'General Fund'))
   if (!fund) throw new Error('General Fund not found')
   return fund
+}
+
+// --- Helper: Calculate fund balance breakdown ---
+
+async function getFundBalanceBreakdown(
+  fundId: number
+): Promise<{
+  balance: string
+  transactionCount: number
+  assetTotal: string
+  liabilityTotal: string
+  netAssetTotal: string
+  revenueTotal: string
+  expenseTotal: string
+}> {
+  const breakdown = await db
+    .select({
+      accountType: accounts.type,
+      totalDebit: sql<string>`COALESCE(SUM(${transactionLines.debit}), 0)`,
+      totalCredit: sql<string>`COALESCE(SUM(${transactionLines.credit}), 0)`,
+    })
+    .from(transactionLines)
+    .innerJoin(transactions, eq(transactionLines.transactionId, transactions.id))
+    .innerJoin(accounts, eq(transactionLines.accountId, accounts.id))
+    .where(
+      and(
+        eq(transactionLines.fundId, fundId),
+        eq(transactions.isVoided, false)
+      )
+    )
+    .groupBy(accounts.type)
+
+  const [txnCount] = await db
+    .select({ value: count() })
+    .from(transactionLines)
+    .innerJoin(transactions, eq(transactionLines.transactionId, transactions.id))
+    .where(
+      and(
+        eq(transactionLines.fundId, fundId),
+        eq(transactions.isVoided, false)
+      )
+    )
+
+  const byType: Record<string, { debit: number; credit: number }> = {}
+  for (const row of breakdown) {
+    byType[row.accountType] = {
+      debit: parseFloat(row.totalDebit),
+      credit: parseFloat(row.totalCredit),
+    }
+  }
+
+  const getNet = (type: string) => {
+    const t = byType[type]
+    if (!t) return 0
+    return t.debit - t.credit
+  }
+
+  const assetNet = getNet('ASSET')
+  const liabilityNet = getNet('LIABILITY')
+  const netAssetNet = getNet('NET_ASSET')
+  const revenueNet = getNet('REVENUE')
+  const expenseNet = getNet('EXPENSE')
+
+  const totalDebit = Object.values(byType).reduce((s, t) => s + t.debit, 0)
+  const totalCredit = Object.values(byType).reduce((s, t) => s + t.credit, 0)
+  const netBalance = totalDebit - totalCredit
+
+  return {
+    balance: netBalance.toFixed(2),
+    transactionCount: txnCount?.value ?? 0,
+    assetTotal: assetNet.toFixed(2),
+    liabilityTotal: liabilityNet.toFixed(2),
+    netAssetTotal: netAssetNet.toFixed(2),
+    revenueTotal: revenueNet.toFixed(2),
+    expenseTotal: expenseNet.toFixed(2),
+  }
 }
 
 // --- Query Actions ---
@@ -122,70 +220,108 @@ export async function getRentAccruals(year: number, month: number) {
     .orderBy(transactions.date)
 }
 
-export async function getGrants(filters?: {
+// --- Funding Source Queries ---
+
+export async function getFundingSources(filters?: {
   status?: string
-}): Promise<GrantWithFunder[]> {
+}): Promise<FundingSourceRow[]> {
   const rows = await db
     .select({
-      grant: grants,
+      fund: funds,
       funderName: vendors.name,
-      fundName: funds.name,
     })
-    .from(grants)
-    .leftJoin(vendors, eq(grants.funderId, vendors.id))
-    .leftJoin(funds, eq(grants.fundId, funds.id))
+    .from(funds)
+    .leftJoin(vendors, eq(funds.funderId, vendors.id))
     .where(
       filters?.status
         ? eq(
-            grants.status,
-            filters.status as (typeof grants.status.enumValues)[number]
+            funds.status,
+            filters.status as (typeof funds.status.enumValues)[number]
           )
         : undefined
     )
-    .orderBy(desc(grants.createdAt))
+    .orderBy(desc(funds.createdAt))
 
   return rows.map((r) => ({
-    ...r.grant,
-    funderName: r.funderName ?? 'Unknown',
-    fundName: r.fundName ?? 'Unknown',
+    ...r.fund,
+    funderName: r.funderName ?? null,
   }))
 }
 
-export async function getGrantById(
+export async function getFundingSourceById(
   id: number
-): Promise<GrantWithFunder | null> {
+): Promise<(FundDetail & { funderName: string | null }) | null> {
   const [row] = await db
     .select({
-      grant: grants,
+      fund: funds,
       funderName: vendors.name,
-      fundName: funds.name,
     })
-    .from(grants)
-    .leftJoin(vendors, eq(grants.funderId, vendors.id))
-    .leftJoin(funds, eq(grants.fundId, funds.id))
-    .where(eq(grants.id, id))
+    .from(funds)
+    .leftJoin(vendors, eq(funds.funderId, vendors.id))
+    .where(eq(funds.id, id))
 
   if (!row) return null
 
+  const balanceInfo = await getFundBalanceBreakdown(id)
+
   return {
-    ...row.grant,
-    funderName: row.funderName ?? 'Unknown',
-    fundName: row.fundName ?? 'Unknown',
+    ...row.fund,
+    ...balanceInfo,
+    funderName: row.funderName ?? null,
   }
 }
 
-export async function getGrantTransactions(grantId: number) {
+export async function getFundingSourceTransactions(fundId: number) {
   return db
     .select()
     .from(transactions)
     .where(
       and(
-        ilike(transactions.sourceReferenceId, `%grant%${grantId}%`),
+        ilike(transactions.sourceReferenceId, `fund%${fundId}%`),
         eq(transactions.isVoided, false)
       )
     )
     .orderBy(desc(transactions.date))
 }
+
+// --- Fund Management Queries (merged from /funds/actions.ts) ---
+
+export async function getFunds(): Promise<FundWithBalance[]> {
+  const allFunds = await db
+    .select()
+    .from(funds)
+    .orderBy(funds.name)
+
+  const result: FundWithBalance[] = []
+  for (const fund of allFunds) {
+    const balanceInfo = await getFundBalanceBreakdown(fund.id)
+    result.push({
+      ...fund,
+      balance: balanceInfo.balance,
+      transactionCount: balanceInfo.transactionCount,
+    })
+  }
+
+  return result
+}
+
+export async function getFundById(id: number): Promise<FundDetail | null> {
+  const [fund] = await db
+    .select()
+    .from(funds)
+    .where(eq(funds.id, id))
+
+  if (!fund) return null
+
+  const balanceInfo = await getFundBalanceBreakdown(id)
+
+  return {
+    ...fund,
+    ...balanceInfo,
+  }
+}
+
+// --- Pledge Queries ---
 
 export async function getPledges(filters?: {
   status?: string
@@ -437,7 +573,6 @@ export async function recordRentAdjustment(
   const validated = rentAdjustmentSchema.parse(data)
   const amount = parseFloat(validated.amount)
 
-  // Adjustment accounts by type
   const adjustmentAccountCodes: Record<string, string> = {
     PRORATION: '4010',
     HARDSHIP: '4020',
@@ -506,7 +641,6 @@ export async function recordDonation(
     ],
   })
 
-  // Trigger acknowledgment email if >$250
   let acknowledgmentSent = false
   if (shouldSendAcknowledgment(amount)) {
     const [donor] = await db
@@ -539,33 +673,43 @@ export async function recordDonation(
   return { transactionId: txnResult.transaction.id, acknowledgmentSent }
 }
 
-export async function createGrant(
-  data: InsertGrant,
+// --- Funding Source Mutations ---
+
+export async function createFundingSource(
+  data: InsertFundingSource,
   userId: string
 ): Promise<{ id: number; transactionId: number }> {
-  const validated = insertGrantSchema.parse(data)
-  const amount = parseFloat(validated.amount)
+  const validated = insertFundingSourceSchema.parse(data)
 
-  // Insert grant record
-  const [newGrant] = await db.transaction(async (tx) => {
+  // Create the fund (a funding source IS a fund)
+  const [newFund] = await db.transaction(async (tx) => {
     const result = await tx
-      .insert(grants)
+      .insert(funds)
       .values({
-        funderId: validated.funderId,
-        amount: validated.amount,
-        type: validated.type,
+        name: validated.name,
+        restrictionType: validated.restrictionType,
+        description: validated.description ?? null,
+        funderId: validated.funderId ?? null,
+        amount: validated.amount ?? null,
+        type: validated.type ?? null,
         conditions: validated.conditions ?? null,
         startDate: validated.startDate ?? null,
         endDate: validated.endDate ?? null,
-        fundId: validated.fundId,
         isUnusualGrant: validated.isUnusualGrant ?? false,
+        matchRequirementPercent: validated.matchRequirementPercent ?? null,
+        retainagePercent: validated.retainagePercent ?? null,
+        reportingFrequency: validated.reportingFrequency ?? null,
+        contractPdfUrl: validated.contractPdfUrl ?? null,
+        extractedMilestones: validated.extractedMilestones ?? null,
+        extractedTerms: validated.extractedTerms ?? null,
+        extractedCovenants: validated.extractedCovenants ?? null,
       })
       .returning()
 
     await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
       action: 'created',
-      entityType: 'grant',
+      entityType: 'fund',
       entityId: result[0].id,
       afterState: result[0] as unknown as Record<string, unknown>,
     })
@@ -573,95 +717,227 @@ export async function createGrant(
     return result
   })
 
-  // Create GL entry based on type
-  let transactionId: number
-  if (validated.type === 'UNCONDITIONAL') {
-    const result = await recordUnconditionalGrant(
-      newGrant.id,
+  // Create GL entry for unconditional restricted funding
+  let transactionId = 0
+  if (
+    validated.restrictionType === 'RESTRICTED' &&
+    validated.type === 'UNCONDITIONAL' &&
+    validated.amount
+  ) {
+    const amount = parseFloat(validated.amount)
+    const result = await recordUnconditionalFunding(
+      newFund.id,
       amount,
-      validated.fundId,
       validated.startDate ?? new Date().toISOString().split('T')[0],
       userId
     )
     transactionId = result.transactionId
-  } else {
-    // Conditional: no GL entry until cash received or conditions met
-    transactionId = 0
   }
 
   revalidatePath('/revenue')
-  revalidatePath('/revenue/grants')
-  return { id: newGrant.id, transactionId }
+  revalidatePath('/revenue/funding-sources')
+  return { id: newFund.id, transactionId }
 }
 
-export async function recordGrantCashReceiptAction(
-  data: GrantCashReceipt,
+export async function createFund(
+  data: InsertFund,
+  userId: string
+): Promise<{ id: number }> {
+  const validated = insertFundSchema.parse(data)
+
+  const [newFund] = await db.transaction(async (tx) => {
+    const result = await tx
+      .insert(funds)
+      .values({
+        name: validated.name,
+        restrictionType: validated.restrictionType,
+        description: validated.description ?? null,
+        isSystemLocked: validated.isSystemLocked ?? false,
+      })
+      .returning()
+
+    await logAudit(tx as unknown as NeonDatabase<any>, {
+      userId,
+      action: 'created',
+      entityType: 'fund',
+      entityId: result[0].id,
+      afterState: result[0] as unknown as Record<string, unknown>,
+    })
+
+    return result
+  })
+
+  revalidatePath('/revenue/funding-sources')
+  return { id: newFund.id }
+}
+
+export async function updateFund(
+  id: number,
+  data: UpdateFund,
+  userId: string
+): Promise<void> {
+  const validated = updateFundSchema.parse(data)
+
+  await db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select()
+      .from(funds)
+      .where(eq(funds.id, id))
+
+    if (!existing) {
+      throw new Error(`Fund ${id} not found`)
+    }
+
+    if (existing.isSystemLocked && validated.name !== undefined) {
+      throw new SystemLockedError('Fund', id)
+    }
+
+    const beforeState = { ...existing }
+
+    await tx
+      .update(funds)
+      .set({
+        ...(validated.name !== undefined ? { name: validated.name } : {}),
+        ...(validated.description !== undefined ? { description: validated.description } : {}),
+        ...(validated.funderId !== undefined ? { funderId: validated.funderId } : {}),
+        ...(validated.amount !== undefined ? { amount: validated.amount } : {}),
+        ...(validated.type !== undefined ? { type: validated.type } : {}),
+        ...(validated.conditions !== undefined ? { conditions: validated.conditions } : {}),
+        ...(validated.startDate !== undefined ? { startDate: validated.startDate } : {}),
+        ...(validated.endDate !== undefined ? { endDate: validated.endDate } : {}),
+        ...(validated.status !== undefined ? { status: validated.status } : {}),
+        ...(validated.isUnusualGrant !== undefined ? { isUnusualGrant: validated.isUnusualGrant } : {}),
+        ...(validated.matchRequirementPercent !== undefined ? { matchRequirementPercent: validated.matchRequirementPercent } : {}),
+        ...(validated.retainagePercent !== undefined ? { retainagePercent: validated.retainagePercent } : {}),
+        ...(validated.reportingFrequency !== undefined ? { reportingFrequency: validated.reportingFrequency } : {}),
+        updatedAt: new Date(),
+      })
+      .where(eq(funds.id, id))
+
+    const [updated] = await tx
+      .select()
+      .from(funds)
+      .where(eq(funds.id, id))
+
+    await logAudit(tx as unknown as NeonDatabase<any>, {
+      userId,
+      action: 'updated',
+      entityType: 'fund',
+      entityId: id,
+      beforeState: beforeState as unknown as Record<string, unknown>,
+      afterState: updated as unknown as Record<string, unknown>,
+    })
+  })
+
+  revalidatePath('/revenue/funding-sources')
+  revalidatePath(`/revenue/funding-sources/${id}`)
+}
+
+export async function toggleFundActive(
+  id: number,
+  active: boolean,
+  userId: string
+): Promise<void> {
+  if (!active) {
+    await deactivateFund(id, userId)
+  } else {
+    await db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select()
+        .from(funds)
+        .where(eq(funds.id, id))
+
+      if (!existing) {
+        throw new Error(`Fund ${id} not found`)
+      }
+
+      await tx
+        .update(funds)
+        .set({ isActive: true, updatedAt: new Date() })
+        .where(eq(funds.id, id))
+
+      await logAudit(tx as unknown as NeonDatabase<any>, {
+        userId,
+        action: 'updated',
+        entityType: 'fund',
+        entityId: id,
+        beforeState: { isActive: false },
+        afterState: { isActive: true },
+      })
+    })
+  }
+
+  revalidatePath('/revenue/funding-sources')
+  revalidatePath(`/revenue/funding-sources/${id}`)
+}
+
+export async function recordFundCashReceiptAction(
+  data: FundCashReceipt,
   userId: string
 ): Promise<{ transactionId: number }> {
-  const validated = grantCashReceiptSchema.parse(data)
+  const validated = fundCashReceiptSchema.parse(data)
   const amount = parseFloat(validated.amount)
 
-  const [grant] = await db
+  const [fund] = await db
     .select()
-    .from(grants)
-    .where(eq(grants.id, validated.grantId))
-  if (!grant) throw new Error(`Grant ${validated.grantId} not found`)
+    .from(funds)
+    .where(eq(funds.id, validated.fundId))
+  if (!fund) throw new Error(`Funding source ${validated.fundId} not found`)
 
   let result: { transactionId: number }
-  if (grant.type === 'CONDITIONAL') {
-    result = await recordConditionalGrantCash(
-      grant.id,
+  if (fund.type === 'CONDITIONAL') {
+    result = await recordConditionalFundingCash(
+      fund.id,
       amount,
-      grant.fundId,
       validated.date,
       userId
     )
   } else {
-    result = await recordGrantCashReceiptLogic(
-      grant.id,
+    result = await recordFundCashReceiptLogic(
+      fund.id,
       amount,
-      grant.fundId,
       validated.date,
       userId
     )
   }
 
   revalidatePath('/revenue')
-  revalidatePath('/revenue/grants')
-  revalidatePath(`/revenue/grants/${grant.id}`)
+  revalidatePath('/revenue/funding-sources')
+  revalidatePath(`/revenue/funding-sources/${fund.id}`)
   return result
 }
 
-export async function recognizeConditionalGrantRevenue(
-  data: GrantConditionMet,
+export async function recognizeConditionalFundRevenue(
+  data: FundConditionMet,
   userId: string
 ): Promise<{ transactionId: number }> {
-  const validated = grantConditionMetSchema.parse(data)
+  const validated = fundConditionMetSchema.parse(data)
   const amount = parseFloat(validated.amount)
 
-  const [grant] = await db
+  const [fund] = await db
     .select()
-    .from(grants)
-    .where(eq(grants.id, validated.grantId))
-  if (!grant) throw new Error(`Grant ${validated.grantId} not found`)
-  if (grant.type !== 'CONDITIONAL') {
-    throw new Error('Revenue recognition is only for conditional grants')
+    .from(funds)
+    .where(eq(funds.id, validated.fundId))
+  if (!fund) throw new Error(`Funding source ${validated.fundId} not found`)
+  if (fund.type !== 'CONDITIONAL') {
+    throw new Error('Revenue recognition is only for conditional funding sources')
   }
 
-  const result = await recognizeConditionalGrant(
-    grant.id,
+  const result = await recognizeConditionalRevenue(
+    fund.id,
     amount,
-    grant.fundId,
     validated.date,
     validated.note,
     userId
   )
 
   revalidatePath('/revenue')
-  revalidatePath('/revenue/grants')
-  revalidatePath(`/revenue/grants/${grant.id}`)
+  revalidatePath('/revenue/funding-sources')
+  revalidatePath(`/revenue/funding-sources/${fund.id}`)
   return result
 }
+
+// --- Pledge Actions ---
 
 export async function createPledge(
   data: InsertPledge,
@@ -670,7 +946,6 @@ export async function createPledge(
   const validated = insertPledgeSchema.parse(data)
   const amount = parseFloat(validated.amount)
 
-  // GL entry: DR Pledges Receivable (1120), CR Donation Income (4200)
   const pledgesReceivable = await getAccountByCode('1120')
   const donationIncome = await getAccountByCode('4200')
   const date = validated.expectedDate ?? new Date().toISOString().split('T')[0]
@@ -696,7 +971,6 @@ export async function createPledge(
     ],
   })
 
-  // Insert pledge record
   const [newPledge] = await db.transaction(async (tx) => {
     const result = await tx
       .insert(pledges)
@@ -742,7 +1016,6 @@ export async function recordPledgePayment(
     .where(eq(pledges.id, pledgeId))
   if (!pledge) throw new Error(`Pledge ${pledgeId} not found`)
 
-  // GL: DR Cash, CR Pledges Receivable
   const cashAccount = await getAccountByCode('1000')
   const pledgesReceivable = await getAccountByCode('1120')
 
@@ -767,7 +1040,6 @@ export async function recordPledgePayment(
     ],
   })
 
-  // Update pledge status
   await db
     .update(pledges)
     .set({
@@ -874,14 +1146,12 @@ export async function recordInKindContribution(
   const validated = inKindContributionSchema.parse(data)
   const amount = parseFloat(validated.amount)
 
-  // Revenue account by in-kind type
   const revenueAccountCodes: Record<string, string> = {
     GOODS: '4500',
     SERVICES: '4510',
     FACILITY_USE: '4520',
   }
 
-  // Debit account depends on type: goods → asset, services/facility → expense
   const debitAccountCodes: Record<string, string> = {
     GOODS: '1200',
     SERVICES: '5900',
@@ -919,4 +1189,178 @@ export async function recordInKindContribution(
   revalidatePath('/revenue')
   revalidatePath('/transactions')
   return { transactionId: txnResult.transaction.id }
+}
+
+// --- AR Invoice actions ---
+
+export type ArInvoiceRow = typeof invoices.$inferSelect
+
+/**
+ * Get all AR invoices for a funding source, newest first.
+ */
+export async function getArInvoices(fundId: number): Promise<ArInvoiceRow[]> {
+  return db
+    .select()
+    .from(invoices)
+    .where(and(eq(invoices.fundId, fundId), eq(invoices.direction, 'AR')))
+    .orderBy(desc(invoices.invoiceDate))
+}
+
+/**
+ * Issue an AR invoice against a funding source.
+ * GL: DR 1110 Grants Receivable, CR 4100 Grant Revenue
+ */
+export async function createArInvoice(
+  data: InsertArInvoice,
+  userId: string
+): Promise<{ id: number; glTransactionId: number }> {
+  const validated = insertArInvoiceSchema.parse(data)
+
+  const [fund] = await db
+    .select()
+    .from(funds)
+    .where(eq(funds.id, validated.fundId))
+  if (!fund) throw new Error(`Funding source ${validated.fundId} not found`)
+
+  const [arAccount] = await db
+    .select()
+    .from(accounts)
+    .where(eq(accounts.code, '1110'))
+  if (!arAccount)
+    throw new Error('Grants Receivable account (1110) not found. Run seed data first.')
+
+  const [revenueAccount] = await db
+    .select()
+    .from(accounts)
+    .where(eq(accounts.code, '4100'))
+  if (!revenueAccount)
+    throw new Error('Grant Revenue account (4100) not found. Run seed data first.')
+
+  const [newInvoice] = await db
+    .insert(invoices)
+    .values({
+      direction: 'AR',
+      fundId: validated.fundId,
+      purchaseOrderId: null,
+      vendorId: null,
+      invoiceNumber: validated.invoiceNumber ?? null,
+      amount: String(validated.amount),
+      invoiceDate: validated.invoiceDate,
+      dueDate: validated.dueDate ?? null,
+      paymentStatus: 'PENDING',
+      createdBy: userId,
+    })
+    .returning()
+
+  const invoiceRef = validated.invoiceNumber || `AR-${newInvoice.id}`
+
+  // GL: DR Grants Receivable, CR Grant Revenue
+  const txnResult = await createTransaction({
+    date: validated.invoiceDate,
+    memo: `AR Invoice ${invoiceRef} — ${fund.name}`,
+    sourceType: 'MANUAL',
+    sourceReferenceId: `ar-invoice:${newInvoice.id}`,
+    isSystemGenerated: false,
+    createdBy: userId,
+    lines: [
+      {
+        accountId: arAccount.id,
+        fundId: validated.fundId,
+        debit: validated.amount,
+        credit: null,
+      },
+      {
+        accountId: revenueAccount.id,
+        fundId: validated.fundId,
+        debit: null,
+        credit: validated.amount,
+      },
+    ],
+  })
+
+  await db
+    .update(invoices)
+    .set({
+      glTransactionId: txnResult.transaction.id,
+      paymentStatus: 'POSTED',
+      updatedAt: new Date(),
+    })
+    .where(eq(invoices.id, newInvoice.id))
+
+  revalidatePath(`/revenue/funding-sources/${validated.fundId}`)
+  revalidatePath('/revenue/funding-sources')
+
+  return { id: newInvoice.id, glTransactionId: txnResult.transaction.id }
+}
+
+/**
+ * Record payment received for an AR invoice.
+ * GL: DR Cash (1000), CR Grants Receivable (1110)
+ */
+export async function recordArInvoicePayment(
+  invoiceId: number,
+  paymentDate: string,
+  userId: string
+): Promise<{ glTransactionId: number }> {
+  const [invoice] = await db
+    .select()
+    .from(invoices)
+    .where(eq(invoices.id, invoiceId))
+
+  if (!invoice) throw new Error(`Invoice ${invoiceId} not found`)
+  if (invoice.direction !== 'AR')
+    throw new Error('Can only record payment for AR invoices here')
+  if (invoice.paymentStatus === 'PAID')
+    throw new Error('Invoice is already paid')
+  if (!invoice.fundId) throw new Error('AR invoice has no associated fund')
+
+  const [cashAccount] = await db
+    .select()
+    .from(accounts)
+    .where(eq(accounts.code, '1000'))
+  if (!cashAccount)
+    throw new Error('Checking account (1000) not found. Run seed data first.')
+
+  const [arAccount] = await db
+    .select()
+    .from(accounts)
+    .where(eq(accounts.code, '1110'))
+  if (!arAccount)
+    throw new Error('Grants Receivable account (1110) not found. Run seed data first.')
+
+  const invoiceRef = invoice.invoiceNumber || `AR-${invoice.id}`
+  const amount = parseFloat(invoice.amount)
+
+  const txnResult = await createTransaction({
+    date: paymentDate,
+    memo: `Payment received — ${invoiceRef}`,
+    sourceType: 'MANUAL',
+    sourceReferenceId: `ar-payment:${invoice.id}`,
+    isSystemGenerated: false,
+    createdBy: userId,
+    lines: [
+      {
+        accountId: cashAccount.id,
+        fundId: invoice.fundId,
+        debit: amount,
+        credit: null,
+      },
+      {
+        accountId: arAccount.id,
+        fundId: invoice.fundId,
+        debit: null,
+        credit: amount,
+      },
+    ],
+  })
+
+  await db
+    .update(invoices)
+    .set({ paymentStatus: 'PAID', updatedAt: new Date() })
+    .where(eq(invoices.id, invoiceId))
+
+  revalidatePath(`/revenue/funding-sources/${invoice.fundId}`)
+  revalidatePath('/revenue/funding-sources')
+
+  return { glTransactionId: txnResult.transaction.id }
 }

@@ -18,6 +18,12 @@ export interface EmployeePayrollData {
   isHeadOfHousehold: boolean
   isBlind: boolean
   spouseIsBlind: boolean
+  /**
+   * Worker classification drawn from app-portal's worker_type field.
+   * '1099' = independent contractor (no withholdings, pay gross in full)
+   * 'W2'   = W-2 employee (full federal/state/FICA withholding)
+   */
+  contractorType: 'W2' | '1099'
 }
 
 // Mock employees for development (used when PEOPLE_DATABASE_URL is not set)
@@ -38,6 +44,7 @@ const MOCK_EMPLOYEES: EmployeePayrollData[] = [
     isHeadOfHousehold: false,
     isBlind: false,
     spouseIsBlind: false,
+    contractorType: 'W2',
   },
   {
     id: 'emp-002',
@@ -55,6 +62,7 @@ const MOCK_EMPLOYEES: EmployeePayrollData[] = [
     isHeadOfHousehold: false,
     isBlind: false,
     spouseIsBlind: false,
+    contractorType: 'W2',
   },
   {
     id: 'emp-003',
@@ -72,12 +80,17 @@ const MOCK_EMPLOYEES: EmployeePayrollData[] = [
     isHeadOfHousehold: false,
     isBlind: false,
     spouseIsBlind: false,
+    contractorType: 'W2',
   },
 ]
 
 /**
- * Get all active employees from the People API.
+ * Get all active employees from the People API (app-portal).
  * Falls back to mock data when PEOPLE_DATABASE_URL is not configured.
+ *
+ * contractorType is sourced from app-portal's worker_type field:
+ *   worker_type = '1099' → contractorType = '1099' (no withholdings)
+ *   worker_type = 'W-2'  → contractorType = 'W2'  (full withholdings)
  */
 export async function getActiveEmployees(): Promise<EmployeePayrollData[]> {
   if (!process.env.PEOPLE_DATABASE_URL) {
@@ -85,7 +98,6 @@ export async function getActiveEmployees(): Promise<EmployeePayrollData[]> {
   }
 
   // Real implementation: read from app-portal's Neon database
-  // This will be wired up when the app-portal Postgres role is created
   const { neon } = await import('@neondatabase/serverless')
   const { drizzle } = await import('drizzle-orm/neon-http')
 
@@ -94,7 +106,7 @@ export async function getActiveEmployees(): Promise<EmployeePayrollData[]> {
 
   const rows = await peopleDb.execute(
     sql`SELECT zitadel_user_id, name, email, compensation_type, annual_salary,
-        expected_annual_hours, exempt_status, federal_filing_status,
+        expected_annual_hours, exempt_status, worker_type, federal_filing_status,
         federal_allowances, state_allowances, additional_federal_withholding,
         additional_state_withholding, is_head_of_household, is_blind,
         spouse_is_blind
@@ -119,6 +131,8 @@ export async function getActiveEmployees(): Promise<EmployeePayrollData[]> {
     isHeadOfHousehold: row.is_head_of_household as boolean,
     isBlind: row.is_blind as boolean,
     spouseIsBlind: row.spouse_is_blind as boolean,
+    // worker_type '1099' → no withholdings; 'W-2' → full payroll withholdings
+    contractorType: row.worker_type === '1099' ? '1099' : 'W2',
   }))
 }
 

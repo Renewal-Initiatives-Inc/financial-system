@@ -66,6 +66,7 @@ export const payrollEntries = pgTable(
       scale: 2,
     }).notNull(),
     netPay: numeric('net_pay', { precision: 12, scale: 2 }).notNull(),
+    contractorType: varchar('contractor_type', { length: 10 }).default('W2'),
     fundAllocations: jsonb('fund_allocations').notNull(),
     glTransactionId: integer('gl_transaction_id').references(
       () => transactions.id

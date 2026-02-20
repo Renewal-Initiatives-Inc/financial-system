@@ -27,7 +27,7 @@ test.describe('Reports Index', () => {
     await expect(
       page.getByText('Operational Dashboards')
     ).toBeVisible()
-    await expect(page.getByText('Fund & Grant Reports')).toBeVisible()
+    await expect(page.getByText('Fund & Funding Reports')).toBeVisible()
     await expect(page.getByText('Specialized Reports')).toBeVisible()
   })
 
@@ -251,7 +251,7 @@ test.describe('Report #10 — Grant Compliance', () => {
   test('renders report title', async ({ page }) => {
     await page.goto('/reports/grant-compliance')
     await expect(
-      page.getByText('Grant Compliance Tracking')
+      page.getByText('Funding Compliance Tracking')
     ).toBeVisible()
   })
 })

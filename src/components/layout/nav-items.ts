@@ -30,7 +30,6 @@ export const navItems: NavItem[] = [
   { label: 'Dashboard', href: '/', icon: LayoutDashboard },
   { label: 'Transactions', href: '/transactions', icon: BookOpen },
   { label: 'Chart of Accounts', href: '/accounts', icon: ListTree },
-  { label: 'Funds', href: '/funds', icon: Wallet },
   { label: 'Revenue', href: '/revenue', icon: TrendingUp },
   { label: 'Expenses', href: '/expenses', icon: Receipt },
   { label: 'Ramp Credit Card', href: '/expenses/ramp', icon: CreditCard, indent: true },

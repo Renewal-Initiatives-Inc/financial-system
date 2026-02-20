@@ -202,10 +202,10 @@ export const helpTerms: Record<string, string> = {
   'rent-adjustment':
     'Adjustments to rental income: Proration (move-in/out), Hardship (reduced rent), Vacate (early termination). Each recorded in separate GL accounts with mandatory explanatory note.',
 
-  'grant-conditional':
+  'funding-conditional':
     'Revenue recognized only when conditions are met (ASC 958). Recorded as Refundable Advance (liability) until conditions satisfied.',
 
-  'grant-unconditional':
+  'funding-unconditional':
     'Revenue recognized immediately at award (ASC 958). DR Grants Receivable, CR Grant Revenue.',
 
   'refundable-advance':
@@ -235,8 +235,8 @@ export const helpTerms: Record<string, string> = {
   'ahp-loan-forgiveness':
     'AHP loan principal forgiven. Treated as unconditional donation: DR AHP Loan Payable, CR Donation Income. Permanently reduces maximum available credit.',
 
-  'grant-cash-receipt':
-    'Cash received on an unconditional grant receivable. DR Cash, CR Grants Receivable. Does not trigger new revenue — revenue was recognized at award.',
+  'funding-cash-receipt':
+    'Cash received on an unconditional funding source receivable. DR Cash, CR Grants Receivable. Does not trigger new revenue — revenue was recognized at award.',
 
   // --- Phase 8: Purchase Orders & Invoices ---
 

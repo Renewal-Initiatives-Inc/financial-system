@@ -1,8 +1,9 @@
 import { eq, and } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { complianceDeadlines, tenants } from '@/lib/db/schema'
+import { complianceDeadlines, funds, tenants } from '@/lib/db/schema'
 import { logAudit } from '@/lib/audit/logger'
 import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
+import type { ExtractedMilestone, ExtractedCovenant } from '@/lib/ai/contract-extraction'
 
 interface AnnualDeadline {
   taskName: string
@@ -156,4 +157,202 @@ export async function completeDeadline(
       afterState: { status: 'completed' },
     })
   })
+}
+
+// --- Funding source deadline helpers ---
+
+function lastDayOfMonth(year: number, month: number): string {
+  // month is 1-indexed; Date(year, month, 0) gives last day of previous month
+  const d = new Date(year, month, 0)
+  return `${year}-${String(month).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** Quarterly end dates: Mar 31, Jun 30, Sep 30, Dec 31 */
+const QUARTER_END_MONTHS = [3, 6, 9, 12]
+
+/** Semi-annual end dates: Jun 30, Dec 31 */
+const SEMI_ANNUAL_END_MONTHS = [6, 12]
+
+function generateReportingDates(
+  frequency: string,
+  startDate: string,
+  endDate: string
+): string[] {
+  const start = new Date(startDate + 'T00:00:00')
+  const end = new Date(endDate + 'T00:00:00')
+  const dates: string[] = []
+
+  const startYear = start.getFullYear()
+  const endYear = end.getFullYear()
+
+  if (frequency === 'monthly') {
+    for (let y = startYear; y <= endYear; y++) {
+      for (let m = 1; m <= 12; m++) {
+        const due = lastDayOfMonth(y, m)
+        if (due >= startDate && due <= endDate) dates.push(due)
+      }
+    }
+  } else if (frequency === 'quarterly') {
+    for (let y = startYear; y <= endYear; y++) {
+      for (const m of QUARTER_END_MONTHS) {
+        const due = lastDayOfMonth(y, m)
+        if (due >= startDate && due <= endDate) dates.push(due)
+      }
+    }
+  } else if (frequency === 'semi-annual') {
+    for (let y = startYear; y <= endYear; y++) {
+      for (const m of SEMI_ANNUAL_END_MONTHS) {
+        const due = lastDayOfMonth(y, m)
+        if (due >= startDate && due <= endDate) dates.push(due)
+      }
+    }
+  } else if (frequency === 'annual') {
+    for (let y = startYear; y <= endYear; y++) {
+      const due = `${y}-12-31`
+      if (due >= startDate && due <= endDate) dates.push(due)
+    }
+  }
+
+  return dates
+}
+
+async function insertIfNotExists(
+  taskName: string,
+  dueDate: string,
+  category: 'tax' | 'tenant' | 'grant' | 'budget',
+  recurrence: 'annual' | 'monthly' | 'per_tenant' | 'one_time',
+  fundId: number
+): Promise<boolean> {
+  const [existing] = await db
+    .select()
+    .from(complianceDeadlines)
+    .where(
+      and(
+        eq(complianceDeadlines.taskName, taskName),
+        eq(complianceDeadlines.dueDate, dueDate),
+        eq(complianceDeadlines.fundId, fundId)
+      )
+    )
+  if (existing) return false
+
+  await db.insert(complianceDeadlines).values({
+    taskName,
+    dueDate,
+    category: 'grant',
+    recurrence,
+    status: 'upcoming',
+    fundId,
+  })
+  return true
+}
+
+/**
+ * Generate compliance deadlines for a funding source based on its
+ * reportingFrequency, extractedMilestones, extractedCovenants, and endDate.
+ * Idempotent — skips deadlines that already exist.
+ */
+export async function generateFundingSourceDeadlines(
+  fundId: number
+): Promise<{ created: number; skipped: number }> {
+  const [fund] = await db
+    .select()
+    .from(funds)
+    .where(eq(funds.id, fundId))
+
+  if (!fund) return { created: 0, skipped: 0 }
+
+  let created = 0
+  let skipped = 0
+
+  // 1. Reporting deadlines from reportingFrequency
+  if (fund.reportingFrequency && fund.startDate && fund.endDate) {
+    const dates = generateReportingDates(
+      fund.reportingFrequency.toLowerCase(),
+      fund.startDate,
+      fund.endDate
+    )
+    for (const dueDate of dates) {
+      const monthLabel = new Date(dueDate + 'T00:00:00').toLocaleDateString('en-US', {
+        month: 'short',
+        year: 'numeric',
+      })
+      const taskName = `Report submission — ${fund.name} (${monthLabel})`
+      const inserted = await insertIfNotExists(
+        taskName,
+        dueDate,
+        'grant',
+        fund.reportingFrequency.toLowerCase() === 'monthly' ? 'monthly' : 'annual',
+        fundId
+      )
+      if (inserted) created++
+      else skipped++
+    }
+  }
+
+  // 2. Milestone deadlines from extractedMilestones
+  if (fund.extractedMilestones && Array.isArray(fund.extractedMilestones)) {
+    const milestones = fund.extractedMilestones as ExtractedMilestone[]
+    for (const milestone of milestones) {
+      if (!milestone.date) continue
+      const taskName = `Milestone — ${fund.name}: ${milestone.name}`
+      const inserted = await insertIfNotExists(
+        taskName,
+        milestone.date,
+        'grant',
+        'one_time',
+        fundId
+      )
+      if (inserted) created++
+      else skipped++
+    }
+  }
+
+  // 3. Covenant deadlines from extractedCovenants
+  if (fund.extractedCovenants && Array.isArray(fund.extractedCovenants)) {
+    const covenants = fund.extractedCovenants as ExtractedCovenant[]
+    for (const covenant of covenants) {
+      if (!covenant.deadline) continue
+      const taskName = `Covenant — ${fund.name}: ${covenant.description.slice(0, 80)}`
+      const inserted = await insertIfNotExists(
+        taskName,
+        covenant.deadline,
+        'grant',
+        'one_time',
+        fundId
+      )
+      if (inserted) created++
+      else skipped++
+    }
+  }
+
+  // 4. Close-out deadlines from endDate
+  if (fund.endDate) {
+    const endMs = new Date(fund.endDate + 'T00:00:00').getTime()
+
+    // 30 days before end → close-out preparation
+    const prep30 = new Date(endMs - 30 * 24 * 60 * 60 * 1000)
+    const prep30Date = prep30.toISOString().split('T')[0]
+    const prepInserted = await insertIfNotExists(
+      `Close-out preparation — ${fund.name}`,
+      prep30Date,
+      'grant',
+      'one_time',
+      fundId
+    )
+    if (prepInserted) created++
+    else skipped++
+
+    // On endDate → grant period end
+    const endInserted = await insertIfNotExists(
+      `Grant period end — ${fund.name}`,
+      fund.endDate,
+      'grant',
+      'one_time',
+      fundId
+    )
+    if (endInserted) created++
+    else skipped++
+  }
+
+  return { created, skipped }
 }

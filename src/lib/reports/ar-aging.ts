@@ -5,7 +5,7 @@ import {
   transactionLines,
   transactions,
   tenants,
-  grants,
+  funds,
   pledges,
   donors,
   vendors,
@@ -33,10 +33,10 @@ export interface TenantARRow {
   aging: AgingBuckets
 }
 
-export interface GrantARRow {
-  grantId: number
+export interface FundingSourceARRow {
+  fundId: number
   funderName: string
-  grantAmount: number
+  fundingAmount: number
   receivableBalance: number
   aging: AgingBuckets
 }
@@ -51,7 +51,7 @@ export interface PledgeARRow {
 
 export interface ARAgingData {
   tenantAR: { rows: TenantARRow[]; total: AgingBuckets }
-  grantAR: { rows: GrantARRow[]; total: AgingBuckets }
+  fundingSourceAR: { rows: FundingSourceARRow[]; total: AgingBuckets }
   pledgeAR: { rows: PledgeARRow[]; total: AgingBuckets }
   grandTotal: AgingBuckets
 }
@@ -194,7 +194,7 @@ export async function getARAgingData(): Promise<ARAgingData> {
     .where(eq(accounts.code, '1100'))
     .limit(1)
 
-  const [grantsRcvAccount] = await db
+  const [fundingRcvAccount] = await db
     .select({ id: accounts.id })
     .from(accounts)
     .where(eq(accounts.code, '1110'))
@@ -259,52 +259,52 @@ export async function getARAgingData(): Promise<ARAgingData> {
   // Filter out tenants with zero outstanding balance
   const filteredTenantRows = tenantRows.filter((r) => r.aging.total > 0.005)
 
-  // -- Grant AR section --
-  const grantArAging = grantsRcvAccount
-    ? await getAgingForAccount(grantsRcvAccount.id)
+  // -- Funding Source AR section --
+  const fundingSourceArAging = fundingRcvAccount
+    ? await getAgingForAccount(fundingRcvAccount.id)
     : emptyBuckets()
 
-  const activeGrants = await db
+  const activeFundingSources = await db
     .select({
-      id: grants.id,
-      amount: grants.amount,
+      id: funds.id,
+      amount: funds.amount,
       funderName: vendors.name,
-      startDate: grants.startDate,
+      startDate: funds.startDate,
     })
-    .from(grants)
-    .innerJoin(vendors, eq(grants.funderId, vendors.id))
-    .where(eq(grants.status, 'ACTIVE'))
+    .from(funds)
+    .innerJoin(vendors, eq(funds.funderId, vendors.id))
+    .where(eq(funds.status, 'ACTIVE'))
     .orderBy(vendors.name)
 
-  // Distribute grants receivable proportionally across active grants by amount
-  const totalGrantAmount = activeGrants.reduce(
-    (s, g) => s + (parseFloat(g.amount) || 0),
+  // Distribute funding source receivable proportionally across active funding sources
+  const totalFundingAmount = activeFundingSources.reduce(
+    (s, f) => s + (parseFloat(f.amount ?? '0') || 0),
     0
   )
 
-  const grantRows: GrantARRow[] = activeGrants.map((g) => {
-    const grantAmt = parseFloat(g.amount) || 0
-    const proportion = totalGrantAmount > 0 ? grantAmt / totalGrantAmount : 0
-    const receivableBalance = grantArAging.total * proportion
+  const fundingSourceRows: FundingSourceARRow[] = activeFundingSources.map((f) => {
+    const fundingAmt = parseFloat(f.amount ?? '0') || 0
+    const proportion = totalFundingAmount > 0 ? fundingAmt / totalFundingAmount : 0
+    const receivableBalance = fundingSourceArAging.total * proportion
 
     const aging: AgingBuckets = {
-      current: grantArAging.current * proportion,
-      days31to60: grantArAging.days31to60 * proportion,
-      days61to90: grantArAging.days61to90 * proportion,
-      days90plus: grantArAging.days90plus * proportion,
+      current: fundingSourceArAging.current * proportion,
+      days31to60: fundingSourceArAging.days31to60 * proportion,
+      days61to90: fundingSourceArAging.days61to90 * proportion,
+      days90plus: fundingSourceArAging.days90plus * proportion,
       total: receivableBalance,
     }
 
     return {
-      grantId: g.id,
-      funderName: g.funderName,
-      grantAmount: grantAmt,
+      fundId: f.id,
+      funderName: f.funderName,
+      fundingAmount: fundingAmt,
       receivableBalance,
       aging,
     }
   })
 
-  const filteredGrantRows = grantRows.filter((r) => r.aging.total > 0.005)
+  const filteredFundingSourceRows = fundingSourceRows.filter((r) => r.aging.total > 0.005)
 
   // -- Pledge AR section --
   // Only pledges with status PLEDGED are outstanding
@@ -354,9 +354,9 @@ export async function getARAgingData(): Promise<ARAgingData> {
         )
       : emptyBuckets()
 
-  const grantTotal =
-    filteredGrantRows.length > 0
-      ? filteredGrantRows.reduce(
+  const fundingSourceTotal =
+    filteredFundingSourceRows.length > 0
+      ? filteredFundingSourceRows.reduce(
           (acc, r) => sumBuckets(acc, r.aging),
           emptyBuckets()
         )
@@ -370,11 +370,11 @@ export async function getARAgingData(): Promise<ARAgingData> {
         )
       : emptyBuckets()
 
-  const grandTotal = sumBuckets(tenantTotal, grantTotal, pledgeTotal)
+  const grandTotal = sumBuckets(tenantTotal, fundingSourceTotal, pledgeTotal)
 
   return {
     tenantAR: { rows: filteredTenantRows, total: tenantTotal },
-    grantAR: { rows: filteredGrantRows, total: grantTotal },
+    fundingSourceAR: { rows: filteredFundingSourceRows, total: fundingSourceTotal },
     pledgeAR: { rows: pledgeRows, total: pledgeTotal },
     grandTotal,
   }

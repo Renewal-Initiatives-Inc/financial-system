@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { funds, transactions, transactionLines, accounts } from '@/lib/db/schema'
+import { funds, vendors, transactions, transactionLines, accounts } from '@/lib/db/schema'
 import { and, eq, lte, sql } from 'drizzle-orm'
 import type { CopilotToolDefinition } from '../types'
 
@@ -27,6 +27,10 @@ export async function handleGetFundBalance(input: {
   assets: string
   liabilities: string
   netAssets: string
+  funderName?: string | null
+  fundingAmount?: string | null
+  fundingType?: string | null
+  fundingStatus?: string | null
 } | { error: string }> {
   const [fund] = await db.select().from(funds).where(eq(funds.id, input.fundId))
 
@@ -92,5 +96,11 @@ export async function handleGetFundBalance(input: {
     assets: totalAssets.toFixed(2),
     liabilities: totalLiabilities.toFixed(2),
     netAssets: totalNetAssets.toFixed(2),
+    funderName: fund.funderId
+      ? (await db.select({ name: vendors.name }).from(vendors).where(eq(vendors.id, fund.funderId)).then(r => r[0]?.name ?? null))
+      : null,
+    fundingAmount: fund.amount ?? null,
+    fundingType: fund.type ?? null,
+    fundingStatus: fund.status ?? null,
   }
 }

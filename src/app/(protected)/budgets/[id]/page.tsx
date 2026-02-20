@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { getBudgetAction, getBudgetVarianceAction, getCIPVarianceAction } from '../actions'
-import { getFunds } from '@/app/(protected)/funds/actions'
+import { getFunds } from '@/app/(protected)/revenue/actions'
 import { BudgetReviewClient } from './budget-review-client'
 
 interface Props {
@@ -26,7 +26,7 @@ export default async function BudgetReviewPage({ params }: Props) {
       budget={budget}
       initialVariance={variance}
       initialCIPVariance={cipVariance}
-      grantBudgetContext={null}
+      fundingBudgetContext={null}
       funds={funds}
     />
   )

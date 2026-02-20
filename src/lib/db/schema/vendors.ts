@@ -22,6 +22,7 @@ export const vendors = pgTable(
     taxId: text('tax_id'),
     entityType: varchar('entity_type', { length: 50 }),
     is1099Eligible: boolean('is_1099_eligible').notNull().default(false),
+    zitadelUserId: varchar('zitadel_user_id', { length: 255 }),
     defaultAccountId: integer('default_account_id').references(() => accounts.id),
     defaultFundId: integer('default_fund_id').references(() => funds.id),
     w9Status: w9StatusEnum('w9_status').notNull().default('NOT_REQUIRED'),

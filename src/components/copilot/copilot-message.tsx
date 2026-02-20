@@ -90,15 +90,45 @@ const toolNameLabels: Record<string, string> = {
   searchAuditLog: 'Searched audit log',
 }
 
-/** Simple markdown renderer — handles bold, lists, code, and links */
+/** Simple markdown renderer — handles bold, lists, code, links, and tables */
 function MarkdownContent({ content }: { content: string }) {
   if (!content) return null
 
   const lines = content.split('\n')
   const elements: React.ReactNode[] = []
+  let i = 0
 
-  for (let i = 0; i < lines.length; i++) {
+  while (i < lines.length) {
     const line = lines[i]
+
+    // Table: collect consecutive lines containing |
+    if (line.trim().startsWith('|') && line.trim().endsWith('|')) {
+      const tableLines: string[] = []
+      while (i < lines.length && lines[i].trim().startsWith('|') && lines[i].trim().endsWith('|')) {
+        tableLines.push(lines[i].trim())
+        i++
+      }
+      elements.push(<MarkdownTable key={`table-${i}`} lines={tableLines} />)
+      continue
+    }
+
+    // Code blocks: collect content between ``` fences
+    if (line.startsWith('```')) {
+      const codeLines: string[] = []
+      i++ // skip opening fence
+      while (i < lines.length && !lines[i].startsWith('```')) {
+        codeLines.push(lines[i])
+        i++
+      }
+      // i now points at closing fence (or end of lines)
+      elements.push(
+        <pre key={`code-${i}`} className="bg-background/60 overflow-x-auto rounded border px-2.5 py-2 text-[11px] leading-relaxed">
+          <code>{codeLines.join('\n')}</code>
+        </pre>
+      )
+      i++ // skip closing fence
+      continue
+    }
 
     // Headers
     if (line.startsWith('### ')) {
@@ -108,12 +138,26 @@ function MarkdownContent({ content }: { content: string }) {
     } else if (line.startsWith('# ')) {
       elements.push(<h2 key={i} className="font-bold">{renderInline(line.slice(2))}</h2>)
     }
-    // Bullet lists
-    else if (line.match(/^[-*]\s/)) {
+    // Horizontal rule
+    else if (line.match(/^[-*_]{3,}\s*$/)) {
+      elements.push(<hr key={i} className="border-border my-1" />)
+    }
+    // Blockquote
+    else if (line.startsWith('> ')) {
       elements.push(
-        <div key={i} className="flex gap-1.5">
-          <span className="shrink-0">•</span>
-          <span>{renderInline(line.replace(/^[-*]\s/, ''))}</span>
+        <blockquote key={i} className="border-primary/40 text-muted-foreground border-l-2 pl-2.5 text-[12px] italic">
+          {renderInline(line.slice(2))}
+        </blockquote>
+      )
+    }
+    // Bullet lists (with indent support)
+    else if (line.match(/^(\s*)[-*]\s/)) {
+      const indent = line.match(/^(\s*)/)?.[1]?.length || 0
+      const level = Math.floor(indent / 2)
+      elements.push(
+        <div key={i} className="flex gap-1.5" style={level > 0 ? { paddingLeft: `${level * 12}px` } : undefined}>
+          <span className="shrink-0">{level > 0 ? '◦' : '•'}</span>
+          <span>{renderInline(line.replace(/^\s*[-*]\s/, ''))}</span>
         </div>
       )
     }
@@ -127,10 +171,6 @@ function MarkdownContent({ content }: { content: string }) {
         </div>
       )
     }
-    // Code blocks
-    else if (line.startsWith('```')) {
-      // Skip code fence markers — content between them is rendered as-is
-    }
     // Empty line
     else if (!line.trim()) {
       elements.push(<div key={i} className="h-1" />)
@@ -139,9 +179,68 @@ function MarkdownContent({ content }: { content: string }) {
     else {
       elements.push(<p key={i}>{renderInline(line)}</p>)
     }
+
+    i++
   }
 
   return <>{elements}</>
+}
+
+/** Render a markdown table from consecutive pipe-delimited lines */
+function MarkdownTable({ lines }: { lines: string[] }) {
+  const parseRow = (line: string): string[] =>
+    line.split('|').slice(1, -1).map(cell => cell.trim())
+
+  const isSeparator = (line: string): boolean =>
+    /^\|[\s:|-]+\|$/.test(line) && line.replace(/[\s|:-]/g, '').length === 0
+
+  // Detect header row (row before a separator)
+  const sepIndex = lines.findIndex(isSeparator)
+  let headerCells: string[] | null = null
+  let bodyLines: string[]
+
+  if (sepIndex === 1) {
+    headerCells = parseRow(lines[0])
+    bodyLines = lines.slice(2)
+  } else if (sepIndex === 0) {
+    bodyLines = lines.slice(1)
+  } else {
+    bodyLines = lines
+  }
+
+  const bodyRows = bodyLines.filter(l => !isSeparator(l)).map(parseRow)
+
+  return (
+    <div className="-mx-1 overflow-x-auto">
+      <table className="w-full border-collapse text-xs">
+        {headerCells && (
+          <thead>
+            <tr className="border-border border-b">
+              {headerCells.map((cell, j) => (
+                <th key={j} className="text-muted-foreground px-2 py-1.5 text-left text-[11px] font-semibold whitespace-nowrap">
+                  {renderInline(cell)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+        )}
+        <tbody>
+          {bodyRows.map((cells, rowIdx) => (
+            <tr key={rowIdx} className={cn(
+              'border-border/40 border-b last:border-0',
+              rowIdx % 2 === 1 && 'bg-muted/30'
+            )}>
+              {cells.map((cell, cellIdx) => (
+                <td key={cellIdx} className="max-w-[180px] truncate px-2 py-1.5">
+                  {renderInline(cell)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
 }
 
 /** Render inline markdown: bold, italic, code, links */

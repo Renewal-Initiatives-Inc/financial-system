@@ -20,7 +20,7 @@ const REPORTS = [
   { slug: 'rent-collection', title: 'Rent Collection Status', core: false },
   // Fund
   { slug: 'fund-drawdown', title: 'Fund Draw-Down', core: false },
-  { slug: 'grant-compliance', title: 'Grant Compliance', core: false },
+  { slug: 'grant-compliance', title: 'Funding Compliance', core: false },
   { slug: 'fund-level', title: 'Fund-Level Report', core: false },
   // Specialized
   { slug: 'property-expenses', title: 'Property Expenses', core: false },

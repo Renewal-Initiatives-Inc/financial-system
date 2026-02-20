@@ -219,40 +219,15 @@ These identify what's owed at cutoff — critical for the cash-to-accrual conver
 
 ---
 
-## Step 9: Ramp Transaction Export
+## ~~Step 9: Ramp Transaction Export~~ — SUPERSEDED
 
-We need the full Ramp history to reconcile against QBO credit card entries.
-
-**Navigation:** Log in to Ramp at ramp.com
-
-1. Go to **Transactions** → set date range: **All time** (or 01/01/2025 to [CUTOFF DATE])
-2. Click **Export** → **CSV**
-3. Save as `ramp-transactions.csv`
-
-Also export:
-4. **Statements** → download all monthly statements as PDFs
-5. Save into `ramp-statements/` subfolder
-
-**Maps to:** `ramp_transactions` table — `date`, `amount`, `merchant_name`, `cardholder`
-
-**Reconciliation use:** Each Ramp transaction should have a matching QBO entry in Credit Card Payable (2020) or the expense account it was coded to.
+> **Not needed.** Ramp transaction history is already in the `ramp_transactions` table via the Ramp API (Phase 22, Step 7 — completed 2026-02-18). The reconciliation script reads directly from the DB with `--from-db`.
 
 ---
 
-## Step 10: UMass Five Bank Statement Export
+## ~~Step 10: UMass Five Bank Statement Export~~ — SUPERSEDED
 
-We need bank statements to reconcile against both QBO and Plaid.
-
-**Option A — Download from online banking:**
-1. Log in to UMass Five online banking
-2. For each account (Checking, Savings, Escrow):
-   - Download transaction history as **CSV** or **OFX/QFX** for the full date range
-   - Save as `umass5-checking.csv`, `umass5-savings.csv`, `umass5-escrow.csv`
-
-**Option B — If Plaid is already connected:**
-Our system will pull this automatically via [plaid-history-sync.ts](../src/lib/migration/plaid-history-sync.ts). But download the CSVs anyway as a reconciliation cross-check.
-
-**Reconciliation use:** Bank statement balances must match QBO reconciled balances AND our imported GL cash account balances.
+> **Not needed.** Bank transaction history is already in the `bank_transactions` table via Plaid API (Phase 22, Step 6 — completed 2026-02-19). The reconciliation script reads directly from the DB with `--from-db`.
 
 ---
 
@@ -297,9 +272,9 @@ Your `qbo-export-YYYY-MM-DD/` folder should contain:
 | 8 | `ar-aging-cutoff.xlsx` | QBO Reports → A/R Aging Detail | [ ] |
 | 9 | `ap-aging-cutoff.xlsx` | QBO Reports → A/P Aging Detail | [ ] |
 | 10 | `recon-*.xlsx` (one per bank account) | QBO Reports → Reconciliation Reports | [ ] |
-| 11 | `ramp-transactions.csv` | Ramp → Transactions → Export | [ ] |
-| 12 | `ramp-statements/` (monthly PDFs) | Ramp → Statements → Download | [ ] |
-| 13 | `umass5-checking.csv` (+ savings, escrow) | UMass Five online banking → Download | [ ] |
+| ~~11~~ | ~~`ramp-transactions.csv`~~ | ~~Ramp → Transactions → Export~~ | SUPERSEDED — Ramp API data already in DB |
+| ~~12~~ | ~~`ramp-statements/`~~ | ~~Ramp → Statements → Download~~ | SUPERSEDED — Ramp API data already in DB |
+| ~~13~~ | ~~`umass5-checking.csv`~~ | ~~UMass Five → Download~~ | SUPERSEDED — Plaid API data already in DB |
 | 14 | `products-services.xlsx` (if applicable) | QBO Settings → Products & Services | [ ] |
 | 15 | `attachments.zip` (if applicable) | QBO Settings → Attachments → Export | [ ] |
 
@@ -391,10 +366,10 @@ neonctl branches create --name dev-testing --parent baseline-import-YYYY-MM-DD -
 Three data sources must agree before go-live:
 
 ```
-QBO (journal-all.csv)  ←→  UMass Five (bank CSVs)  ←→  Ramp (ramp-transactions.csv)
+QBO (journal-all.csv)  ←→  UMass Five (Plaid API)  ←→  Ramp (Ramp API)
          ↕                          ↕                          ↕
    GL transactions            bank_transactions          ramp_transactions
-   (imported)                 (Plaid or CSV)             (API or CSV)
+   (imported)                 (already in DB)            (already in DB)
 ```
 
 **Reconciliation process:**
@@ -456,20 +431,19 @@ The dry-run will tell you exactly which names failed. Add the QBO name as a new 
 ## Timeline: Export → Go-Live
 
 ```
-Day 1:  Jeff exports from QBO + Ramp + UMass Five (this guide)
+Day 1:  Jeff exports from QBO (Steps 1–8 of this guide — Ramp + bank data already in DB via APIs)
         Jeff provides cutoff date
 Day 1:  Claude runs dry-run, fixes any unmapped accounts
-Day 1:  Live import into dev database
+Day 1:  Live import into production database
+Day 1:  Multi-source reconciliation (QBO ↔ bank_transactions ↔ ramp_transactions — all from DB)
 Day 1:  Neon snapshot created (baseline-import-YYYY-MM-DD)
 
 Day 2+: Cash → accrual conversion entries reviewed and posted
-        Multi-source reconciliation (QBO ↔ Bank ↔ Ramp)
         Dev/staging testing and bug fixes
         Reset to baseline as needed
 
 Go-Live: Jeff manually enters any QBO transactions between cutoff and go-live
-         Promote baseline to production
-         Connect Plaid for ongoing bank sync
-         Connect Ramp API for ongoing card sync
+         Plaid already connected — daily bank sync running ✅
+         Ramp already connected — daily card sync running ✅
          QBO retired
 ```

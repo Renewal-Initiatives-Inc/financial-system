@@ -92,12 +92,12 @@ export const depreciationMethodEnum = pgEnum('depreciation_method', [
   'STRAIGHT_LINE',
 ])
 
-export const grantTypeEnum = pgEnum('grant_type', [
+export const fundingTypeEnum = pgEnum('funding_type', [
   'CONDITIONAL',
   'UNCONDITIONAL',
 ])
 
-export const grantStatusEnum = pgEnum('grant_status', [
+export const fundingStatusEnum = pgEnum('funding_status', [
   'ACTIVE',
   'COMPLETED',
   'CANCELLED',

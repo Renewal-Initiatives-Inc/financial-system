@@ -1,17 +1,14 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft,
-  ChevronDown,
-  ChevronRight,
-  ExternalLink,
   AlertTriangle,
-  FileText,
   DollarSign,
   CreditCard,
+  X,
 } from 'lucide-react'
 import { format, isPast, addDays, isBefore } from 'date-fns'
 import { Button } from '@/components/ui/button'
@@ -27,7 +24,12 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { HelpTooltip } from '@/components/shared/help-tooltip'
-import { updatePurchaseOrderStatus, markPaymentInProcess } from '../../actions'
+import {
+  ContractTermsCard,
+  parseMilestones,
+  type MilestoneItem,
+} from '@/components/shared/contract-terms-card'
+import { updatePurchaseOrderStatus, markPaymentInProcess, dismissComplianceWarning } from '../../actions'
 import type { PurchaseOrderDetail } from '../../actions'
 import { toast } from 'sonner'
 
@@ -76,59 +78,6 @@ function formatCurrency(amount: string | number): string {
 function formatDate(date: string | Date): string {
   const d = typeof date === 'string' ? new Date(date) : date
   return format(d, 'MMM d, yyyy')
-}
-
-interface MilestoneItem {
-  name?: string
-  description?: string
-  date?: string
-  dueDate?: string
-}
-
-interface TermItem {
-  name?: string
-  description?: string
-  paymentSchedule?: string
-  amount?: string
-}
-
-interface CovenantItem {
-  name?: string
-  description?: string
-  requirement?: string
-}
-
-function parseMilestones(data: unknown): MilestoneItem[] {
-  if (!data) return []
-  if (Array.isArray(data)) return data as MilestoneItem[]
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>
-    if (Array.isArray(obj.milestones)) return obj.milestones as MilestoneItem[]
-    if (Array.isArray(obj.items)) return obj.items as MilestoneItem[]
-  }
-  return []
-}
-
-function parseTerms(data: unknown): TermItem[] {
-  if (!data) return []
-  if (Array.isArray(data)) return data as TermItem[]
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>
-    if (Array.isArray(obj.terms)) return obj.terms as TermItem[]
-    if (Array.isArray(obj.items)) return obj.items as TermItem[]
-  }
-  return []
-}
-
-function parseCovenants(data: unknown): CovenantItem[] {
-  if (!data) return []
-  if (Array.isArray(data)) return data as CovenantItem[]
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>
-    if (Array.isArray(obj.covenants)) return obj.covenants as CovenantItem[]
-    if (Array.isArray(obj.items)) return obj.items as CovenantItem[]
-  }
-  return []
 }
 
 // --- Compliance warning logic ---
@@ -202,29 +151,15 @@ interface PODetailClientProps {
 export function PODetailClient({ po }: PODetailClientProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [expandedSections, setExpandedSections] = useState<
-    Record<string, boolean>
-  >({
-    milestones: false,
-    terms: false,
-    covenants: false,
-  })
 
   const total = parseFloat(po.totalAmount)
   const invoiced = parseFloat(po.invoicedAmount)
   const remaining = total - invoiced
 
-  const milestones = parseMilestones(po.extractedMilestones)
-  const terms = parseTerms(po.extractedTerms)
-  const covenants = parseCovenants(po.extractedCovenants)
-  const hasContractTerms =
-    milestones.length > 0 || terms.length > 0 || covenants.length > 0
-
-  const complianceWarnings = getComplianceWarnings(po)
-
-  const toggleSection = (section: string) => {
-    setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }))
-  }
+  const dismissed = (po.dismissedWarnings ?? []) as { type: string; message: string }[]
+  const complianceWarnings = getComplianceWarnings(po).filter(
+    (w) => !dismissed.some((d) => d.type === w.type && d.message === w.message)
+  )
 
   const handleStatusChange = (
     newStatus: 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
@@ -239,6 +174,20 @@ export function PODetailClient({ po }: PODetailClientProps) {
           err instanceof Error
             ? err.message
             : 'Failed to update purchase order status'
+        )
+      }
+    })
+  }
+
+  const handleDismissWarning = (warning: ComplianceWarning) => {
+    startTransition(async () => {
+      try {
+        await dismissComplianceWarning(po.id, warning.type, warning.message)
+        toast.success('Warning dismissed')
+        router.refresh()
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : 'Failed to dismiss warning'
         )
       }
     })
@@ -342,20 +291,6 @@ export function PODetailClient({ po }: PODetailClientProps) {
               </div>
             )}
           </div>
-          {po.contractPdfUrl && (
-            <div className="mt-4">
-              <a
-                href={po.contractPdfUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"
-              >
-                <FileText className="h-4 w-4" />
-                View Contract PDF
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            </div>
-          )}
         </CardContent>
       </Card>
 
@@ -387,7 +322,17 @@ export function PODetailClient({ po }: PODetailClientProps) {
                         : 'text-yellow-600'
                     }`}
                   />
-                  {warning.message}
+                  <span className="flex-1">{warning.message}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleDismissWarning(warning)}
+                    disabled={isPending}
+                    className="ml-auto flex-shrink-0 rounded p-0.5 opacity-60 hover:opacity-100 transition-opacity"
+                    title="Dismiss warning"
+                    data-testid={`dismiss-warning-${idx}`}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
                 </li>
               ))}
             </ul>
@@ -396,181 +341,12 @@ export function PODetailClient({ po }: PODetailClientProps) {
       )}
 
       {/* 4. Contract Terms Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Contract Terms</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {!hasContractTerms ? (
-            <p className="text-sm text-muted-foreground">
-              No contract terms extracted
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {/* Milestones */}
-              <div className="border rounded-md">
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between p-3 text-sm font-medium hover:bg-muted/50"
-                  onClick={() => toggleSection('milestones')}
-                >
-                  <span>
-                    Milestones{' '}
-                    {milestones.length > 0 && (
-                      <Badge variant="secondary" className="ml-1">
-                        {milestones.length}
-                      </Badge>
-                    )}
-                  </span>
-                  {expandedSections.milestones ? (
-                    <ChevronDown className="h-4 w-4" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4" />
-                  )}
-                </button>
-                {expandedSections.milestones && (
-                  <div className="border-t px-3 pb-3">
-                    {milestones.length === 0 ? (
-                      <p className="pt-3 text-sm text-muted-foreground">
-                        No milestones
-                      </p>
-                    ) : (
-                      <ul className="space-y-2 pt-3">
-                        {milestones.map((m, idx) => (
-                          <li key={idx} className="text-sm">
-                            <span className="font-medium">
-                              {m.name || m.description || `Milestone ${idx + 1}`}
-                            </span>
-                            {(m.date || m.dueDate) && (
-                              <span className="ml-2 text-muted-foreground">
-                                Due: {formatDate(m.date || m.dueDate!)}
-                              </span>
-                            )}
-                            {m.description && m.name && (
-                              <p className="text-muted-foreground">
-                                {m.description}
-                              </p>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Payment Terms */}
-              <div className="border rounded-md">
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between p-3 text-sm font-medium hover:bg-muted/50"
-                  onClick={() => toggleSection('terms')}
-                >
-                  <span>
-                    Payment Terms{' '}
-                    {terms.length > 0 && (
-                      <Badge variant="secondary" className="ml-1">
-                        {terms.length}
-                      </Badge>
-                    )}
-                  </span>
-                  {expandedSections.terms ? (
-                    <ChevronDown className="h-4 w-4" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4" />
-                  )}
-                </button>
-                {expandedSections.terms && (
-                  <div className="border-t px-3 pb-3">
-                    {terms.length === 0 ? (
-                      <p className="pt-3 text-sm text-muted-foreground">
-                        No payment terms
-                      </p>
-                    ) : (
-                      <ul className="space-y-2 pt-3">
-                        {terms.map((t, idx) => (
-                          <li key={idx} className="text-sm">
-                            <span className="font-medium">
-                              {t.name || t.description || `Term ${idx + 1}`}
-                            </span>
-                            {t.paymentSchedule && (
-                              <span className="ml-2 text-muted-foreground">
-                                Schedule: {t.paymentSchedule}
-                              </span>
-                            )}
-                            {t.amount && (
-                              <span className="ml-2 text-muted-foreground">
-                                Amount: {formatCurrency(t.amount)}
-                              </span>
-                            )}
-                            {t.description && t.name && (
-                              <p className="text-muted-foreground">
-                                {t.description}
-                              </p>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Covenants */}
-              <div className="border rounded-md">
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between p-3 text-sm font-medium hover:bg-muted/50"
-                  onClick={() => toggleSection('covenants')}
-                >
-                  <span>
-                    Covenants{' '}
-                    {covenants.length > 0 && (
-                      <Badge variant="secondary" className="ml-1">
-                        {covenants.length}
-                      </Badge>
-                    )}
-                  </span>
-                  {expandedSections.covenants ? (
-                    <ChevronDown className="h-4 w-4" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4" />
-                  )}
-                </button>
-                {expandedSections.covenants && (
-                  <div className="border-t px-3 pb-3">
-                    {covenants.length === 0 ? (
-                      <p className="pt-3 text-sm text-muted-foreground">
-                        No covenants
-                      </p>
-                    ) : (
-                      <ul className="space-y-2 pt-3">
-                        {covenants.map((c, idx) => (
-                          <li key={idx} className="text-sm">
-                            <span className="font-medium">
-                              {c.name || c.description || `Covenant ${idx + 1}`}
-                            </span>
-                            {c.requirement && (
-                              <p className="text-muted-foreground">
-                                {c.requirement}
-                              </p>
-                            )}
-                            {c.description && c.name && (
-                              <p className="text-muted-foreground">
-                                {c.description}
-                              </p>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <ContractTermsCard
+        milestones={po.extractedMilestones}
+        terms={po.extractedTerms}
+        covenants={po.extractedCovenants}
+        contractPdfUrl={po.contractPdfUrl}
+      />
 
       {/* 5. Invoices Card */}
       <Card>

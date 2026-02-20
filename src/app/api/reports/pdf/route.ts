@@ -637,20 +637,20 @@ async function generateReportPDF(
             cells: agingCells('Total Tenant AR', data.tenantAR.total),
             isBold: true,
           }),
-          // Grant AR
+          // Funding Source AR
           el(PDFTableRow, {
-            cells: ['GRANT AR', '', '', '', '', ''],
+            cells: ['FUNDING SOURCE AR', '', '', '', '', ''],
             isSectionHeader: true,
           }),
-          ...data.grantAR.rows.map((r) =>
+          ...data.fundingSourceAR.rows.map((r) =>
             el(PDFTableRow, {
-              key: `gar-${r.grantId}`,
+              key: `gar-${r.fundId}`,
               cells: agingCells(r.funderName, r.aging),
               indent: 1,
             })
           ),
           el(PDFTableRow, {
-            cells: agingCells('Total Grant AR', data.grantAR.total),
+            cells: agingCells('Total Funding Source AR', data.fundingSourceAR.total),
             isBold: true,
           }),
           // Pledge AR
@@ -823,7 +823,7 @@ async function generateReportPDF(
         el(
           ReportDocument,
           {
-            title: 'Fund Draw-Down / Restricted Grant Status',
+            title: 'Fund Draw-Down / Restricted Funding Status',
             dateRange: `As of ${endDate}`,
           },
           el(PDFTableHeader, {
@@ -835,7 +835,7 @@ async function generateReportPDF(
               { label: 'Draw-Down %' },
             ],
           }),
-          ...data.rows.map((r) =>
+          ...data.rows.flatMap((r) => [
             el(PDFTableRow, {
               key: `fd-${r.fundId}`,
               cells: [
@@ -845,8 +845,31 @@ async function generateReportPDF(
                 formatCurrency(r.remaining),
                 `${r.drawdownPercent.toFixed(0)}%`,
               ],
-            })
-          ),
+            }),
+            // Inline contract terms
+            ...(r.funderName || r.fundingType || r.conditions || r.fundingStatus
+              ? [
+                  el(PDFTableRow, {
+                    key: `fd-ct-${r.fundId}`,
+                    cells: [
+                      [
+                        r.funderName ? `Funder: ${r.funderName}` : null,
+                        r.fundingType ? `Type: ${r.fundingType}` : null,
+                        r.fundingStatus ? `Status: ${r.fundingStatus}` : null,
+                        r.conditions ? `Conditions: ${r.conditions}` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' | '),
+                      '',
+                      '',
+                      '',
+                      '',
+                    ],
+                    indent: 1,
+                  }),
+                ]
+              : []),
+          ]),
           el(PDFSectionDivider),
           el(PDFTableRow, {
             cells: [
@@ -863,23 +886,23 @@ async function generateReportPDF(
     }
 
     // -----------------------------------------------------------------------
-    // Report #10: Grant Compliance Tracking
+    // Report #10: Funding Compliance Tracking
     // -----------------------------------------------------------------------
     case 'grant-compliance': {
-      const { getGrantComplianceData } = await import(
+      const { getFundingComplianceData } = await import(
         '@/lib/reports/grant-compliance'
       )
-      const data = await getGrantComplianceData()
+      const data = await getFundingComplianceData()
       return renderToBuffer(
         el(
           ReportDocument,
           {
-            title: 'Grant Compliance Tracking',
+            title: 'Funding Compliance Tracking',
             dateRange: `As of ${endDate}`,
           },
           el(PDFTableHeader, {
             columns: [
-              { label: 'Grant / Funder' },
+              { label: 'Funding Source / Funder' },
               { label: 'Award' },
               { label: 'Spent' },
               { label: 'Remaining' },
@@ -888,7 +911,7 @@ async function generateReportPDF(
           }),
           ...data.rows.map((r) =>
             el(PDFTableRow, {
-              key: `gc-${r.grantId}`,
+              key: `gc-${r.fundId}`,
               cells: [
                 `${r.funderName}${r.isAtRisk ? ' [AT RISK]' : ''}`,
                 formatCurrency(r.awardAmount),
@@ -901,7 +924,7 @@ async function generateReportPDF(
           el(PDFSectionDivider),
           el(PDFTableRow, {
             cells: [
-              `${data.activeGrants} active grants (${data.atRiskGrants} at risk)`,
+              `${data.activeFundingSources} active funding sources (${data.atRiskFundingSources} at risk)`,
               formatCurrency(data.totalAwards),
               formatCurrency(data.totalSpent),
               '',

@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useRef, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, ChevronsUpDown, ChevronDown, ChevronRight, Upload, FileText, Loader2 } from 'lucide-react'
+import { Check, ChevronsUpDown, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -37,6 +37,10 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { HelpTooltip } from '@/components/shared/help-tooltip'
+import {
+  ContractUploadExtract,
+  type ContractExtractionData,
+} from '@/components/shared/contract-upload-extract'
 import { createPurchaseOrder } from '../../actions'
 import { toast } from 'sonner'
 
@@ -101,28 +105,23 @@ export function CreatePOForm({
 }: CreatePOFormProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Form state
   const [vendorId, setVendorId] = useState<number | null>(null)
   const [vendorOpen, setVendorOpen] = useState(false)
   const [description, setDescription] = useState('')
-  const [contractPdfUrl, setContractPdfUrl] = useState<string | null>(null)
-  const [contractFileName, setContractFileName] = useState<string | null>(null)
-  const [isUploading, setIsUploading] = useState(false)
   const [totalAmount, setTotalAmount] = useState('')
   const [glAccountId, setGlAccountId] = useState<string>('')
   const [fundId, setFundId] = useState<string>('')
   const [cipCostCodeId, setCipCostCodeId] = useState<string>('')
 
-  // Contract extraction state
-  const [isExtracting, setIsExtracting] = useState(false)
-  const [extractedMilestones, setExtractedMilestones] = useState<string | null>(null)
-  const [extractedTerms, setExtractedTerms] = useState<string | null>(null)
-  const [extractedCovenants, setExtractedCovenants] = useState<string | null>(null)
-  const [milestonesOpen, setMilestonesOpen] = useState(false)
-  const [termsOpen, setTermsOpen] = useState(false)
-  const [covenantsOpen, setCovenantsOpen] = useState(false)
+  // Contract extraction state (managed by shared component)
+  const [contractData, setContractData] = useState<ContractExtractionData>({
+    contractPdfUrl: null,
+    extractedMilestones: null,
+    extractedTerms: null,
+    extractedCovenants: null,
+  })
 
   // Validation state
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
@@ -135,85 +134,6 @@ export function CreatePOForm({
   const groupedAccounts = groupAccountsByType(accounts)
 
   // --- Handlers ---
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    setIsUploading(true)
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      })
-
-      if (!res.ok) {
-        throw new Error('Upload failed')
-      }
-
-      const data = await res.json()
-      setContractPdfUrl(data.url)
-      setContractFileName(file.name)
-      toast.success('Contract uploaded')
-    } catch {
-      toast.error('Failed to upload contract PDF')
-    } finally {
-      setIsUploading(false)
-    }
-  }
-
-  const handleExtractTerms = async () => {
-    if (!contractPdfUrl) return
-
-    setIsExtracting(true)
-    try {
-      // Fetch the uploaded PDF and convert to base64
-      const pdfRes = await fetch(contractPdfUrl)
-      const pdfBlob = await pdfRes.blob()
-      const pdfBase64 = await new Promise<string>((resolve) => {
-        const reader = new FileReader()
-        reader.onloadend = () => {
-          const base64 = (reader.result as string).split(',')[1]
-          resolve(base64)
-        }
-        reader.readAsDataURL(pdfBlob)
-      })
-
-      const res = await fetch('/api/extract-contract', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pdfBase64 }),
-      })
-
-      if (!res.ok) {
-        throw new Error('Extraction failed')
-      }
-
-      const data = await res.json()
-
-      if (data.milestones) {
-        setExtractedMilestones(JSON.stringify(data.milestones, null, 2))
-        setMilestonesOpen(true)
-      }
-      if (data.terms) {
-        setExtractedTerms(JSON.stringify(data.terms, null, 2))
-        setTermsOpen(true)
-      }
-      if (data.covenants) {
-        setExtractedCovenants(JSON.stringify(data.covenants, null, 2))
-        setCovenantsOpen(true)
-      }
-
-      toast.success('Contract terms extracted')
-    } catch {
-      toast.error('Failed to extract contract terms. You can skip this step.')
-    } finally {
-      setIsExtracting(false)
-    }
-  }
 
   const handleAmountChange = (value: string) => {
     // Allow digits, decimal point, and commas; strip everything else
@@ -256,17 +176,17 @@ export function CreatePOForm({
     let covenants: unknown = null
 
     try {
-      if (extractedMilestones) milestones = JSON.parse(extractedMilestones)
+      if (contractData.extractedMilestones) milestones = JSON.parse(contractData.extractedMilestones)
     } catch {
       /* user may have edited JSON incorrectly — skip */
     }
     try {
-      if (extractedTerms) terms = JSON.parse(extractedTerms)
+      if (contractData.extractedTerms) terms = JSON.parse(contractData.extractedTerms)
     } catch {
       /* skip */
     }
     try {
-      if (extractedCovenants) covenants = JSON.parse(extractedCovenants)
+      if (contractData.extractedCovenants) covenants = JSON.parse(contractData.extractedCovenants)
     } catch {
       /* skip */
     }
@@ -277,7 +197,7 @@ export function CreatePOForm({
           {
             vendorId: vendorId!,
             description: description.trim(),
-            contractPdfUrl,
+            contractPdfUrl: contractData.contractPdfUrl,
             totalAmount: parseAmount(totalAmount),
             glDestinationAccountId: parseInt(glAccountId, 10),
             fundId: parseInt(fundId, 10),
@@ -402,152 +322,11 @@ export function CreatePOForm({
             )}
           </div>
 
-          {/* 3. Contract PDF Upload */}
-          <div className="grid gap-2">
-            <Label className="flex items-center gap-1">
-              Contract PDF{' '}
-              <HelpTooltip term="contract-extraction" />
-            </Label>
-            <div className="flex items-center gap-3">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf"
-                onChange={handleFileUpload}
-                className="hidden"
-                data-testid="po-contract-upload"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading}
-              >
-                {isUploading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="mr-2 h-4 w-4" />
-                    Choose File
-                  </>
-                )}
-              </Button>
-              {contractFileName && (
-                <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <FileText className="h-4 w-4" />
-                  {contractFileName}
-                </span>
-              )}
-            </div>
-
-            {/* Extract Terms button — shown after successful upload */}
-            {contractPdfUrl && (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                className="w-fit mt-1"
-                onClick={handleExtractTerms}
-                disabled={isExtracting}
-                data-testid="po-extract-terms-btn"
-              >
-                {isExtracting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Extracting...
-                  </>
-                ) : (
-                  'Extract Terms'
-                )}
-              </Button>
-            )}
-          </div>
-
-          {/* Extracted contract sections — collapsible editable cards */}
-          {extractedMilestones && (
-            <div className="border rounded-lg">
-              <button
-                type="button"
-                className="flex items-center gap-2 w-full px-4 py-3 text-sm font-medium text-left hover:bg-muted/50"
-                onClick={() => setMilestonesOpen(!milestonesOpen)}
-              >
-                {milestonesOpen ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
-                Extracted Milestones
-              </button>
-              {milestonesOpen && (
-                <div className="px-4 pb-4">
-                  <Textarea
-                    value={extractedMilestones}
-                    onChange={(e) => setExtractedMilestones(e.target.value)}
-                    rows={6}
-                    className="font-mono text-xs"
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
-          {extractedTerms && (
-            <div className="border rounded-lg">
-              <button
-                type="button"
-                className="flex items-center gap-2 w-full px-4 py-3 text-sm font-medium text-left hover:bg-muted/50"
-                onClick={() => setTermsOpen(!termsOpen)}
-              >
-                {termsOpen ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
-                Extracted Terms
-              </button>
-              {termsOpen && (
-                <div className="px-4 pb-4">
-                  <Textarea
-                    value={extractedTerms}
-                    onChange={(e) => setExtractedTerms(e.target.value)}
-                    rows={6}
-                    className="font-mono text-xs"
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
-          {extractedCovenants && (
-            <div className="border rounded-lg">
-              <button
-                type="button"
-                className="flex items-center gap-2 w-full px-4 py-3 text-sm font-medium text-left hover:bg-muted/50"
-                onClick={() => setCovenantsOpen(!covenantsOpen)}
-              >
-                {covenantsOpen ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
-                Extracted Covenants
-              </button>
-              {covenantsOpen && (
-                <div className="px-4 pb-4">
-                  <Textarea
-                    value={extractedCovenants}
-                    onChange={(e) => setExtractedCovenants(e.target.value)}
-                    rows={6}
-                    className="font-mono text-xs"
-                  />
-                </div>
-              )}
-            </div>
-          )}
+          {/* 3. Contract PDF Upload + AI Extraction */}
+          <ContractUploadExtract
+            onChange={setContractData}
+            testIdPrefix="po"
+          />
 
           {/* 4. Total Amount */}
           <div className="grid gap-2">

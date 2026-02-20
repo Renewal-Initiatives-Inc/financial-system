@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   insertAccountSchema,
   insertFundSchema,
+  insertFundingSourceSchema,
   insertCipCostCodeSchema,
 } from '@/lib/validators'
 import { seedAccounts } from './accounts'
@@ -27,6 +28,20 @@ describe('Seed data passes Zod validation', () => {
       'fund "%s" passes insertFundSchema',
       (_name, fund) => {
         const result = insertFundSchema.safeParse(fund)
+        expect(result.success).toBe(true)
+      }
+    )
+
+    it.each(
+      seedFunds
+        .filter((f) => f.restrictionType === 'RESTRICTED')
+        .map((f) => [f.name, f])
+    )(
+      'restricted fund "%s" passes insertFundingSourceSchema',
+      (_name, fund) => {
+        // Seed data uses numeric funderId from DB insert; schema expects it for restricted funds.
+        // Seed funds don't have funderId yet (assigned at insert time), so pass a stub.
+        const result = insertFundingSourceSchema.safeParse({ ...fund, funderId: 1 })
         expect(result.success).toBe(true)
       }
     )

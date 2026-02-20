@@ -20,6 +20,7 @@ import {
   calculatePayrollRun as engineCalculate,
   persistCalculation,
   postPayrollRun as enginePost,
+  reversePayrollEntry as engineReverse,
   type PayrollCalculation,
 } from '@/lib/payroll/engine'
 
@@ -291,4 +292,20 @@ export async function updateAnnualRate(
     .where(eq(annualRateConfig.id, id))
 
   revalidatePath('/settings/rates')
+}
+
+/**
+ * Reverse a posted payroll entry's GL transactions and reopen the
+ * employee's staging records so the timesheet can be re-processed.
+ * Use this to correct an entry that was posted with the wrong logic
+ * (e.g., W-2 withholdings applied to a 1099 contractor).
+ */
+export async function reversePayrollEntry(
+  entryId: number,
+  userId: string
+): Promise<{ reversalTransactionId: number; reversalEmployerTransactionId?: number }> {
+  const result = await engineReverse(entryId, userId)
+  revalidatePath('/payroll')
+  revalidatePath('/transactions')
+  return result
 }

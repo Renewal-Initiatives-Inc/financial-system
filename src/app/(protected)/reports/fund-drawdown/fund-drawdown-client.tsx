@@ -77,7 +77,7 @@ export function FundDrawdownClient({ data }: FundDrawdownClientProps) {
 
   return (
     <ReportShell
-      title="Fund Draw-Down / Restricted Grant Status"
+      title="Fund Draw-Down / Restricted Funding Status"
       reportSlug="fund-drawdown"
       exportData={exportData}
       exportColumns={[
@@ -221,61 +221,73 @@ export function FundDrawdownClient({ data }: FundDrawdownClientProps) {
                     >
                       <TableCell colSpan={6} className="bg-muted/30 p-4">
                         <div className="space-y-4">
-                          {/* Related Grants */}
+                          {/* Contract Terms */}
                           <div>
                             <h4 className="text-sm font-semibold mb-2">
-                              Related Grants
+                              Contract Terms
                             </h4>
-                            {row.relatedGrants.length === 0 ? (
-                              <p className="text-sm text-muted-foreground">
-                                No grants linked to this fund.
-                              </p>
-                            ) : (
-                              <div className="rounded-md border bg-background">
-                                <Table>
-                                  <TableHeader>
-                                    <TableRow>
-                                      <TableHead>Funder</TableHead>
-                                      <TableHead className="text-right">
-                                        Amount
-                                      </TableHead>
-                                      <TableHead>Type</TableHead>
-                                      <TableHead>Conditions</TableHead>
-                                      <TableHead>Status</TableHead>
-                                    </TableRow>
-                                  </TableHeader>
-                                  <TableBody>
-                                    {row.relatedGrants.map((g) => (
-                                      <TableRow key={g.grantId}>
-                                        <TableCell className="font-medium">
-                                          {g.funderName}
-                                        </TableCell>
-                                        <TableCell className="text-right font-mono">
-                                          {formatCurrency(g.amount)}
-                                        </TableCell>
-                                        <TableCell>
-                                          <Badge variant="outline">
-                                            {g.type}
-                                          </Badge>
-                                        </TableCell>
-                                        <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
-                                          {g.conditions ?? '--'}
-                                        </TableCell>
-                                        <TableCell>
-                                          <Badge
-                                            variant={statusBadgeVariant(
-                                              g.status
-                                            )}
-                                          >
-                                            {g.status}
-                                          </Badge>
-                                        </TableCell>
-                                      </TableRow>
-                                    ))}
-                                  </TableBody>
-                                </Table>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 rounded-md border bg-background p-4">
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                  Funder
+                                </p>
+                                <p className="text-sm font-medium mt-1">
+                                  {row.funderName ?? '--'}
+                                </p>
                               </div>
-                            )}
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                  Funding Amount
+                                </p>
+                                <p className="text-sm font-mono mt-1">
+                                  {row.fundingAmount != null
+                                    ? formatCurrency(Number(row.fundingAmount))
+                                    : '--'}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                  Funding Type
+                                </p>
+                                <p className="text-sm mt-1">
+                                  {row.fundingType ? (
+                                    <Badge variant="outline">
+                                      {row.fundingType}
+                                    </Badge>
+                                  ) : (
+                                    '--'
+                                  )}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                  Status
+                                </p>
+                                <p className="text-sm mt-1">
+                                  {row.fundingStatus ? (
+                                    <Badge
+                                      variant={statusBadgeVariant(
+                                        row.fundingStatus
+                                      )}
+                                    >
+                                      {row.fundingStatus}
+                                    </Badge>
+                                  ) : (
+                                    '--'
+                                  )}
+                                </p>
+                              </div>
+                              {row.conditions && (
+                                <div className="col-span-2 md:col-span-4">
+                                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                    Conditions
+                                  </p>
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    {row.conditions}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
                           </div>
 
                           {/* Milestones */}

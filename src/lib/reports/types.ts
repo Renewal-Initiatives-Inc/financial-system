@@ -142,8 +142,8 @@ export const REPORT_DEFINITIONS: ReportCardDef[] = [
   { slug: 'outstanding-payables', title: 'Outstanding Payables', description: 'AP, reimbursements, credit card, and accrued payables with aging', category: 'operational', isAvailable: true },
   { slug: 'rent-collection', title: 'Rent Collection Status', description: 'Billed vs collected by unit, occupancy, vacancy loss, collection rate', category: 'operational', isAvailable: true },
   // Fund & Grant Reports
-  { slug: 'fund-drawdown', title: 'Fund Draw-Down / Restricted Grant Status', description: 'Per-fund awarded, spent, remaining with draw-down progress', category: 'fund', isAvailable: true },
-  { slug: 'grant-compliance', title: 'Grant Compliance Tracking', description: 'Conditional grant progress, matching requirements, milestones', category: 'fund', isAvailable: true },
+  { slug: 'fund-drawdown', title: 'Fund Draw-Down / Restricted Funding Status', description: 'Per-fund awarded, spent, remaining with draw-down progress', category: 'fund', isAvailable: true },
+  { slug: 'grant-compliance', title: 'Funding Compliance Tracking', description: 'Conditional grant progress, matching requirements, milestones', category: 'fund', isAvailable: true },
   { slug: 'fund-level', title: 'Fund-Level P&L and Balance Sheet', description: 'Single-fund financial position and activities', category: 'fund', isAvailable: true },
   // Specialized Reports
   { slug: 'property-expenses', title: 'Property Operating Expense Breakdown', description: '13 property expense categories with budget vs actual', category: 'specialized', isAvailable: true },
@@ -179,7 +179,7 @@ export const REPORT_DEFINITIONS: ReportCardDef[] = [
 export const CATEGORY_LABELS: Record<string, string> = {
   core: 'Core Financial Statements',
   operational: 'Operational Dashboards',
-  fund: 'Fund & Grant Reports',
+  fund: 'Fund & Funding Reports',
   specialized: 'Specialized Reports',
   compliance: 'Compliance & Tax',
   payroll: 'Payroll Reports',

@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/collapsible'
 import { VarianceIndicator } from '@/components/budgets/variance-indicator'
 import { HelpTooltip } from '@/components/shared/help-tooltip'
-import { getBudgetVarianceAction, getCIPVarianceAction, getGrantBudgetSummaryAction } from '../actions'
+import { getBudgetVarianceAction, getCIPVarianceAction, getFundingBudgetSummaryAction } from '../actions'
 import type { BudgetWithLines } from '@/lib/budget/queries'
 import type { BudgetVarianceRow } from '@/lib/budget/variance'
 import type { CIPSubAccountVariance } from '@/lib/budget/cip-budget'
@@ -55,7 +55,7 @@ interface BudgetReviewClientProps {
   budget: BudgetWithLines
   initialVariance: BudgetVarianceRow[]
   initialCIPVariance: CIPSubAccountVariance[]
-  grantBudgetContext: { fundName: string; totalBudgeted: number; totalSpent: number; remaining: number } | null
+  fundingBudgetContext: { fundName: string; totalBudgeted: number; totalSpent: number; remaining: number } | null
   funds: { id: number; name: string; isActive: boolean }[]
 }
 
@@ -63,7 +63,7 @@ export function BudgetReviewClient({
   budget,
   initialVariance,
   initialCIPVariance,
-  grantBudgetContext,
+  fundingBudgetContext,
   funds,
 }: BudgetReviewClientProps) {
   const router = useRouter()
@@ -73,7 +73,7 @@ export function BudgetReviewClient({
   const [fundFilter, setFundFilter] = useState('all')
   const [loading, setLoading] = useState(false)
   const [expandedCIP, setExpandedCIP] = useState<Set<number>>(new Set())
-  const [grantContext, setGrantContext] = useState(grantBudgetContext)
+  const [fundingContext, setFundingContext] = useState(fundingBudgetContext)
 
   const handleFilterChange = async (newPeriod: string, newFund: string) => {
     setLoading(true)
@@ -86,17 +86,17 @@ export function BudgetReviewClient({
     setVariance(data)
     setCipVariance(cipData)
 
-    // Fetch grant context when filtering to a specific fund
+    // Fetch funding context when filtering to a specific fund
     if (fund) {
-      const summary = await getGrantBudgetSummaryAction(fund)
-      setGrantContext(summary ? {
+      const summary = await getFundingBudgetSummaryAction(fund)
+      setFundingContext(summary ? {
         fundName: summary.fundName,
         totalBudgeted: summary.totalBudgeted,
         totalSpent: summary.totalSpent,
         remaining: summary.remaining,
       } : null)
     } else {
-      setGrantContext(null)
+      setFundingContext(null)
     }
 
     setLoading(false)
@@ -151,13 +151,13 @@ export function BudgetReviewClient({
         </Button>
       </div>
 
-      {/* Grant Budget Context Banner */}
-      {grantContext && (
-        <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm" data-testid="grant-budget-context">
-          <span className="font-medium">{grantContext.fundName} — Grant Total:</span>{' '}
-          {formatCurrency(grantContext.totalBudgeted)} budgeted across fiscal years |{' '}
-          {formatCurrency(grantContext.totalSpent)} spent |{' '}
-          <span className="font-semibold">{formatCurrency(grantContext.remaining)} remaining</span>
+      {/* Funding Source Budget Context Banner */}
+      {fundingContext && (
+        <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm" data-testid="funding-budget-context">
+          <span className="font-medium">{fundingContext.fundName} — Funding Total:</span>{' '}
+          {formatCurrency(fundingContext.totalBudgeted)} budgeted across fiscal years |{' '}
+          {formatCurrency(fundingContext.totalSpent)} spent |{' '}
+          <span className="font-semibold">{formatCurrency(fundingContext.remaining)} remaining</span>
         </div>
       )}
 

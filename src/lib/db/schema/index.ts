@@ -21,7 +21,6 @@ export * from './cip-conversions'
 export * from './cip-conversion-lines'
 export * from './ahp-loan-config'
 export * from './prepaid-schedules'
-export * from './grants'
 export * from './pledges'
 export * from './annual-rate-config'
 export * from './staging-records'
@@ -57,7 +56,6 @@ import { fixedAssets } from './fixed-assets'
 import { cipConversions } from './cip-conversions'
 import { cipConversionLines } from './cip-conversion-lines'
 import { prepaidSchedules } from './prepaid-schedules'
-import { grants } from './grants'
 import { pledges } from './pledges'
 import { purchaseOrders } from './purchase-orders'
 import { invoices } from './invoices'
@@ -86,9 +84,15 @@ export const accountsRelations = relations(accounts, ({ one, many }) => ({
   budgetLines: many(budgetLines),
 }))
 
-export const fundsRelations = relations(funds, ({ many }) => ({
+export const fundsRelations = relations(funds, ({ one, many }) => ({
+  funder: one(vendors, {
+    fields: [funds.funderId],
+    references: [vendors.id],
+  }),
   transactionLines: many(transactionLines),
   budgetLines: many(budgetLines),
+  complianceDeadlines: many(complianceDeadlines),
+  arInvoices: many(invoices),
 }))
 
 export const transactionsRelations = relations(transactions, ({ one, many }) => ({
@@ -173,7 +177,7 @@ export const vendorsRelations = relations(vendors, ({ one, many }) => ({
     fields: [vendors.defaultFundId],
     references: [funds.id],
   }),
-  grants: many(grants),
+  fundedSources: many(funds),
   purchaseOrders: many(purchaseOrders),
   invoices: many(invoices),
 }))
@@ -186,17 +190,6 @@ export const tenantsRelations = relations(tenants, ({ many }) => ({
 
 export const donorsRelations = relations(donors, ({ many }) => ({
   pledges: many(pledges),
-}))
-
-export const grantsRelations = relations(grants, ({ one }) => ({
-  funder: one(vendors, {
-    fields: [grants.funderId],
-    references: [vendors.id],
-  }),
-  fund: one(funds, {
-    fields: [grants.fundId],
-    references: [funds.id],
-  }),
 }))
 
 export const pledgesRelations = relations(pledges, ({ one }) => ({
@@ -362,6 +355,10 @@ export const invoicesRelations = relations(invoices, ({ one }) => ({
     fields: [invoices.vendorId],
     references: [vendors.id],
   }),
+  fund: one(funds, {
+    fields: [invoices.fundId],
+    references: [funds.id],
+  }),
   glTransaction: one(transactions, {
     fields: [invoices.glTransactionId],
     references: [transactions.id],
@@ -428,6 +425,10 @@ export const complianceDeadlinesRelations = relations(
     tenant: one(tenants, {
       fields: [complianceDeadlines.tenantId],
       references: [tenants.id],
+    }),
+    fund: one(funds, {
+      fields: [complianceDeadlines.fundId],
+      references: [funds.id],
     }),
   })
 )

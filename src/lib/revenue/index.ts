@@ -12,8 +12,8 @@ export {
   type AhpLoanStatus,
 } from './ahp-loan'
 export {
-  recordUnconditionalGrant,
-  recordGrantCashReceipt,
-  recordConditionalGrantCash,
-  recognizeConditionalGrant,
-} from './grants'
+  recordUnconditionalFunding,
+  recordFundCashReceipt,
+  recordConditionalFundingCash,
+  recognizeConditionalRevenue,
+} from './funding-sources'

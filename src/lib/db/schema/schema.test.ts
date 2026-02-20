@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { seedAccounts } from '../seed/accounts'
 import { seedFunds } from '../seed/funds'
 import { seedCipCostCodes } from '../seed/cip-cost-codes'
-import { grants } from './grants'
+import { funds } from './funds'
 import { pledges } from './pledges'
-import { grantTypeEnum, grantStatusEnum, pledgeStatusEnum } from './enums'
+import { fundingTypeEnum, fundingStatusEnum, pledgeStatusEnum } from './enums'
 
 describe('Seed data integrity', () => {
   // --- Account counts ---
@@ -72,7 +72,6 @@ describe('Seed data integrity', () => {
     const revenue = seedAccounts.filter(
       (a) =>
         a.type === 'REVENUE' &&
-        a.subType !== 'Contra' &&
         a.subType !== 'Contra-Revenue'
     )
     for (const account of revenue) {
@@ -84,7 +83,7 @@ describe('Seed data integrity', () => {
     const contraRevenue = seedAccounts.filter(
       (a) =>
         a.type === 'REVENUE' &&
-        (a.subType === 'Contra' || a.subType === 'Contra-Revenue')
+        a.subType === 'Contra-Revenue'
     )
     expect(contraRevenue.length).toBeGreaterThan(0)
     for (const account of contraRevenue) {
@@ -158,6 +157,25 @@ describe('Seed data integrity', () => {
     }
   })
 
+  it('restricted funds have funding source fields populated', () => {
+    const restricted = seedFunds.filter((f) => f.restrictionType === 'RESTRICTED')
+    for (const fund of restricted) {
+      expect(fund.amount).toBeDefined()
+      expect(fund.type).toBeDefined()
+      expect(fund.startDate).toBeDefined()
+      expect(fund.endDate).toBeDefined()
+      expect(fund.status).toBe('ACTIVE')
+    }
+  })
+
+  it('conditional funds have conditions set', () => {
+    const conditional = seedFunds.filter((f) => f.type === 'CONDITIONAL')
+    expect(conditional.length).toBeGreaterThan(0)
+    for (const fund of conditional) {
+      expect(fund.conditions).toBeTruthy()
+    }
+  })
+
   it('has no duplicate fund names', () => {
     const names = seedFunds.map((f) => f.name)
     expect(new Set(names).size).toBe(names.length)
@@ -190,21 +208,44 @@ describe('Seed data integrity', () => {
   })
 })
 
-describe('Grants table schema', () => {
-  it('has expected columns', () => {
-    const columns = Object.keys(grants)
+describe('Enriched funds table schema', () => {
+  it('has core fund columns', () => {
+    const columns = Object.keys(funds)
     expect(columns).toContain('id')
+    expect(columns).toContain('name')
+    expect(columns).toContain('restrictionType')
+    expect(columns).toContain('isActive')
+    expect(columns).toContain('description')
+    expect(columns).toContain('isSystemLocked')
+    expect(columns).toContain('createdAt')
+    expect(columns).toContain('updatedAt')
+  })
+
+  it('has funding source columns', () => {
+    const columns = Object.keys(funds)
     expect(columns).toContain('funderId')
     expect(columns).toContain('amount')
     expect(columns).toContain('type')
     expect(columns).toContain('conditions')
     expect(columns).toContain('startDate')
     expect(columns).toContain('endDate')
-    expect(columns).toContain('fundId')
     expect(columns).toContain('status')
     expect(columns).toContain('isUnusualGrant')
-    expect(columns).toContain('createdAt')
-    expect(columns).toContain('updatedAt')
+  })
+
+  it('has contract extraction columns', () => {
+    const columns = Object.keys(funds)
+    expect(columns).toContain('contractPdfUrl')
+    expect(columns).toContain('extractedMilestones')
+    expect(columns).toContain('extractedTerms')
+    expect(columns).toContain('extractedCovenants')
+  })
+
+  it('has compliance columns', () => {
+    const columns = Object.keys(funds)
+    expect(columns).toContain('matchRequirementPercent')
+    expect(columns).toContain('retainagePercent')
+    expect(columns).toContain('reportingFrequency')
   })
 })
 
@@ -224,12 +265,12 @@ describe('Pledges table schema', () => {
 })
 
 describe('Revenue enums', () => {
-  it('grantTypeEnum has correct values', () => {
-    expect(grantTypeEnum.enumValues).toEqual(['CONDITIONAL', 'UNCONDITIONAL'])
+  it('fundingTypeEnum has correct values', () => {
+    expect(fundingTypeEnum.enumValues).toEqual(['CONDITIONAL', 'UNCONDITIONAL'])
   })
 
-  it('grantStatusEnum has correct values', () => {
-    expect(grantStatusEnum.enumValues).toEqual(['ACTIVE', 'COMPLETED', 'CANCELLED'])
+  it('fundingStatusEnum has correct values', () => {
+    expect(fundingStatusEnum.enumValues).toEqual(['ACTIVE', 'COMPLETED', 'CANCELLED'])
   })
 
   it('pledgeStatusEnum has correct values', () => {

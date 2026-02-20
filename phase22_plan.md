@@ -200,36 +200,40 @@ git push origin main
 
 ---
 
-## Step 6: Connect Plaid — Full Bank History Pull  **BLOCKED — Awaiting Plaid Production Approval (submitted 2026-02-18)**
+## Step 6: Connect Plaid — Full Bank History Pull  **COMPLETED 2026-02-19**
 
 **Why:** Plaid and Ramp APIs go first so their data is already in the database when the QBO import runs. The reconciliation script then matches QBO entries against API-sourced `bank_transactions` and `ramp_transactions` rows — no manual CSV downloads from UMass Five or Ramp needed.
 
-**Status:** Production app submitted to Plaid for approval. `PLAID_ENV` currently set to `sandbox`. Once approved, flip to `production` in Vercel env vars, redeploy, and proceed with 6a–6e.
-
 **Tasks:**
 
-### 6a. Connect UMass Five accounts via Plaid Link
+### 6a. Connect UMass Five accounts via Plaid Link ✅
 1. Navigate to Settings or Bank Accounts page in production app
 2. Launch Plaid Link flow
 3. Connect UMass Five checking account
 4. Connect UMass Five savings account
 5. Verify Plaid access tokens stored encrypted (AES-256-GCM)
 
-### 6b. Pull full history from account opening
+### 6b. Pull full history from account opening ✅
 - Plaid provides up to 24 months of history — both UMass Five accounts were opened within that window
 - Starting balance = $0 (accounts opened when company had $0 net cash — REC-P0-005)
 - Trigger initial `/transactions/sync` — pulls all available history into `bank_transactions` table
 - Verify transaction count looks reasonable against known account age
 
-### 6c. Spot-check bank data
+### 6c. Spot-check bank data ✅
 - Compare a few transactions against UMass Five online banking (amounts, dates, merchant names)
 - Verify checking and savings balances match current bank statement
 - Confirm pending transactions are flagged correctly (REC-P0-004)
 
-### 6d. Verify daily sync cron
+### 6d. Verify daily sync cron ✅
 - Wait for next cron execution (7 AM ET) or trigger manually
 - Verify new transactions pull in via `/api/cron/plaid-sync`
 - Check Vercel function logs for success
+
+**Completion notes:**
+- Plaid production approval received and `PLAID_ENV` flipped to `production` in Vercel env vars
+- UMass Five accounts connected via Plaid Link in production app
+- Full transaction history pulled into `bank_transactions` table
+- Daily sync cron verified operational
 
 **Acceptance criteria:** Both bank accounts connected. Full history from account opening synced into `bank_transactions`. Daily cron runs without errors. Plaid tokens encrypted at rest.
 
@@ -288,7 +292,7 @@ git push origin main
 | **Basis conversion** | Full cash → accrual conversion for ALL history (no split by year) |
 | **Authority** | Board-approved; under asset cap, <$50k revenue FY25; no external disclosure required |
 | **Reset strategy** | Neon database branch snapshot after import — resettable for dev/staging testing |
-| **Multi-source reconciliation** | QBO ↔ Plaid `bank_transactions` ↔ Ramp `ramp_transactions` — all three must match before go-live |
+| **Multi-source reconciliation** | QBO ↔ Plaid `bank_transactions` (live) ↔ Ramp `ramp_transactions` (live) — all three must match before go-live |
 
 ### 8a. Before You Start
 
@@ -555,7 +559,7 @@ After GL import + accrual conversion, these entities need manual entry in the ap
 ### 10b. Test each cron job ✅
 | Cron Job | Result | Status |
 |----------|--------|--------|
-| Plaid sync | BLOCKED — awaiting Plaid production approval (Step 6) | ⏳ |
+| Plaid sync | Verified — production accounts connected, daily sync operational | ✅ |
 | Ramp sync | Verified in Step 7 (full history pull + daily sync) | ✅ |
 | Depreciation | `entriesCreated: 0` — correct, no fixed assets yet | ✅ |
 | Interest accrual | `No interest to accrue (zero drawn amount or already processed)` — correct, no drawn AHP balance in system yet | ✅ |
@@ -570,12 +574,12 @@ After GL import + accrual conversion, these entities need manual entry in the ap
 - All cron routes return clean JSON responses with `success: true`
 
 **Completion notes:**
-- 7 of 9 crons fully verified via manual HTTP trigger against production
-- 2 deferred: Plaid sync (blocked on Step 6), compliance reminders (Postmark limit resets ~Feb 20)
+- 8 of 9 crons fully verified via manual HTTP trigger against production
+- 1 deferred: compliance reminders (Postmark limit resets ~Feb 20)
 - Auth guard confirmed: bad secret → 401, correct secret → 200
 - No timeout issues — all responses sub-second
 
-**Acceptance criteria:** 7 of 9 cron jobs verified in production. Remaining 2 blocked on external dependencies (Plaid approval, Postmark limit reset). Idempotency confirmed. Auth guard working.
+**Acceptance criteria:** 8 of 9 cron jobs verified in production. Remaining 1 deferred (compliance reminders — Postmark limit reset). Idempotency confirmed. Auth guard working.
 
 ---
 
@@ -837,9 +841,9 @@ Step 2  (env vars)                ─── COMPLETED 2026-02-16
 Step 3  (DB migrations + seed)    ─── COMPLETED 2026-02-16
 Step 4  (deploy to production)    ─── COMPLETED 2026-02-16
 Step 5  (auth verification)       ─── COMPLETED 2026-02-16
-Step 6  (Plaid — full history)    ─── BLOCKED (Plaid production approval pending, submitted 2026-02-18)
+Step 6  (Plaid — full history)    ─── COMPLETED 2026-02-19
 Step 7  (Ramp — full history)     ─── COMPLETED 2026-02-18 (3 API fixes + pending txn support)
-Step 8  (QBO import + recon)      ─── READY (can start; Plaid recon deferred until Step 6 unblocked)
+Step 8  (QBO import + recon)      ─── READY (can start; both Plaid + Ramp data in DB for reconciliation)
 Step 9  (Postmark verification)   ─── READY (can parallel)
 Step 10 (cron job verification)   ─── COMPLETED 2026-02-19 (7/9 verified; Plaid + compliance deferred)
 Step 11 (cross-DB connectivity)   ─── COMPLETED 2026-02-17

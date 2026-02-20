@@ -4,6 +4,10 @@
  * Coordinates the full payroll calculation and GL posting pipeline:
  * 1. calculatePayrollRun: Compute withholdings for all employees
  * 2. postPayrollRun: Create GL journal entries and update statuses
+ * 3. reversePayrollEntry: Reverse an incorrectly-posted payroll entry
+ *
+ * W-2 employees: full withholding calc → GL posts to 5000/2100/2110/2120/2130/2140
+ * 1099 contractors: zero withholdings → GL posts to 5420 (Management & Professional Fees) / 2030
  */
 
 import { eq, and, inArray, sql } from 'drizzle-orm'
@@ -15,6 +19,8 @@ import {
   stagingRecords,
   accounts,
   funds,
+  transactions,
+  transactionLines,
 } from '@/lib/db/schema'
 import { logAudit } from '@/lib/audit/logger'
 import { createTransaction } from '@/lib/gl/engine'
@@ -50,6 +56,7 @@ export interface PayrollCalculation {
 export interface PayrollEntryCalc {
   employeeId: string
   employeeName: string
+  contractorType: 'W2' | '1099'
   grossPay: number
   federalWithholding: number
   stateWithholding: number
@@ -68,19 +75,21 @@ export interface PayrollEntryCalc {
 }
 
 interface PayrollAccounts {
-  salariesWages: number // 5000
-  accruedPayroll: number // 2100
-  federalTax: number // 2110
-  stateTax: number // 2120
-  socialSecurity: number // 2130
-  medicare: number // 2140
+  salariesWages: number      // 5000 — W2 expense
+  contractServices: number   // 5420 — 1099 expense (Management & Professional Fees)
+  accruedPayroll: number     // 2100 — W2 net pay payable
+  accruedExpenses: number    // 2030 — 1099 payment payable
+  federalTax: number         // 2110
+  stateTax: number           // 2120
+  socialSecurity: number     // 2130
+  medicare: number           // 2140
 }
 
 /**
  * Resolve payroll account IDs by their codes.
  */
 async function getPayrollAccountIds(): Promise<PayrollAccounts> {
-  const codes = ['5000', '2100', '2110', '2120', '2130', '2140']
+  const codes = ['5000', '5420', '2030', '2100', '2110', '2120', '2130', '2140']
   const result = await db
     .select({ id: accounts.id, code: accounts.code })
     .from(accounts)
@@ -96,7 +105,9 @@ async function getPayrollAccountIds(): Promise<PayrollAccounts> {
 
   return {
     salariesWages: resolve('5000'),
+    contractServices: resolve('5420'),
     accruedPayroll: resolve('2100'),
+    accruedExpenses: resolve('2030'),
     federalTax: resolve('2110'),
     stateTax: resolve('2120'),
     socialSecurity: resolve('2130'),
@@ -128,6 +139,9 @@ async function getStagingRecordsForPayroll(
 /**
  * Calculate a payroll run — computes all withholdings but does NOT persist entries.
  * Returns the calculation result for review before posting.
+ *
+ * 1099 contractors: all withholdings are 0, netPay = grossPay.
+ * W-2 employees: full federal/state/FICA withholding calculations applied.
  */
 export async function calculatePayrollRun(
   runId: number
@@ -168,7 +182,7 @@ export async function calculatePayrollRun(
     const employeeRecords = stagingByEmployee.get(employee.id)
     if (!employeeRecords || employeeRecords.length === 0) continue
 
-    // Calculate gross pay
+    // Calculate gross pay (same logic for W2 and 1099)
     const grossPayResult = calculateGrossPay({
       employee,
       stagingRecords: employeeRecords.map((r) => ({
@@ -189,20 +203,43 @@ export async function calculatePayrollRun(
 
     if (grossPayResult.grossPay <= 0) continue
 
-    // Get YTD wages for FICA cap calculation
+    // 1099 contractors: no withholdings, full gross paid directly
+    if (employee.contractorType === '1099') {
+      entries.push({
+        employeeId: employee.id,
+        employeeName: employee.name,
+        contractorType: '1099',
+        grossPay: grossPayResult.grossPay,
+        federalWithholding: 0,
+        stateWithholding: 0,
+        socialSecurityEmployee: 0,
+        medicareEmployee: 0,
+        socialSecurityEmployer: 0,
+        medicareEmployer: 0,
+        netPay: grossPayResult.grossPay,
+        fundAllocations: grossPayResult.fundAllocations.map((fa) => ({
+          fundId: fa.fundId,
+          fundName: fa.fundName,
+          amount: fa.amount.toFixed(2),
+          hours: fa.hours.toFixed(2),
+        })),
+        grossPayDetail: grossPayResult,
+      })
+      continue
+    }
+
+    // W-2 employees: full withholding calculations
     const ytdWages = await getEmployeeYtdWages(employee.id, taxYear)
 
-    // Calculate federal withholding
     const federalWithholding = calculateFederalWithholding({
       monthlyGross: grossPayResult.grossPay,
       filingStatus: employee.federalFilingStatus,
-      additionalDeductions: 0, // No pre-tax deductions yet
+      additionalDeductions: 0,
       additionalIncome: 0,
       additionalWithholding: employee.additionalFederalWithholding,
       taxYear,
     })
 
-    // Calculate MA state withholding
     const stateWithholding = calculateMAWithholding({
       monthlyGross: grossPayResult.grossPay,
       allowances: employee.stateAllowances,
@@ -218,7 +255,6 @@ export async function calculatePayrollRun(
       },
     })
 
-    // Calculate FICA
     const fica = calculateFICA({
       monthlyGross: grossPayResult.grossPay,
       ytdWages,
@@ -230,7 +266,6 @@ export async function calculatePayrollRun(
       },
     })
 
-    // Net pay
     const netPay =
       Math.round(
         (grossPayResult.grossPay -
@@ -244,6 +279,7 @@ export async function calculatePayrollRun(
     entries.push({
       employeeId: employee.id,
       employeeName: employee.name,
+      contractorType: 'W2',
       grossPay: grossPayResult.grossPay,
       federalWithholding,
       stateWithholding,
@@ -294,7 +330,6 @@ export async function calculatePayrollRun(
     }
   )
 
-  // Round totals
   for (const key of Object.keys(totals) as (keyof typeof totals)[]) {
     totals[key] = Math.round(totals[key] * 100) / 100
   }
@@ -328,6 +363,7 @@ export async function persistCalculation(
           payrollRunId: calculation.runId,
           employeeId: entry.employeeId,
           employeeName: entry.employeeName,
+          contractorType: entry.contractorType,
           grossPay: entry.grossPay.toFixed(2),
           federalWithholding: entry.federalWithholding.toFixed(2),
           stateWithholding: entry.stateWithholding.toFixed(2),
@@ -363,12 +399,19 @@ export async function persistCalculation(
 
 /**
  * Post a payroll run — create GL journal entries and finalize.
+ *
+ * W-2 employees:
+ *   Employee JE: DR 5000 Salaries & Wages / CR 2110 + 2120 + 2130 + 2140 + 2100
+ *   Employer FICA JE: DR 5000 / CR 2130 + 2140
+ *
+ * 1099 contractors:
+ *   Single JE: DR 5420 Management & Professional Fees / CR 2030 Accrued Expenses Payable
+ *   No withholding entries, no employer FICA.
  */
 export async function postPayrollRun(
   runId: number,
   userId: string
 ): Promise<void> {
-  // Verify run status
   const [run] = await db
     .select()
     .from(payrollRuns)
@@ -379,7 +422,6 @@ export async function postPayrollRun(
     throw new Error(`Cannot post payroll run — status is ${run.status}, expected CALCULATED`)
   }
 
-  // Load entries
   const entries = await db
     .select()
     .from(payrollEntries)
@@ -389,13 +431,9 @@ export async function postPayrollRun(
     throw new Error('Cannot post payroll run — no entries found')
   }
 
-  // Get account IDs
   const accts = await getPayrollAccountIds()
-
-  // Format period for memos
   const periodLabel = formatPeriod(run.payPeriodStart, run.payPeriodEnd)
 
-  // Post GL entries for each employee
   for (const entry of entries) {
     const fundAllocs = entry.fundAllocations as Array<{
       fundId: number
@@ -405,6 +443,57 @@ export async function postPayrollRun(
     }>
 
     const grossPay = parseFloat(entry.grossPay)
+    const contractorType = entry.contractorType ?? 'W2'
+    const primaryFundId = fundAllocs[0]?.fundId ?? 1
+
+    if (contractorType === '1099') {
+      // 1099 contractor: single clean JE, no withholdings
+      const contractorLines: Array<{
+        accountId: number
+        fundId: number
+        debit: number | null
+        credit: number | null
+      }> = []
+
+      // DR Management & Professional Fees per fund
+      for (const alloc of fundAllocs) {
+        const amount = parseFloat(alloc.amount)
+        if (amount > 0) {
+          contractorLines.push({
+            accountId: accts.contractServices,
+            fundId: alloc.fundId,
+            debit: Math.round(amount * 100) / 100,
+            credit: null,
+          })
+        }
+      }
+
+      // CR Accrued Expenses Payable (full gross — contractor pays their own taxes)
+      contractorLines.push({
+        accountId: accts.accruedExpenses,
+        fundId: primaryFundId,
+        debit: null,
+        credit: Math.round(grossPay * 100) / 100,
+      })
+
+      const contractorResult = await createTransaction({
+        date: run.payPeriodEnd,
+        memo: `Contract Services ${periodLabel} - ${entry.employeeName}`,
+        sourceType: 'SYSTEM',
+        isSystemGenerated: true,
+        lines: contractorLines,
+        createdBy: userId,
+      })
+
+      await db
+        .update(payrollEntries)
+        .set({ glTransactionId: contractorResult.transaction.id })
+        .where(eq(payrollEntries.id, entry.id))
+
+      continue
+    }
+
+    // W-2 employee path
     const federalWithholding = parseFloat(entry.federalWithholding)
     const stateWithholding = parseFloat(entry.stateWithholding)
     const ssEmployee = parseFloat(entry.socialSecurityEmployee)
@@ -421,7 +510,6 @@ export async function postPayrollRun(
       credit: number | null
     }> = []
 
-    // DR Salaries & Wages per fund
     for (const alloc of fundAllocs) {
       const amount = parseFloat(alloc.amount)
       if (amount > 0) {
@@ -434,10 +522,6 @@ export async function postPayrollRun(
       }
     }
 
-    // Use first fund for liability credits (single fund for simplicity)
-    const primaryFundId = fundAllocs[0]?.fundId ?? 1
-
-    // CR liability accounts
     if (federalWithholding > 0) {
       employeeLines.push({
         accountId: accts.federalTax,
@@ -493,7 +577,6 @@ export async function postPayrollRun(
       Math.round((ssEmployer + medicareEmployer) * 100) / 100
 
     if (employerTotal > 0) {
-      // Allocate employer FICA by fund proportion
       const totalGross = grossPay
       const employerLines: Array<{
         accountId: number
@@ -502,7 +585,6 @@ export async function postPayrollRun(
         credit: number | null
       }> = []
 
-      // DR Salaries & Wages per fund (proportional)
       for (const alloc of fundAllocs) {
         const allocAmount = parseFloat(alloc.amount)
         const proportion = totalGross > 0 ? allocAmount / totalGross : 0
@@ -518,7 +600,6 @@ export async function postPayrollRun(
         }
       }
 
-      // CR Social Security Payable
       if (ssEmployer > 0) {
         employerLines.push({
           accountId: accts.socialSecurity,
@@ -527,7 +608,6 @@ export async function postPayrollRun(
           credit: Math.round(ssEmployer * 100) / 100,
         })
       }
-      // CR Medicare Payable
       if (medicareEmployer > 0) {
         employerLines.push({
           accountId: accts.medicare,
@@ -537,18 +617,11 @@ export async function postPayrollRun(
         })
       }
 
-      // Ensure the employer JE balances (rounding correction)
-      const totalDebits = employerLines.reduce(
-        (s, l) => s + (l.debit ?? 0),
-        0
-      )
-      const totalCredits = employerLines.reduce(
-        (s, l) => s + (l.credit ?? 0),
-        0
-      )
+      // Rounding correction
+      const totalDebits = employerLines.reduce((s, l) => s + (l.debit ?? 0), 0)
+      const totalCredits = employerLines.reduce((s, l) => s + (l.credit ?? 0), 0)
       const diff = Math.round((totalDebits - totalCredits) * 100) / 100
       if (Math.abs(diff) > 0.001 && employerLines.length > 0) {
-        // Adjust last debit line to balance
         const lastDebit = employerLines.find((l) => l.debit != null)
         if (lastDebit && lastDebit.debit != null) {
           lastDebit.debit = Math.round((lastDebit.debit - diff) * 100) / 100
@@ -564,7 +637,6 @@ export async function postPayrollRun(
         createdBy: userId,
       })
 
-      // Update entry with GL transaction IDs
       await db
         .update(payrollEntries)
         .set({
@@ -573,7 +645,6 @@ export async function postPayrollRun(
         })
         .where(eq(payrollEntries.id, entry.id))
     } else {
-      // No employer FICA (unusual but handle)
       await db
         .update(payrollEntries)
         .set({ glTransactionId: employeeResult.transaction.id })
@@ -602,13 +673,11 @@ export async function postPayrollRun(
       .where(eq(stagingRecords.id, record.id))
   }
 
-  // Update payroll run status to POSTED
   await db
     .update(payrollRuns)
     .set({ status: 'POSTED', postedAt: new Date() })
     .where(eq(payrollRuns.id, runId))
 
-  // Audit log
   await db.transaction(async (tx) => {
     await logAudit(tx as unknown as NeonDatabase<any>, {
       userId,
@@ -621,6 +690,128 @@ export async function postPayrollRun(
       },
     })
   })
+}
+
+/**
+ * Reverse a posted payroll entry.
+ *
+ * Creates reversing GL transactions (debits ↔ credits flipped) for the
+ * employee JE and, if present, the employer FICA JE. Reopens the employee's
+ * staging records for the pay period so they can be re-processed in a new run.
+ *
+ * Returns the IDs of the newly-created reversal transactions.
+ */
+export async function reversePayrollEntry(
+  entryId: number,
+  userId: string
+): Promise<{ reversalTransactionId: number; reversalEmployerTransactionId?: number }> {
+  // Load the entry
+  const [entry] = await db
+    .select()
+    .from(payrollEntries)
+    .where(eq(payrollEntries.id, entryId))
+
+  if (!entry) throw new Error(`Payroll entry ${entryId} not found`)
+  if (!entry.glTransactionId) {
+    throw new Error(`Payroll entry ${entryId} has no GL transaction to reverse`)
+  }
+
+  // Load the run for date + period info
+  const [run] = await db
+    .select()
+    .from(payrollRuns)
+    .where(eq(payrollRuns.id, entry.payrollRunId))
+
+  if (!run) throw new Error(`Payroll run ${entry.payrollRunId} not found`)
+
+  // Helper: load and reverse a GL transaction
+  async function buildReversalLines(txnId: number) {
+    const txnRows = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.id, txnId))
+
+    if (!txnRows[0]) throw new Error(`Transaction ${txnId} not found`)
+
+    const lines = await db
+      .select()
+      .from(transactionLines)
+      .where(eq(transactionLines.transactionId, txnId))
+
+    return {
+      originalMemo: txnRows[0].memo,
+      lines: lines.map((l) => ({
+        accountId: l.accountId,
+        fundId: l.fundId,
+        // Flip debits and credits
+        debit: l.credit != null ? parseFloat(l.credit) : null,
+        credit: l.debit != null ? parseFloat(l.debit) : null,
+      })),
+    }
+  }
+
+  // Reverse the employee JE
+  const { originalMemo, lines: reversalLines } = await buildReversalLines(entry.glTransactionId)
+
+  const reversalResult = await createTransaction({
+    date: run.payPeriodEnd,
+    memo: `REVERSAL: ${originalMemo}`,
+    sourceType: 'SYSTEM',
+    isSystemGenerated: true,
+    lines: reversalLines,
+    createdBy: userId,
+  })
+
+  let reversalEmployerTransactionId: number | undefined
+
+  // Reverse the employer FICA JE if it exists
+  if (entry.glEmployerTransactionId) {
+    const { originalMemo: empMemo, lines: reversalEmployerLines } =
+      await buildReversalLines(entry.glEmployerTransactionId)
+
+    const reversalEmployerResult = await createTransaction({
+      date: run.payPeriodEnd,
+      memo: `REVERSAL: ${empMemo}`,
+      sourceType: 'SYSTEM',
+      isSystemGenerated: true,
+      lines: reversalEmployerLines,
+      createdBy: userId,
+    })
+
+    reversalEmployerTransactionId = reversalEmployerResult.transaction.id
+  }
+
+  // Reopen staging records for this employee + pay period so they can be re-processed
+  await db
+    .update(stagingRecords)
+    .set({ status: 'received', processedAt: null, glTransactionId: null })
+    .where(
+      and(
+        eq(stagingRecords.sourceApp, 'timesheets'),
+        eq(stagingRecords.recordType, 'timesheet_fund_summary'),
+        eq(stagingRecords.employeeId, entry.employeeId),
+        eq(stagingRecords.status, 'posted'),
+        sql`${stagingRecords.dateIncurred} >= ${run.payPeriodStart}`,
+        sql`${stagingRecords.dateIncurred} <= ${run.payPeriodEnd}`
+      )
+    )
+
+  await logAudit(db as unknown as NeonDatabase<any>, {
+    userId,
+    action: 'updated',
+    entityType: 'payroll_entry',
+    entityId: entryId,
+    afterState: {
+      reversed: true,
+      reversalTransactionId: reversalResult.transaction.id,
+      reversalEmployerTransactionId,
+    },
+  })
+
+  return {
+    reversalTransactionId: reversalResult.transaction.id,
+    reversalEmployerTransactionId,
+  }
 }
 
 function formatPeriod(start: string, end: string): string {

@@ -11,11 +11,11 @@ import {
   updateBudgetLine,
   deleteBudgetLine,
   updateBudgetStatus,
-  getGrantBudgetSummary,
+  getFundingBudgetSummary,
   copyBudgetFromPriorYear,
   type BudgetRow,
   type BudgetWithLines,
-  type GrantBudgetSummary,
+  type FundingBudgetSummary,
 } from '@/lib/budget/queries'
 import { getBudgetVsActual, type BudgetVarianceRow } from '@/lib/budget/variance'
 import { getCIPBudgetVsActual, type CIPSubAccountVariance } from '@/lib/budget/cip-budget'
@@ -143,10 +143,10 @@ export async function getCIPVarianceAction(
   return getCIPBudgetVsActual(budgetId, fundId)
 }
 
-export async function getGrantBudgetSummaryAction(
+export async function getFundingBudgetSummaryAction(
   fundId: number
-): Promise<GrantBudgetSummary | null> {
-  return getGrantBudgetSummary(fundId)
+): Promise<FundingBudgetSummary | null> {
+  return getFundingBudgetSummary(fundId)
 }
 
 export async function copyBudgetFromPriorYearAction(

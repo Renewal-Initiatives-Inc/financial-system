@@ -7,8 +7,8 @@ import {
   investmentIncomeSchema,
   ahpLoanForgivenessSchema,
   inKindContributionSchema,
-  grantCashReceiptSchema,
-  grantConditionMetSchema,
+  fundCashReceiptSchema,
+  fundConditionMetSchema,
 } from '../revenue'
 
 describe('Rent payment validation', () => {
@@ -207,18 +207,18 @@ describe('Investment income validation', () => {
   })
 })
 
-describe('Grant cash receipt validation', () => {
-  it('valid grant cash receipt passes', () => {
-    const result = grantCashReceiptSchema.safeParse({
-      grantId: 1,
+describe('Fund cash receipt validation', () => {
+  it('valid fund cash receipt passes', () => {
+    const result = fundCashReceiptSchema.safeParse({
+      fundId: 1,
       amount: '25000.00',
       date: '2026-02-01',
     })
     expect(result.success).toBe(true)
   })
 
-  it('missing grantId fails', () => {
-    const result = grantCashReceiptSchema.safeParse({
+  it('missing fundId fails', () => {
+    const result = fundCashReceiptSchema.safeParse({
       amount: '25000.00',
       date: '2026-02-01',
     })
@@ -226,10 +226,10 @@ describe('Grant cash receipt validation', () => {
   })
 })
 
-describe('Grant condition met validation', () => {
+describe('Fund condition met validation', () => {
   it('valid condition met passes', () => {
-    const result = grantConditionMetSchema.safeParse({
-      grantId: 1,
+    const result = fundConditionMetSchema.safeParse({
+      fundId: 1,
       amount: '25000.00',
       date: '2026-02-01',
       note: 'Renovation milestone completed',
@@ -238,8 +238,8 @@ describe('Grant condition met validation', () => {
   })
 
   it('missing note fails (required for condition recognition)', () => {
-    const result = grantConditionMetSchema.safeParse({
-      grantId: 1,
+    const result = fundConditionMetSchema.safeParse({
+      fundId: 1,
       amount: '25000.00',
       date: '2026-02-01',
       note: '',

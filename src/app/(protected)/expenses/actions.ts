@@ -413,6 +413,62 @@ export async function createInvoice(
   return { id: newInvoice.id, glTransactionId: txnResult.transaction.id }
 }
 
+export async function dismissComplianceWarning(
+  poId: number,
+  warningType: string,
+  warningMessage: string
+): Promise<void> {
+  const userId = await getUserId()
+
+  await db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select()
+      .from(purchaseOrders)
+      .where(eq(purchaseOrders.id, poId))
+
+    if (!existing) throw new Error(`Purchase order ${poId} not found`)
+
+    const dismissed = (existing.dismissedWarnings ?? []) as {
+      type: string
+      message: string
+      dismissedAt: string
+      dismissedBy: string
+    }[]
+
+    // Avoid duplicate dismissals
+    const alreadyDismissed = dismissed.some(
+      (d) => d.type === warningType && d.message === warningMessage
+    )
+    if (alreadyDismissed) return
+
+    const updated = [
+      ...dismissed,
+      {
+        type: warningType,
+        message: warningMessage,
+        dismissedAt: new Date().toISOString(),
+        dismissedBy: userId,
+      },
+    ]
+
+    await tx
+      .update(purchaseOrders)
+      .set({ dismissedWarnings: updated, updatedAt: new Date() })
+      .where(eq(purchaseOrders.id, poId))
+
+    await logAudit(tx as unknown as NeonDatabase<any>, {
+      userId,
+      action: 'updated',
+      entityType: 'purchase_order',
+      entityId: poId,
+      beforeState: { dismissedWarnings: dismissed },
+      afterState: { dismissedWarnings: updated },
+    })
+  })
+
+  revalidatePath(`/expenses/purchase-orders/${poId}`)
+}
+
 export async function markPaymentInProcess(
   invoiceId: number,
   userId: string
