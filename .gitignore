@@ -54,3 +54,8 @@ next-env.d.ts
 
 # discovery docs (not part of app source)
 discovery-docs/
+
+# binary docs (board resolutions, presentations, memos)
+docs/*.docx
+docs/*.pptx
+docs/*.pdf
