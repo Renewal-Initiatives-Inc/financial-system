@@ -254,7 +254,7 @@ export function JournalEntryForm({
               Account <HelpTooltip term="account-type" />
             </span>
             <span className="flex items-center gap-1">
-              Fund <HelpTooltip term="fund" />
+              Funding Source <HelpTooltip term="fund" />
             </span>
             <span className="flex items-center gap-1">
               Debit <HelpTooltip term="debit" />

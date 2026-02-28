@@ -398,7 +398,7 @@ export function CreatePOForm({
           {/* 6. Fund */}
           <div className="grid gap-2">
             <Label>
-              Fund <span className="text-destructive">*</span>
+              Funding Source <span className="text-destructive">*</span>
             </Label>
             <Select
               value={fundId}
@@ -408,7 +408,7 @@ export function CreatePOForm({
               }}
             >
               <SelectTrigger data-testid="po-fund">
-                <SelectValue placeholder="Select fund..." />
+                <SelectValue placeholder="Select funding source..." />
               </SelectTrigger>
               <SelectContent>
                 {funds.map((fund) => (

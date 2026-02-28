@@ -139,10 +139,10 @@ export function POListClient({
         </Select>
         <Select onValueChange={handleFundFilter} defaultValue="all">
           <SelectTrigger className="w-[180px]" data-testid="po-fund-filter">
-            <SelectValue placeholder="All Funds" />
+            <SelectValue placeholder="All Funding Sources" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Funds</SelectItem>
+            <SelectItem value="all">All Funding Sources</SelectItem>
             {funds.map((f) => (
               <SelectItem key={f.id} value={String(f.id)}>
                 {f.name}

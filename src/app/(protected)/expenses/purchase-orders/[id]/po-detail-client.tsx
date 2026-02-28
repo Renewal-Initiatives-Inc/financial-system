@@ -275,7 +275,7 @@ export function PODetailClient({ po }: PODetailClientProps) {
               </p>
             </div>
             <div>
-              <Label className="text-muted-foreground">Fund</Label>
+              <Label className="text-muted-foreground">Funding Source</Label>
               <p>{po.fundName}</p>
             </div>
             <div>

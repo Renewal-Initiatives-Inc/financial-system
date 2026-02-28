@@ -189,10 +189,10 @@ export function BudgetReviewClient({
           }}
         >
           <SelectTrigger className="w-[180px]" data-testid="budget-review-fund-filter">
-            <SelectValue placeholder="Fund" />
+            <SelectValue placeholder="Funding Source" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Funds</SelectItem>
+            <SelectItem value="all">All Funding Sources</SelectItem>
             {funds.filter((f) => f.isActive).map((fund) => (
               <SelectItem key={fund.id} value={fund.id.toString()}>
                 {fund.name}
@@ -210,7 +210,7 @@ export function BudgetReviewClient({
             <TableRow>
               <TableHead>Code</TableHead>
               <TableHead>Account</TableHead>
-              <TableHead>Fund</TableHead>
+              <TableHead>Funding Source</TableHead>
               <TableHead className="text-right">
                 Budget <HelpTooltip term="budget" />
               </TableHead>

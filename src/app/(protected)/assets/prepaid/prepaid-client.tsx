@@ -351,10 +351,10 @@ export function PrepaidClient({
             </div>
 
             <div>
-              <Label>Fund</Label>
+              <Label>Funding Source</Label>
               <Select value={fundId} onValueChange={setFundId}>
                 <SelectTrigger data-testid="prepaid-fund-select">
-                  <SelectValue placeholder="Select fund..." />
+                  <SelectValue placeholder="Select funding source..." />
                 </SelectTrigger>
                 <SelectContent>
                   {fundOptions.map((f) => (

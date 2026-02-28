@@ -233,7 +233,7 @@ export function EditTransactionForm({
           <div className="hidden md:grid md:grid-cols-[40px_1fr_1fr_120px_120px_40px] gap-2 px-2 text-xs font-medium text-muted-foreground">
             <span>#</span>
             <span>Account</span>
-            <span>Fund</span>
+            <span>Funding Source</span>
             <span>Debit</span>
             <span>Credit</span>
             <span />

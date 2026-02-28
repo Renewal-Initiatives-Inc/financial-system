@@ -314,10 +314,10 @@ export function BudgetEditClient({ budget, accounts, funds }: BudgetEditClientPr
         </Select>
         <Select value={fundFilter} onValueChange={setFundFilter}>
           <SelectTrigger className="w-[180px]" data-testid="budget-edit-fund-filter">
-            <SelectValue placeholder="Fund" />
+            <SelectValue placeholder="Funding Source" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Funds</SelectItem>
+            <SelectItem value="all">All Funding Sources</SelectItem>
             {funds.filter((f) => f.isActive).map((fund) => (
               <SelectItem key={fund.id} value={fund.id.toString()}>
                 {fund.name}
@@ -334,7 +334,7 @@ export function BudgetEditClient({ budget, accounts, funds }: BudgetEditClientPr
             <TableRow>
               <TableHead className="w-[100px]">Code</TableHead>
               <TableHead className="w-[180px]">Account</TableHead>
-              <TableHead className="w-[120px]">Fund</TableHead>
+              <TableHead className="w-[120px]">Funding Source</TableHead>
               <TableHead className="w-[130px]">Annual Amount</TableHead>
               <TableHead className="w-[130px]">Spread <HelpTooltip term="spread-method" /></TableHead>
               <TableHead>Monthly Amounts</TableHead>
@@ -420,7 +420,7 @@ export function BudgetEditClient({ budget, accounts, funds }: BudgetEditClientPr
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Fund</label>
+              <label className="text-sm font-medium">Funding Source</label>
               <FundSelector
                 funds={funds}
                 value={newFundId}

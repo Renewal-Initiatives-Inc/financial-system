@@ -95,12 +95,12 @@ export function ReportFilterBar({
 
       {showFundSelector && (
         <div className="space-y-1 min-w-[200px]">
-          <Label className="text-xs">Fund</Label>
+          <Label className="text-xs">Funding Source</Label>
           <FundSelector
             funds={funds}
             value={fundId}
             onSelect={onFundChange}
-            placeholder="All Funds (Consolidated)"
+            placeholder="All Funding Sources (Consolidated)"
             testId="filter-fund"
           />
         </div>

@@ -338,7 +338,7 @@ export function VendorDetailClient({
               )}
             </div>
             <div>
-              <Label className="text-muted-foreground">Default Fund</Label>
+              <Label className="text-muted-foreground">Default Funding Source</Label>
               {isEditing ? (
                 <Select
                   value={defaultFundId}

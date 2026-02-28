@@ -237,7 +237,7 @@ export function CreateRuleDialog({
           </div>
 
           <div className="grid gap-2">
-            <Label>Fund</Label>
+            <Label>Funding Source</Label>
             <FundSelector
               funds={funds}
               value={fundId}

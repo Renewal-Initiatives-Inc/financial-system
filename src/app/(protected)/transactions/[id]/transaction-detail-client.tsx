@@ -197,7 +197,7 @@ export function TransactionDetailClient({
             <TableHeader>
               <TableRow>
                 <TableHead>Account</TableHead>
-                <TableHead>Fund</TableHead>
+                <TableHead>Funding Source</TableHead>
                 <TableHead className="text-right">Debit</TableHead>
                 <TableHead className="text-right">Credit</TableHead>
                 <TableHead>Cost Code</TableHead>

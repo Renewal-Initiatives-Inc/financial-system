@@ -169,10 +169,10 @@ export function RentAdjustmentClient({ tenants, funds }: Props) {
               </div>
 
               <div>
-                <Label>Fund</Label>
+                <Label>Funding Source</Label>
                 <Select value={fundId} onValueChange={setFundId}>
                   <SelectTrigger data-testid="rent-adjustment-fund-select">
-                    <SelectValue placeholder="Select fund" />
+                    <SelectValue placeholder="Select funding source" />
                   </SelectTrigger>
                   <SelectContent>
                     {funds.map((f) => (

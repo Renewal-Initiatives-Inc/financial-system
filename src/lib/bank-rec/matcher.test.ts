@@ -53,13 +53,13 @@ describe('Bank Reconciliation — Matching & GL-Only', () => {
       ).toBe(true)
     })
 
-    it('identifies AHP loan payable as GL-only', () => {
+    it('does not flag AHP loan payable as GL-only (non-cash liabilities filtered by account scope)', () => {
       expect(
         isGlOnlyEntry({
           sourceType: 'MANUAL',
           accountName: 'AHP Loan Payable',
         })
-      ).toBe(true)
+      ).toBe(false)
     })
 
     it('returns false for regular MANUAL entries', () => {

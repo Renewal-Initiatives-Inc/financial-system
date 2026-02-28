@@ -44,7 +44,7 @@ export function FundSelector({
   funds,
   value,
   onSelect,
-  placeholder = 'Select fund...',
+  placeholder = 'Select funding source...',
   disabled = false,
   testId = 'fund-selector',
 }: FundSelectorProps) {
@@ -87,9 +87,9 @@ export function FundSelector({
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-0" align="start">
         <Command>
-          <CommandInput placeholder="Search funds..." />
+          <CommandInput placeholder="Search funding sources..." />
           <CommandList>
-            <CommandEmpty>No funds found.</CommandEmpty>
+            <CommandEmpty>No funding sources found.</CommandEmpty>
             <CommandGroup>
               {activeFunds.map((fund) => (
                 <CommandItem

@@ -126,10 +126,10 @@ export function EarnedIncomeClient({ funds, revenueAccounts, recentEntries }: Pr
                 </Select>
               </div>
               <div>
-                <Label>Fund</Label>
+                <Label>Funding Source</Label>
                 <Select value={fundId} onValueChange={setFundId}>
                   <SelectTrigger data-testid="earned-income-fund-select">
-                    <SelectValue placeholder="Select fund" />
+                    <SelectValue placeholder="Select funding source" />
                   </SelectTrigger>
                   <SelectContent>
                     {funds.map((f) => (

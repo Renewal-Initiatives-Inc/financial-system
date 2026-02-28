@@ -137,7 +137,7 @@ export const rampColumns: ColumnDef<RampTransactionRow, unknown>[] = [
   },
   {
     id: 'fund',
-    header: 'Fund',
+    header: 'Funding Source',
     cell: ({ row }) => {
       const name = row.original.fundName
       return name ?? <span className="text-muted-foreground">-</span>

@@ -144,10 +144,10 @@ export function DonationsClient({ donors, funds, recentDonations }: Props) {
               </div>
 
               <div>
-                <Label>Fund</Label>
+                <Label>Funding Source</Label>
                 <Select value={fundId} onValueChange={setFundId}>
                   <SelectTrigger data-testid="donation-fund-select">
-                    <SelectValue placeholder="Select fund" />
+                    <SelectValue placeholder="Select funding source" />
                   </SelectTrigger>
                   <SelectContent>
                     {funds.map((f) => (

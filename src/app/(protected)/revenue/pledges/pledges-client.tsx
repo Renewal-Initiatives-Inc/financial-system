@@ -161,10 +161,10 @@ export function PledgesClient({ donors, funds, pledges }: Props) {
                 />
               </div>
               <div>
-                <Label>Fund</Label>
+                <Label>Funding Source</Label>
                 <Select value={fundId} onValueChange={setFundId}>
                   <SelectTrigger data-testid="pledge-fund-select">
-                    <SelectValue placeholder="Select fund" />
+                    <SelectValue placeholder="Select funding source" />
                   </SelectTrigger>
                   <SelectContent>
                     {funds.map((f) => (
@@ -202,7 +202,7 @@ export function PledgesClient({ donors, funds, pledges }: Props) {
                     <th className="px-4 py-3 text-left font-medium">Donor</th>
                     <th className="px-4 py-3 text-left font-medium">Amount</th>
                     <th className="px-4 py-3 text-left font-medium">Expected</th>
-                    <th className="px-4 py-3 text-left font-medium">Fund</th>
+                    <th className="px-4 py-3 text-left font-medium">Funding Source</th>
                     <th className="px-4 py-3 text-left font-medium">Status</th>
                     <th className="px-4 py-3 text-left font-medium">Actions</th>
                   </tr>

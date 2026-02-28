@@ -100,7 +100,7 @@ export const stagingColumns: ColumnDef<StagingRecordWithRelations, unknown>[] = 
   },
   {
     accessorKey: 'fundName',
-    header: 'Fund',
+    header: 'Funding Source',
     cell: ({ row }) =>
       row.getValue('fundName') ?? (
         <span className="text-muted-foreground">-</span>

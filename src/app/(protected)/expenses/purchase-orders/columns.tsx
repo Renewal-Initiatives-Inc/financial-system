@@ -138,7 +138,7 @@ export const purchaseOrderColumns: ColumnDef<PurchaseOrderRow, unknown>[] = [
   },
   {
     accessorKey: 'fundName',
-    header: 'Fund',
+    header: 'Funding Source',
     filterFn: (row, _columnId, filterValue) => {
       if (!filterValue || filterValue === 'all') return true
       return row.original.fundId === Number(filterValue)

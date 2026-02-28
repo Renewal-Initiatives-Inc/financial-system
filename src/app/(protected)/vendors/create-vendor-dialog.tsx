@@ -230,7 +230,7 @@ export function CreateVendorDialog({
           </div>
 
           <div className="grid gap-2">
-            <Label>Default Fund</Label>
+            <Label>Default Funding Source</Label>
             <Select value={defaultFundId} onValueChange={setDefaultFundId}>
               <SelectTrigger data-testid="create-vendor-default-fund">
                 <SelectValue placeholder="None" />

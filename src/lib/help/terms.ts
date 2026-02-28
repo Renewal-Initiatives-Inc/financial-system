@@ -7,6 +7,9 @@
 export const helpTerms: Record<string, string> = {
   fund: 'A self-balancing set of accounts used to track resources with specific purposes or restrictions. Per ASC 958, nonprofits must track net assets by restriction class.',
 
+  'funding-source':
+    'A grant, contract, or loan that provides resources to the organization. Each funding source maps to a fund for GL tracking and may be restricted or unrestricted.',
+
   'restriction-type':
     'Classifies a fund as Restricted (donor-imposed purpose or time restrictions per 26 CFR 1.501(c)(3)-1) or Unrestricted (available for general use). Set once at creation and immutable per INV-005.',
 

@@ -58,7 +58,7 @@ export const ruleColumns: ColumnDef<CategorizationRuleRow, unknown>[] = [
   },
   {
     id: 'fund',
-    header: 'Fund',
+    header: 'Funding Source',
     cell: ({ row }) =>
       row.original.fundName ?? (
         <span className="text-muted-foreground">-</span>
