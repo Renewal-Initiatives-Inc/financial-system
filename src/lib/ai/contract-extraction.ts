@@ -81,7 +81,7 @@ export async function extractContractTerms(
   try {
     response = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 4096,
+      max_tokens: 8192,
       messages: [
         {
           role: 'user',
@@ -109,6 +109,11 @@ export async function extractContractTerms(
     )
   }
 
+  // Check if response was truncated
+  if (response.stop_reason === 'max_tokens') {
+    console.error('Contract extraction truncated — response hit max_tokens')
+  }
+
   const textBlock = response.content.find((block) => block.type === 'text')
   if (!textBlock || textBlock.type !== 'text') {
     throw new Error(
@@ -116,10 +121,22 @@ export async function extractContractTerms(
     )
   }
 
-  // Parse JSON from response, handling markdown code blocks
+  // Parse JSON from response, handling markdown code blocks and preamble text
   let jsonStr = textBlock.text.trim()
-  if (jsonStr.startsWith('```')) {
-    jsonStr = jsonStr.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '')
+
+  // Strip markdown code fences (```json ... ```)
+  const fenceMatch = jsonStr.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/)
+  if (fenceMatch) {
+    jsonStr = fenceMatch[1].trim()
+  }
+
+  // If still not valid JSON, try to find the first { ... last }
+  if (!jsonStr.startsWith('{')) {
+    const firstBrace = jsonStr.indexOf('{')
+    const lastBrace = jsonStr.lastIndexOf('}')
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+      jsonStr = jsonStr.slice(firstBrace, lastBrace + 1)
+    }
   }
 
   try {
