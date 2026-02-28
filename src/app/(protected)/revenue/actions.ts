@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { generateFundingSourceDeadlines } from '@/lib/compliance/deadline-generator'
 import { eq, and, desc, ilike, sql, isNotNull, count, or } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import {
@@ -749,6 +750,9 @@ export async function createFundingSource(
       })
     }
   }
+
+  // Generate compliance deadlines from extracted milestones/covenants
+  await generateFundingSourceDeadlines(newFund.id)
 
   revalidatePath('/revenue')
   revalidatePath('/revenue/funding-sources')

@@ -70,14 +70,14 @@ export function parseCovenants(data: unknown): CovenantItem[] {
 
 // --- Helpers ---
 
-function formatCurrency(amount: string | number): string {
+export function formatCurrency(amount: string | number): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
   }).format(typeof amount === 'string' ? parseFloat(amount) : amount)
 }
 
-function formatDate(date: string | Date): string {
+export function formatDate(date: string | Date): string {
   const d = typeof date === 'string' ? new Date(date) : date
   return format(d, 'MMM d, yyyy')
 }
