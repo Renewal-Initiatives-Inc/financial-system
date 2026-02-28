@@ -3,6 +3,7 @@ import {
   getFundingSourceById,
   getFundingSourceTransactions,
   getArInvoices,
+  getLoanRateHistory,
 } from '../../actions'
 import { FundingSourceDetailClient } from './funding-source-detail-client'
 
@@ -23,11 +24,16 @@ export default async function FundingSourceDetailPage({
 
   if (!source) notFound()
 
+  // Fetch rate history only for LOAN funding sources
+  const rateHistory =
+    source.fundingCategory === 'LOAN' ? await getLoanRateHistory(fundId) : []
+
   return (
     <FundingSourceDetailClient
       source={source}
       transactions={txns}
       arInvoices={arInvoices}
+      rateHistory={rateHistory}
     />
   )
 }

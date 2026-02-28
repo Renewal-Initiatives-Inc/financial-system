@@ -13,6 +13,7 @@ import {
   vendors,
   pledges,
   invoices,
+  fundingSourceRateHistory,
 } from '@/lib/db/schema'
 import {
   rentPaymentSchema,
@@ -23,6 +24,10 @@ import {
   inKindContributionSchema,
   fundCashReceiptSchema,
   fundConditionMetSchema,
+  loanProceedsSchema,
+  loanRepaymentSchema,
+  loanInterestPaymentSchema,
+  loanRateChangeSchema,
   insertFundingSourceSchema,
   insertFundSchema,
   updateFundSchema,
@@ -36,6 +41,10 @@ import {
   type InKindContribution,
   type FundCashReceipt,
   type FundConditionMet,
+  type LoanProceeds,
+  type LoanRepayment,
+  type LoanInterestPayment,
+  type LoanRateChange,
   type InsertFundingSource,
   type InsertFund,
   type UpdateFund,
@@ -54,6 +63,9 @@ import {
   recordFundCashReceipt as recordFundCashReceiptLogic,
   recordConditionalFundingCash,
   recognizeConditionalRevenue,
+  recordLoanProceeds as recordLoanProceedsLogic,
+  recordLoanRepayment as recordLoanRepaymentLogic,
+  recordLoanInterestPayment as recordLoanInterestPaymentLogic,
 } from '@/lib/revenue/funding-sources'
 import { deactivateFund } from '@/lib/gl/deactivation'
 import { SystemLockedError } from '@/lib/gl/errors'
@@ -700,7 +712,7 @@ export async function createFundingSource(
     return result
   })
 
-  // Create GL entry for unconditional grants/contracts (restricted or unrestricted)
+  // Create GL entry based on funding category
   let transactionId = 0
   if (
     (validated.fundingCategory === 'GRANT' || validated.fundingCategory === 'CONTRACT') &&
@@ -715,6 +727,27 @@ export async function createFundingSource(
       userId
     )
     transactionId = result.transactionId
+  } else if (validated.fundingCategory === 'LOAN' && validated.amount) {
+    // Loan proceeds: DR Cash, CR Loan Payable
+    const amount = parseFloat(validated.amount)
+    const result = await recordLoanProceedsLogic(
+      newFund.id,
+      amount,
+      validated.startDate ?? new Date().toISOString().split('T')[0],
+      userId
+    )
+    transactionId = result.transactionId
+
+    // Seed initial rate history entry
+    if (validated.interestRate) {
+      await db.insert(fundingSourceRateHistory).values({
+        fundId: newFund.id,
+        rate: validated.interestRate,
+        effectiveDate: validated.startDate ?? new Date().toISOString().split('T')[0],
+        reason: 'Initial rate from loan setup',
+        createdBy: userId,
+      })
+    }
   }
 
   revalidatePath('/revenue')
@@ -919,6 +952,176 @@ export async function recognizeConditionalFundRevenue(
   revalidatePath('/revenue/funding-sources')
   revalidatePath(`/revenue/funding-sources/${fund.id}`)
   return result
+}
+
+// --- Loan Actions ---
+
+export async function recordLoanProceedsAction(
+  data: LoanProceeds,
+  userId: string
+): Promise<{ transactionId: number }> {
+  const validated = loanProceedsSchema.parse(data)
+  const amount = parseFloat(validated.amount)
+
+  const [fund] = await db
+    .select()
+    .from(funds)
+    .where(eq(funds.id, validated.fundId))
+  if (!fund) throw new Error(`Funding source ${validated.fundId} not found`)
+  if (fund.fundingCategory !== 'LOAN') {
+    throw new Error('Loan proceeds can only be recorded for LOAN funding sources')
+  }
+
+  const result = await recordLoanProceedsLogic(
+    fund.id,
+    amount,
+    validated.date,
+    userId
+  )
+
+  revalidatePath('/revenue')
+  revalidatePath('/revenue/funding-sources')
+  revalidatePath(`/revenue/funding-sources/${fund.id}`)
+  return result
+}
+
+export async function recordLoanRepaymentAction(
+  data: LoanRepayment,
+  userId: string
+): Promise<{ transactionId: number }> {
+  const validated = loanRepaymentSchema.parse(data)
+  const amount = parseFloat(validated.amount)
+
+  const [fund] = await db
+    .select()
+    .from(funds)
+    .where(eq(funds.id, validated.fundId))
+  if (!fund) throw new Error(`Funding source ${validated.fundId} not found`)
+  if (fund.fundingCategory !== 'LOAN') {
+    throw new Error('Loan repayment can only be recorded for LOAN funding sources')
+  }
+
+  const result = await recordLoanRepaymentLogic(
+    fund.id,
+    amount,
+    validated.date,
+    validated.note,
+    userId
+  )
+
+  revalidatePath('/revenue')
+  revalidatePath('/revenue/funding-sources')
+  revalidatePath(`/revenue/funding-sources/${fund.id}`)
+  return result
+}
+
+export async function recordLoanInterestPaymentAction(
+  data: LoanInterestPayment,
+  userId: string
+): Promise<{ transactionId: number }> {
+  const validated = loanInterestPaymentSchema.parse(data)
+  const amount = parseFloat(validated.amount)
+
+  const [fund] = await db
+    .select()
+    .from(funds)
+    .where(eq(funds.id, validated.fundId))
+  if (!fund) throw new Error(`Funding source ${validated.fundId} not found`)
+  if (fund.fundingCategory !== 'LOAN') {
+    throw new Error('Interest payments can only be recorded for LOAN funding sources')
+  }
+
+  const result = await recordLoanInterestPaymentLogic(
+    fund.id,
+    amount,
+    validated.date,
+    userId
+  )
+
+  revalidatePath('/revenue')
+  revalidatePath('/revenue/funding-sources')
+  revalidatePath(`/revenue/funding-sources/${fund.id}`)
+  return result
+}
+
+// --- Loan Rate History ---
+
+export type RateHistoryRow = typeof fundingSourceRateHistory.$inferSelect
+
+export async function getLoanRateHistory(fundId: number): Promise<RateHistoryRow[]> {
+  return db
+    .select()
+    .from(fundingSourceRateHistory)
+    .where(eq(fundingSourceRateHistory.fundId, fundId))
+    .orderBy(desc(fundingSourceRateHistory.effectiveDate))
+}
+
+export async function getCurrentLoanRate(fundId: number): Promise<string | null> {
+  const today = new Date().toISOString().split('T')[0]
+  const [row] = await db
+    .select({ rate: fundingSourceRateHistory.rate })
+    .from(fundingSourceRateHistory)
+    .where(
+      and(
+        eq(fundingSourceRateHistory.fundId, fundId),
+        sql`${fundingSourceRateHistory.effectiveDate} <= ${today}`
+      )
+    )
+    .orderBy(desc(fundingSourceRateHistory.effectiveDate))
+    .limit(1)
+
+  return row?.rate ?? null
+}
+
+export async function recordLoanRateChange(
+  data: LoanRateChange,
+  userId: string
+): Promise<{ id: number }> {
+  const validated = loanRateChangeSchema.parse(data)
+
+  const [fund] = await db
+    .select()
+    .from(funds)
+    .where(eq(funds.id, validated.fundId))
+  if (!fund) throw new Error(`Funding source ${validated.fundId} not found`)
+  if (fund.fundingCategory !== 'LOAN') {
+    throw new Error('Rate changes can only be recorded for LOAN funding sources')
+  }
+
+  const [newEntry] = await db.transaction(async (tx) => {
+    const result = await tx
+      .insert(fundingSourceRateHistory)
+      .values({
+        fundId: validated.fundId,
+        rate: validated.rate,
+        effectiveDate: validated.effectiveDate,
+        reason: validated.reason,
+        createdBy: userId,
+      })
+      .returning()
+
+    // Also update the fund's interestRate to the new rate
+    await tx
+      .update(funds)
+      .set({
+        interestRate: validated.rate,
+        updatedAt: new Date(),
+      })
+      .where(eq(funds.id, validated.fundId))
+
+    await logAudit(tx as unknown as NeonDatabase<any>, {
+      userId,
+      action: 'created',
+      entityType: 'funding_source_rate_history',
+      entityId: result[0].id,
+      afterState: result[0] as unknown as Record<string, unknown>,
+    })
+
+    return result
+  })
+
+  revalidatePath(`/revenue/funding-sources/${validated.fundId}`)
+  return { id: newEntry.id }
 }
 
 // --- Pledge Actions ---

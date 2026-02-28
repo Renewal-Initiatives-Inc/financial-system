@@ -36,6 +36,7 @@ export * from './matching-rules'
 export * from './reconciliation-sessions'
 export * from './functional-allocations'
 export * from './import-review'
+export * from './funding-source-rate-history'
 
 // Re-import for relations definitions
 import { accounts } from './accounts'
@@ -71,6 +72,7 @@ import { matchingRules } from './matching-rules'
 import { reconciliationSessions } from './reconciliation-sessions'
 import { functionalAllocations } from './functional-allocations'
 import { importReviewItems } from './import-review'
+import { fundingSourceRateHistory } from './funding-source-rate-history'
 
 // --- Relations ---
 
@@ -94,7 +96,18 @@ export const fundsRelations = relations(funds, ({ one, many }) => ({
   budgetLines: many(budgetLines),
   complianceDeadlines: many(complianceDeadlines),
   arInvoices: many(invoices),
+  rateHistory: many(fundingSourceRateHistory),
 }))
+
+export const fundingSourceRateHistoryRelations = relations(
+  fundingSourceRateHistory,
+  ({ one }) => ({
+    fund: one(funds, {
+      fields: [fundingSourceRateHistory.fundId],
+      references: [funds.id],
+    }),
+  })
+)
 
 export const transactionsRelations = relations(transactions, ({ one, many }) => ({
   lines: many(transactionLines),

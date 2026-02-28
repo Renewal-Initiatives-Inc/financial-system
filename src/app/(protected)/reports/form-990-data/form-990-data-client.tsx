@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useTransition } from 'react'
+import { Fragment, useState, useCallback, useMemo, useTransition } from 'react'
 import {
   Table,
   TableBody,
@@ -20,9 +20,15 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { ReportShell } from '@/components/reports/report-shell'
 import { getForm990Data } from '@/lib/reports/form-990-data'
-import type { Form990Data } from '@/lib/reports/form-990-data'
+import type { Form990Data, Form990RevenueSourceRow } from '@/lib/reports/form-990-data'
 import { formatCurrency } from '@/lib/reports/types'
 
 interface Form990DataClientProps {
@@ -30,10 +36,26 @@ interface Form990DataClientProps {
   defaultYear: number
 }
 
+function classificationLabel(value: string | null): string {
+  if (!value) return 'Unclassified'
+  return value === 'GRANT_REVENUE' ? 'Grant Revenue' : 'Earned Income'
+}
+
+function classificationBadgeVariant(value: string | null): 'default' | 'secondary' | 'outline' {
+  if (!value) return 'outline'
+  return value === 'GRANT_REVENUE' ? 'default' : 'secondary'
+}
+
+function categoryLabel(value: string | null): string {
+  if (!value) return '--'
+  return value.charAt(0) + value.slice(1).toLowerCase()
+}
+
 export function Form990DataClient({ initialData, defaultYear }: Form990DataClientProps) {
   const [data, setData] = useState(initialData)
   const [isPending, startTransition] = useTransition()
   const [year, setYear] = useState(String(defaultYear))
+  const [activeTab, setActiveTab] = useState('part-ix')
 
   const handleApply = useCallback(() => {
     startTransition(async () => {
@@ -42,16 +64,59 @@ export function Form990DataClient({ initialData, defaultYear }: Form990DataClien
     })
   }, [year])
 
-  // Export data for Part IX
-  const exportData = data.partIXExpenses.map((r) => ({
-    Line: r.form990Line,
-    Description: r.lineLabel,
-    Total: r.total,
-    Program: r.program,
-    'M&G': r.admin,
-    Fundraising: r.fundraising,
-  }))
-  const exportColumns = ['Line', 'Description', 'Total', 'Program', 'M&G', 'Fundraising']
+  // Group source rows by 990 line for the classification schedule
+  const sourcesByLine = useMemo(() => {
+    const grouped = new Map<string, { label: string; rows: Form990RevenueSourceRow[]; subtotal: number }>()
+    for (const row of data.revenueBySource) {
+      const existing = grouped.get(row.form990Line)
+      if (existing) {
+        existing.rows.push(row)
+        existing.subtotal += row.amount
+      } else {
+        grouped.set(row.form990Line, {
+          label: row.form990LineLabel,
+          rows: [row],
+          subtotal: row.amount,
+        })
+      }
+    }
+    return grouped
+  }, [data.revenueBySource])
+
+  // Tab-aware export data
+  const { exportData, exportColumns } = useMemo(() => {
+    if (activeTab === 'revenue') {
+      const rows = data.revenueBySource.map((r) => ({
+        '990 Line': r.form990Line,
+        'Line Description': r.form990LineLabel,
+        'Funding Source': r.fundName,
+        Funder: r.funderName ?? '',
+        Category: r.fundingCategory ?? '',
+        Classification: r.revenueClassification
+          ? r.revenueClassification === 'GRANT_REVENUE'
+            ? 'Grant Revenue (ASC 958-605)'
+            : 'Earned Income (ASC 606)'
+          : '',
+        Amount: r.amount,
+        Rationale: r.classificationRationale ?? '',
+      }))
+      return {
+        exportData: rows,
+        exportColumns: ['990 Line', 'Line Description', 'Funding Source', 'Funder', 'Category', 'Classification', 'Amount', 'Rationale'],
+      }
+    }
+    return {
+      exportData: data.partIXExpenses.map((r) => ({
+        Line: r.form990Line,
+        Description: r.lineLabel,
+        Total: r.total,
+        Program: r.program,
+        'M&G': r.admin,
+        Fundraising: r.fundraising,
+      })),
+      exportColumns: ['Line', 'Description', 'Total', 'Program', 'M&G', 'Fundraising'],
+    }
+  }, [activeTab, data])
 
   return (
     <ReportShell
@@ -71,7 +136,7 @@ export function Form990DataClient({ initialData, defaultYear }: Form990DataClien
         </Button>
       </div>
 
-      <Tabs defaultValue="part-ix" className="w-full">
+      <Tabs defaultValue="part-ix" onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="part-ix" data-testid="form-990-tab-part-ix">Part IX</TabsTrigger>
           <TabsTrigger value="revenue" data-testid="form-990-tab-revenue">Revenue</TabsTrigger>
@@ -118,7 +183,7 @@ export function Form990DataClient({ initialData, defaultYear }: Form990DataClien
           </div>
         </TabsContent>
 
-        <TabsContent value="revenue" className="space-y-4">
+        <TabsContent value="revenue" className="space-y-6">
           <h3 className="text-lg font-semibold">Revenue by 990 Line</h3>
           <div className="rounded-md border">
             <Table>
@@ -145,6 +210,100 @@ export function Form990DataClient({ initialData, defaultYear }: Form990DataClien
                 </TableRow>
               </TableFooter>
             </Table>
+          </div>
+
+          {/* Revenue Classification Schedule */}
+          <div className="pt-2">
+            <h3 className="text-lg font-semibold">Revenue Classification Schedule</h3>
+            <p className="text-sm text-muted-foreground mb-3">
+              Per-funding-source breakdown with ASC 958-605 / ASC 606 classification for CPA working papers.
+            </p>
+
+            {data.revenueBySource.length === 0 ? (
+              <p className="text-sm text-muted-foreground italic">
+                No revenue transactions found for this fiscal year.
+              </p>
+            ) : (
+              <TooltipProvider>
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-16">Line</TableHead>
+                        <TableHead>Funding Source</TableHead>
+                        <TableHead>Funder</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Classification</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                        <TableHead className="w-20">Rationale</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {[...sourcesByLine.entries()].map(([line, group]) => (
+                        <Fragment key={line}>
+                          <TableRow className="bg-muted/50">
+                            <TableCell className="font-mono text-xs font-semibold">{line}</TableCell>
+                            <TableCell colSpan={4} className="text-sm font-semibold">
+                              {group.label}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums font-semibold">
+                              {formatCurrency(group.subtotal)}
+                            </TableCell>
+                            <TableCell />
+                          </TableRow>
+                          {group.rows.map((row) => (
+                            <TableRow key={`${row.fundId}-${row.accountCode}`}>
+                              <TableCell />
+                              <TableCell className="text-sm pl-6">{row.fundName}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {row.funderName ?? '--'}
+                              </TableCell>
+                              <TableCell>
+                                <span className="text-xs">{categoryLabel(row.fundingCategory)}</span>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={classificationBadgeVariant(row.revenueClassification)}>
+                                  {classificationLabel(row.revenueClassification)}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums">
+                                {formatCurrency(row.amount)}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {row.classificationRationale ? (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Badge variant="outline" className="cursor-help text-xs">
+                                        View
+                                      </Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="left" className="max-w-xs text-xs">
+                                      {row.classificationRationale}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">--</span>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </Fragment>
+                      ))}
+                    </TableBody>
+                    <TableFooter>
+                      <TableRow>
+                        <TableCell />
+                        <TableCell colSpan={4} className="font-semibold">Total (all sources)</TableCell>
+                        <TableCell className="text-right font-semibold tabular-nums">
+                          {formatCurrency(data.revenueBySource.reduce((s, r) => s + r.amount, 0))}
+                        </TableCell>
+                        <TableCell />
+                      </TableRow>
+                    </TableFooter>
+                  </Table>
+                </div>
+              </TooltipProvider>
+            )}
           </div>
         </TabsContent>
 

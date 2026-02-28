@@ -8,6 +8,8 @@ import {
   payrollRuns,
   payrollEntries,
   fixedAssets,
+  funds,
+  vendors,
 } from '@/lib/db/schema'
 
 // ---------------------------------------------------------------------------
@@ -26,6 +28,20 @@ export interface Form990ExpenseRow {
 export interface Form990RevenueRow {
   form990Line: string
   lineLabel: string
+  amount: number
+}
+
+export interface Form990RevenueSourceRow {
+  fundId: number
+  fundName: string
+  funderName: string | null
+  fundingCategory: string | null
+  revenueClassification: string | null
+  classificationRationale: string | null
+  form990Line: string
+  form990LineLabel: string
+  accountCode: string
+  accountName: string
   amount: number
 }
 
@@ -50,6 +66,7 @@ export interface Form990Data {
   partIXExpenses: Form990ExpenseRow[]
   partIXTotal: { total: number; program: number; admin: number; fundraising: number }
   revenue: Form990RevenueRow[]
+  revenueBySource: Form990RevenueSourceRow[]
   totalRevenue: number
   officers: Form990OfficerRow[]
   scheduleData: Form990ScheduleData
@@ -92,6 +109,26 @@ const LINE_LABELS: Record<string, string> = {
   '22': 'Depreciation, depletion, and amortization',
   '23': 'Insurance',
   '24': 'Other expenses',
+}
+
+const REVENUE_LINE_LABELS: Record<string, string> = {
+  '1a': 'Federated campaigns',
+  '1b': 'Membership dues',
+  '1c': 'Fundraising events',
+  '1d': 'Related organizations',
+  '1e': 'Government grants (contributions)',
+  '1f': 'All other contributions, gifts, grants',
+  '1g': 'Noncash contributions',
+  '2': 'Program service revenue',
+  '3': 'Investment income',
+  '4': 'Income from investment of tax-exempt bond proceeds',
+  '5': 'Royalties',
+  '6': 'Net rental income',
+  '7': 'Net gain from sales of assets',
+  '8': 'Net income from fundraising events',
+  '9': 'Net income from gaming activities',
+  '10': 'Net income from sales of inventory',
+  '11': 'Other revenue',
 }
 
 // ---------------------------------------------------------------------------
@@ -254,10 +291,87 @@ export async function getForm990Data(
 
   const revenue: Form990RevenueRow[] = [...revByLine.entries()].map(([line, amount]) => ({
     form990Line: line,
-    lineLabel: `Revenue Line ${line}`,
+    lineLabel: REVENUE_LINE_LABELS[line] ?? `Revenue Line ${line}`,
     amount: Math.round(amount * 100) / 100,
   }))
   const totalRevenue = revenue.reduce((s, r) => s + r.amount, 0)
+
+  // 2b. Revenue by funding source — classification schedule
+  let revenueSourceRows: {
+    fundId: number
+    fundName: string
+    funderName: string | null
+    fundingCategory: string | null
+    revenueClassification: string | null
+    classificationRationale: string | null
+    form990Line: string | null
+    accountCode: string
+    accountName: string
+    amount: string
+  }[] = []
+
+  if (revenueAccountIds.length > 0) {
+    revenueSourceRows = await db
+      .select({
+        fundId: funds.id,
+        fundName: funds.name,
+        funderName: vendors.name,
+        fundingCategory: funds.fundingCategory,
+        revenueClassification: funds.revenueClassification,
+        classificationRationale: funds.classificationRationale,
+        form990Line: accounts.form990Line,
+        accountCode: accounts.code,
+        accountName: accounts.name,
+        amount: sql<string>`COALESCE(SUM(COALESCE(CAST(${transactionLines.credit} AS numeric), 0) - COALESCE(CAST(${transactionLines.debit} AS numeric), 0)), 0)`,
+      })
+      .from(transactionLines)
+      .innerJoin(transactions, eq(transactionLines.transactionId, transactions.id))
+      .innerJoin(accounts, eq(transactionLines.accountId, accounts.id))
+      .innerJoin(funds, eq(transactionLines.fundId, funds.id))
+      .leftJoin(vendors, eq(funds.funderId, vendors.id))
+      .where(
+        and(
+          sql`${transactionLines.accountId} IN (${sql.join(revenueAccountIds.map((id) => sql`${id}`), sql`, `)})`,
+          eq(transactions.isVoided, false),
+          gte(transactions.date, startDate),
+          lte(transactions.date, endDate)
+        )
+      )
+      .groupBy(
+        funds.id,
+        funds.name,
+        vendors.name,
+        funds.fundingCategory,
+        funds.revenueClassification,
+        funds.classificationRationale,
+        accounts.form990Line,
+        accounts.code,
+        accounts.name
+      )
+  }
+
+  const revenueBySource: Form990RevenueSourceRow[] = revenueSourceRows
+    .map((r) => ({
+      fundId: r.fundId,
+      fundName: r.fundName,
+      funderName: r.funderName,
+      fundingCategory: r.fundingCategory,
+      revenueClassification: r.revenueClassification,
+      classificationRationale: r.classificationRationale,
+      form990Line: r.form990Line ?? 'other',
+      form990LineLabel: REVENUE_LINE_LABELS[r.form990Line ?? 'other'] ?? `Line ${r.form990Line ?? 'other'}`,
+      accountCode: r.accountCode,
+      accountName: r.accountName,
+      amount: Math.round(parseFloat(r.amount) * 100) / 100,
+    }))
+    .filter((r) => r.amount !== 0)
+    .sort((a, b) => {
+      const numA = parseFloat(a.form990Line.replace(/[a-g]/g, ''))
+      const numB = parseFloat(b.form990Line.replace(/[a-g]/g, ''))
+      const lineSort = numA - numB || a.form990Line.localeCompare(b.form990Line)
+      if (lineSort !== 0) return lineSort
+      return a.fundName.localeCompare(b.fundName)
+    })
 
   // 3. Officer compensation — list all employees
   const officers: Form990OfficerRow[] = []
@@ -307,6 +421,7 @@ export async function getForm990Data(
     partIXExpenses,
     partIXTotal,
     revenue,
+    revenueBySource,
     totalRevenue: Math.round(totalRevenue * 100) / 100,
     officers,
     scheduleData,

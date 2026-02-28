@@ -1,6 +1,6 @@
-import { eq } from 'drizzle-orm'
+import { eq, and, desc, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { cipConversions } from '@/lib/db/schema'
+import { cipConversions, fundingSourceRateHistory } from '@/lib/db/schema'
 
 // The 3 structures that must be converted for construction to be "complete"
 const REQUIRED_STRUCTURES = ['Lodging', 'Barn', 'Garage']
@@ -29,6 +29,29 @@ export async function getConstructionStatus(): Promise<ConstructionStatus> {
     isConstructionComplete: isComplete,
     structuresConverted: convertedNames,
   }
+}
+
+/**
+ * Look up the effective interest rate for a funding source at a given date.
+ * Returns the most recent rate entry on or before the target date, or null.
+ */
+export async function getEffectiveRate(
+  fundId: number,
+  asOfDate: string
+): Promise<number | null> {
+  const [row] = await db
+    .select({ rate: fundingSourceRateHistory.rate })
+    .from(fundingSourceRateHistory)
+    .where(
+      and(
+        eq(fundingSourceRateHistory.fundId, fundId),
+        sql`${fundingSourceRateHistory.effectiveDate} <= ${asOfDate}`
+      )
+    )
+    .orderBy(desc(fundingSourceRateHistory.effectiveDate))
+    .limit(1)
+
+  return row ? parseFloat(row.rate) : null
 }
 
 /**

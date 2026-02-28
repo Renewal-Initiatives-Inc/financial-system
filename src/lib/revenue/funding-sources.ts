@@ -1,9 +1,9 @@
 /**
- * Funding source revenue operations.
+ * Funding source GL operations.
  *
  * Handles unconditional funding (immediate revenue recognition),
  * conditional funding (refundable advance until conditions met),
- * and cash receipts.
+ * cash receipts, and loan proceeds/repayments.
  */
 
 import { eq } from 'drizzle-orm'
@@ -217,6 +217,161 @@ export async function recognizeConditionalRevenue(
       },
       {
         accountId: revenueAccount.id,
+        fundId,
+        debit: null,
+        credit: amount,
+      },
+    ],
+  })
+
+  return { transactionId: txnResult.transaction.id }
+}
+
+// ---------------------------------------------------------------------------
+// Loan GL operations
+// ---------------------------------------------------------------------------
+
+/**
+ * Record loan proceeds received.
+ * GL: DR Cash (1000), CR Loan Payable (2500) — balance sheet only, not revenue.
+ */
+export async function recordLoanProceeds(
+  fundId: number,
+  amount: number,
+  date: string,
+  userId: string
+): Promise<{ transactionId: number }> {
+  const [cashAccount] = await db
+    .select()
+    .from(accounts)
+    .where(eq(accounts.code, '1000'))
+  const [loanPayable] = await db
+    .select()
+    .from(accounts)
+    .where(eq(accounts.code, '2500'))
+
+  if (!cashAccount || !loanPayable) {
+    throw new Error(
+      'Required accounts not found: Cash (1000) and/or Loan Payable (2500)'
+    )
+  }
+
+  const txnResult = await createTransaction({
+    date,
+    memo: `Loan proceeds received - Fund #${fundId}`,
+    sourceType: 'MANUAL',
+    sourceReferenceId: `loan-proceeds:${fundId}`,
+    createdBy: userId,
+    lines: [
+      {
+        accountId: cashAccount.id,
+        fundId,
+        debit: amount,
+        credit: null,
+      },
+      {
+        accountId: loanPayable.id,
+        fundId,
+        debit: null,
+        credit: amount,
+      },
+    ],
+  })
+
+  return { transactionId: txnResult.transaction.id }
+}
+
+/**
+ * Record loan repayment (principal only).
+ * GL: DR Loan Payable (2500), CR Cash (1000)
+ */
+export async function recordLoanRepayment(
+  fundId: number,
+  amount: number,
+  date: string,
+  note: string,
+  userId: string
+): Promise<{ transactionId: number }> {
+  const [cashAccount] = await db
+    .select()
+    .from(accounts)
+    .where(eq(accounts.code, '1000'))
+  const [loanPayable] = await db
+    .select()
+    .from(accounts)
+    .where(eq(accounts.code, '2500'))
+
+  if (!cashAccount || !loanPayable) {
+    throw new Error(
+      'Required accounts not found: Cash (1000) and/or Loan Payable (2500)'
+    )
+  }
+
+  const txnResult = await createTransaction({
+    date,
+    memo: `Loan repayment - Fund #${fundId}: ${note}`,
+    sourceType: 'MANUAL',
+    sourceReferenceId: `loan-repayment:${fundId}`,
+    createdBy: userId,
+    lines: [
+      {
+        accountId: loanPayable.id,
+        fundId,
+        debit: amount,
+        credit: null,
+      },
+      {
+        accountId: cashAccount.id,
+        fundId,
+        debit: null,
+        credit: amount,
+      },
+    ],
+  })
+
+  return { transactionId: txnResult.transaction.id }
+}
+
+/**
+ * Record loan interest payment.
+ * GL: DR Interest Expense (6900), CR Cash (1000)
+ */
+export async function recordLoanInterestPayment(
+  fundId: number,
+  amount: number,
+  date: string,
+  userId: string
+): Promise<{ transactionId: number }> {
+  const [cashAccount] = await db
+    .select()
+    .from(accounts)
+    .where(eq(accounts.code, '1000'))
+  const [interestExpense] = await db
+    .select()
+    .from(accounts)
+    .where(eq(accounts.code, '5100'))
+
+  if (!cashAccount || !interestExpense) {
+    throw new Error(
+      'Required accounts not found: Cash (1000) and/or Interest Expense (5100)'
+    )
+  }
+
+  const txnResult = await createTransaction({
+    date,
+    memo: `Loan interest payment - Fund #${fundId}`,
+    sourceType: 'MANUAL',
+    sourceReferenceId: `loan-interest:${fundId}`,
+    createdBy: userId,
+    lines: [
+      {
+        accountId: interestExpense.id,
+        fundId,
+        debit: amount,
+        credit: null,
+      },
+      {
+        accountId: cashAccount.id,
         fundId,
         debit: null,
         credit: amount,

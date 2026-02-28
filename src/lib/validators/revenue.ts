@@ -73,5 +73,35 @@ export type Donation = z.infer<typeof donationSchema>
 export type EarnedIncome = z.infer<typeof earnedIncomeSchema>
 export type InvestmentIncome = z.infer<typeof investmentIncomeSchema>
 export type InKindContribution = z.infer<typeof inKindContributionSchema>
+export const loanRateChangeSchema = z.object({
+  fundId: z.number().int().positive('Loan funding source is required'),
+  rate: z.string().regex(/^\d+(\.\d{1,4})?$/, 'Invalid rate (up to 4 decimal places)'),
+  effectiveDate: z.string().date('Must be a valid date'),
+  reason: z.string().min(1, 'Reason is required for rate changes'),
+})
+
+export const loanProceedsSchema = z.object({
+  fundId: z.number().int().positive('Loan funding source is required'),
+  amount: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid amount'),
+  date: z.string().date('Must be a valid date'),
+})
+
+export const loanRepaymentSchema = z.object({
+  fundId: z.number().int().positive('Loan funding source is required'),
+  amount: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid amount'),
+  date: z.string().date('Must be a valid date'),
+  note: z.string().min(1, 'Note is required for loan repayment'),
+})
+
+export const loanInterestPaymentSchema = z.object({
+  fundId: z.number().int().positive('Loan funding source is required'),
+  amount: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid amount'),
+  date: z.string().date('Must be a valid date'),
+})
+
 export type FundCashReceipt = z.infer<typeof fundCashReceiptSchema>
 export type FundConditionMet = z.infer<typeof fundConditionMetSchema>
+export type LoanProceeds = z.infer<typeof loanProceedsSchema>
+export type LoanRepayment = z.infer<typeof loanRepaymentSchema>
+export type LoanInterestPayment = z.infer<typeof loanInterestPaymentSchema>
+export type LoanRateChange = z.infer<typeof loanRateChangeSchema>

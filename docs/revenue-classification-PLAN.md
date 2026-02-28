@@ -1,7 +1,7 @@
 # Revenue Classification & Funding Source Taxonomy — Plan
 
-**Status:** In Progress — Phase 5 DONE, ready for Phase 6
-**Last Updated:** 2026-02-27
+**Status:** COMPLETE — All 8 phases done
+**Last Updated:** 2026-02-28
 **Author:** Jeff + Claude
 **Traces to:** Pre-flight checklist (Heather) — revenue account hardcoding gap; funding source UX cleanup
 
@@ -247,59 +247,70 @@ export type ExtractedTerms = {
 | Update copilot context `src/lib/copilot/contexts/revenue.ts` | ✅ | Mention category dimension |
 | Enforce unrestricted fund GL posting rule across all fund selectors | ✅ | 7 locations: transactions, revenue, expenses, ramp, vendors, bank-rec, assets |
 
-### Phase 6: AHP Singleton Teardown
+### Phase 6: AHP Singleton Teardown ✅
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Delete `src/lib/db/schema/ahp-loan-config.ts` | | Remove from schema index too |
-| Delete `src/lib/db/seed/ahp-loan-config.ts` | | Remove from seed index too |
-| Delete `src/lib/revenue/ahp-loan.ts` | | Has bug: debits 2100 instead of 2500 |
-| Remove AHP imports + actions from `src/app/(protected)/revenue/actions.ts` | | `getAhpLoanStatus`, `getRecentAhpForgiveness` |
-| Delete `src/app/(protected)/revenue/ahp-forgiveness/` directory | | 2 files |
-| Delete `src/app/(protected)/reports/ahp-loan-summary/` directory | | 2 files |
-| Delete `src/app/(protected)/reports/ahp-annual-package/` directory | | 2 files |
-| Delete `src/lib/reports/ahp-loan-summary.ts` | | |
-| Delete `src/lib/reports/ahp-annual-package.ts` | | |
-| Remove AHP references from `src/lib/reports/cash-position.ts` | | Imports ahpLoanConfig |
-| Remove AHP help terms from `src/lib/help/terms.ts` | | Lines 191-236 |
-| Update `src/lib/copilot/contexts/revenue.ts` — remove AHP mention | | |
-| Remove AHP test cases from `src/lib/reports/__tests__/phase16-reports.test.ts` | | Lines 52, 91 |
-| Remove `ahpLoanForgivenessSchema` from `src/lib/validators/revenue.ts` | | |
-| Update `src/lib/assets/interest-accrual.ts` — remove AHP-specific logic | | Keep generic interest accrual if possible |
-| Update `src/lib/bank-rec/gl-only-categories.ts` — remove AHP entries | | If present |
-| Write migration: `DROP TABLE ahp_loan_config` | | Keep account 2500 (AHP Loan Payable) |
-| Update copilot knowledge files — remove AHP references | | `restricted-funds.txt`, `net-asset-releases.txt` |
-| TypeScript: 0 errors after teardown | | |
-| All existing tests pass after teardown | | |
+| Delete `src/lib/db/schema/ahp-loan-config.ts` | ✅ | Removed from schema index too |
+| Delete `src/lib/db/seed/ahp-loan-config.ts` | ✅ | Removed from seed index too |
+| Delete `src/lib/revenue/ahp-loan.ts` | ✅ | Had bug: debits 2100 instead of 2500 |
+| Remove AHP imports + actions from `src/app/(protected)/revenue/actions.ts` | ✅ | `getAhpLoanStatus`, `getRecentAhpForgiveness` |
+| Delete `src/app/(protected)/revenue/ahp-forgiveness/` directory | ✅ | 2 files |
+| Delete `src/app/(protected)/reports/ahp-loan-summary/` directory | ✅ | 2 files |
+| Delete `src/app/(protected)/reports/ahp-annual-package/` directory | ✅ | 2 files |
+| Delete `src/lib/reports/ahp-loan-summary.ts` | ✅ | |
+| Delete `src/lib/reports/ahp-annual-package.ts` | ✅ | |
+| Remove AHP references from `src/lib/reports/cash-position.ts` | ✅ | Removed ahpLoanConfig import |
+| Remove AHP help terms from `src/lib/help/terms.ts` | ✅ | |
+| Update `src/lib/copilot/contexts/revenue.ts` — remove AHP mention | ✅ | |
+| Remove AHP test cases from `src/lib/reports/__tests__/phase16-reports.test.ts` | ✅ | |
+| Remove `ahpLoanForgivenessSchema` from `src/lib/validators/revenue.ts` | ✅ | |
+| Update `src/lib/assets/interest-accrual.ts` — remove AHP-specific logic | ✅ | Generic interest accrual preserved |
+| Update `src/lib/bank-rec/gl-only-categories.ts` — remove AHP entries | ✅ | |
+| Write migration: `DROP TABLE ahp_loan_config` | ✅ | Account 2500 (AHP Loan Payable) kept |
+| Update copilot knowledge files — remove AHP references | ✅ | `restricted-funds.txt`, `net-asset-releases.txt` |
+| TypeScript: 0 errors after teardown | ✅ | |
+| All existing tests pass after teardown | ✅ | |
 
-### Phase 7: UI Terminology Standardization (P1)
-
-| Task | Status | Notes |
-|------|--------|-------|
-| Transaction forms — "Fund" → "Funding Source" | | journal-entry-form.tsx, edit-transaction-form.tsx, inline-gl-entry-dialog.tsx |
-| Expense/PO forms — "Fund" → "Funding Source" | | create-po-form.tsx, columns.tsx, po-detail-client.tsx, po-list-client.tsx |
-| Ramp categorization — "Fund" → "Funding Source" | | categorize-dialog.tsx, bulk-categorize-dialog.tsx, rules dialogs, columns |
-| Revenue entry forms — "Fund" → "Funding Source" | | donations, earned-income, pledges, in-kind, rent payment/adjustment |
-| Budget forms — "Fund" → "Funding Source" | | budget-edit-client.tsx, budget-review-client.tsx |
-| Prepaid form — "Fund" → "Funding Source" | | prepaid-client.tsx |
-| Report filters — "Fund" → "Funding Source" | | ~8 report pages with fund filter/badge |
-| Vendor forms — "Default Fund" → "Default Funding Source" | | create-vendor-dialog.tsx, vendor-detail-client.tsx |
-| Settings/staging — "Fund" → "Funding Source" | | staging columns.tsx |
-| Help terms — add "funding-source" glossary entry | | src/lib/help/terms.ts |
-| Copilot contexts — update terminology | | revenue.ts, funds.ts |
-| **DO NOT change:** General Fund, Fund Balance, Fund Accounting, Fund Allocation, Fund-Level P&L | | Correct accounting terms |
-
-### Phase 8: Loan GL Logic + Interest Rate Tracking (P2 — Future)
+### Phase 7: UI Terminology Standardization (P1) ✅
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Loan GL routing — DR Cash, CR Loan Payable (not revenue) | | New GL function in funding-sources.ts |
-| Loan repayment GL — DR Loan Payable, CR Cash | | |
-| Extend `annualRateConfig` with `fundId` column | | Or create `fundingSourceRateHistory` table |
-| Rate change UI — modal with effective date + reason | | On funding source detail page |
-| Rate history timeline on detail page | | Reuse AHP loan summary pattern |
-| Interest accrual generalization — use fund-specific rate | | Extend existing interest-accrual.ts |
-| Amortization schedule generator | | |
+| Transaction forms — "Fund" → "Funding Source" | ✅ | journal-entry-form.tsx, edit-transaction-form.tsx, inline-gl-entry-dialog.tsx |
+| Expense/PO forms — "Fund" → "Funding Source" | ✅ | create-po-form.tsx, columns.tsx, po-detail-client.tsx, po-list-client.tsx |
+| Ramp categorization — "Fund" → "Funding Source" | ✅ | categorize-dialog.tsx, bulk-categorize-dialog.tsx, rules dialogs, columns |
+| Revenue entry forms — "Fund" → "Funding Source" | ✅ | donations, earned-income, pledges, in-kind, rent payment/adjustment |
+| Budget forms — "Fund" → "Funding Source" | ✅ | budget-edit-client.tsx, budget-review-client.tsx |
+| Prepaid form — "Fund" → "Funding Source" | ✅ | prepaid-client.tsx |
+| Report filters — "Fund" → "Funding Source" | ✅ | ~8 report pages with fund filter/badge |
+| Vendor forms — "Default Fund" → "Default Funding Source" | ✅ | create-vendor-dialog.tsx, vendor-detail-client.tsx |
+| Settings/staging — "Fund" → "Funding Source" | ✅ | staging columns.tsx |
+| Help terms — add "funding-source" glossary entry | ✅ | src/lib/help/terms.ts |
+| Copilot contexts — update terminology | ✅ | revenue.ts, funds.ts |
+| **Did NOT change:** General Fund, Fund Balance, Fund Accounting, Fund Allocation, Fund-Level P&L | ✅ | Correct accounting terms preserved |
+
+### Phase 8: Loan GL Logic + Interest Rate Tracking ✅
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Loan GL routing — DR Cash (1000), CR Loan Payable (2500) | ✅ | `recordLoanProceeds()` in funding-sources.ts |
+| Loan repayment GL — DR Loan Payable (2500), CR Cash (1000) | ✅ | `recordLoanRepayment()` |
+| Loan interest payment GL — DR Interest Expense (5100), CR Cash (1000) | ✅ | `recordLoanInterestPayment()` |
+| Create `funding_source_rate_history` table + migration | ✅ | New table instead of extending annualRateConfig — cleaner FK to funds |
+| Rate change UI — modal with effective date + reason | ✅ | On funding source detail page for LOAN category |
+| Rate history timeline on detail page | ✅ | Shows all rate entries newest-first |
+| Interest accrual generalization — `getEffectiveRate()` lookup | ✅ | In interest-accrual.ts, queries rate history by fund + date |
+| Loan proceeds/repayment/interest UI on detail page | ✅ | 3-card grid with forms |
+| Auto-create initial rate history entry on loan creation | ✅ | In `createFundingSource()` action |
+| Auto-record loan proceeds GL on creation | ✅ | In `createFundingSource()` — DR Cash, CR Loan Payable |
+| Amortization schedule report — new report page | ✅ | `/reports/amortization-schedule` with loan selector |
+| API route for schedule generation | ✅ | `/api/reports/amortization-schedule?fundId=` |
+| Added to REPORT_DEFINITIONS | ✅ | Fund category, isAvailable: true |
+| Loan validators (proceeds, repayment, interest, rate change) | ✅ | In validators/revenue.ts |
+| Server actions for all loan operations | ✅ | In revenue/actions.ts |
+| TypeScript: 0 errors | ✅ | |
+| Schema tests: 35/35 pass | ✅ | |
+| Report tests: 36/36 pass | ✅ | Updated count from 27→28 |
 
 ---
 
@@ -338,6 +349,23 @@ export type ExtractedTerms = {
 | No AHP report pages accessible | Navigate to /reports/ahp-loan-summary → 404 |
 | TypeScript: 0 errors | `npx tsc --noEmit` |
 | All existing tests pass | `npm test` |
+
+### Phase 8
+
+| Check | Method |
+|-------|--------|
+| Rate history table exists after migration | Apply `drizzle/0020_funding_source_rate_history.sql`; verify in DB |
+| Create LOAN funding source | Verify: DR Cash, CR Loan Payable GL entry created; initial rate history seeded |
+| Record loan proceeds | On detail page, record additional proceeds; verify GL |
+| Record loan repayment | DR Loan Payable, CR Cash; verify balance decreases |
+| Record interest payment | DR Interest Expense (5100), CR Cash (1000) |
+| Rate change modal | Change rate; verify new entry in rate history, fund's interestRate updated |
+| Rate history timeline | Detail page shows all rate entries |
+| Amortization schedule report | Navigate to /reports/amortization-schedule; select loan; verify schedule |
+| Schedule math | Verify beginning balance, payment, principal, interest, ending balance |
+| Report appears in index | Amortization Schedule shows in Fund & Funding Reports category |
+| TypeScript: 0 errors | `npx tsc --noEmit` |
+| All tests pass | `npm test` (36/36 report tests, 35/35 schema tests) |
 
 ---
 
@@ -409,6 +437,26 @@ export type ExtractedTerms = {
 | `src/lib/bank-rec/gl-only-categories.ts` | Remove AHP entries (if present) |
 | `drizzle/0018_drop_ahp_loan_config.sql` | DROP TABLE |
 
+### Phase 8: Loan GL + Interest Rates + Amortization Report ✅
+
+| File | Change |
+|------|--------|
+| `src/lib/revenue/funding-sources.ts` | Add `recordLoanProceeds`, `recordLoanRepayment`, `recordLoanInterestPayment` ✅ |
+| `src/lib/validators/revenue.ts` | Add `loanProceedsSchema`, `loanRepaymentSchema`, `loanInterestPaymentSchema`, `loanRateChangeSchema` ✅ |
+| `src/lib/db/schema/funding-source-rate-history.ts` | NEW — rate history table ✅ |
+| `src/lib/db/schema/index.ts` | Export + relations for rate history ✅ |
+| `drizzle/0020_funding_source_rate_history.sql` | Migration + backfill for existing loans ✅ |
+| `src/app/(protected)/revenue/actions.ts` | Loan actions (proceeds, repayment, interest, rate change), rate history queries ✅ |
+| `src/app/(protected)/revenue/funding-sources/[id]/page.tsx` | Fetch rate history for LOAN sources ✅ |
+| `src/app/(protected)/revenue/funding-sources/[id]/funding-source-detail-client.tsx` | Loan detail UI, operations, rate change modal ✅ |
+| `src/lib/assets/interest-accrual.ts` | Add `getEffectiveRate()` fund-specific rate lookup ✅ |
+| `src/lib/reports/amortization-schedule.ts` | NEW — schedule generator + loan queries ✅ |
+| `src/app/(protected)/reports/amortization-schedule/page.tsx` | NEW — report page ✅ |
+| `src/app/(protected)/reports/amortization-schedule/amortization-schedule-client.tsx` | NEW — client component with loan selector + schedule table ✅ |
+| `src/app/api/reports/amortization-schedule/route.ts` | NEW — API route for schedule generation ✅ |
+| `src/lib/reports/types.ts` | Add amortization-schedule to REPORT_DEFINITIONS ✅ |
+| `src/lib/reports/__tests__/types.test.ts` | Update available report count 27→28 ✅ |
+
 ---
 
 ## 9. Session Progress
@@ -473,6 +521,52 @@ export type ExtractedTerms = {
 **Design rule established:** Unrestricted funding sources (grants, loans) are first-class objects for contract tracking, covenants, compliance, and reporting — but all unrestricted GL posting goes through General Fund. Only restricted funds appear in expense/GL fund selectors.
 
 **Next Steps:**
-- [ ] Run migration on staging: `drizzle/0017_funding_category.sql`
-- [ ] Smoke test: create new funding source with category selector
-- [ ] Begin Phase 6: AHP Singleton Teardown
+- [x] Run migration on staging: `drizzle/0017_funding_category.sql`
+- [x] Smoke test: create new funding source with category selector
+- [x] Begin Phase 6: AHP Singleton Teardown
+
+### Session 5: 2026-02-27 (Phase 6 — AHP Singleton Teardown)
+
+**Completed:**
+- [x] Phase 6 full implementation — all 20 tasks
+- [x] Deleted ~20 AHP-specific files (schema, seed, GL logic, UI pages, reports)
+- [x] Removed AHP imports/actions from revenue actions.ts
+- [x] Cleaned up references in cash-position.ts, help terms, copilot contexts, validators, tests
+- [x] Removed AHP-specific interest accrual logic (generic accrual preserved)
+- [x] Removed AHP entries from GL-only categories
+- [x] Migration: `DROP TABLE ahp_loan_config` (account 2500 kept)
+- [x] Updated copilot knowledge files
+- [x] TypeScript: 0 errors
+- [x] All existing tests pass
+
+### Session 6: 2026-02-27 (Phase 7 — UI Terminology)
+
+**Completed:**
+- [x] Phase 7 full implementation — 28 files updated
+- [x] "Fund" → "Funding Source" across transaction, expense, PO, ramp, revenue, budget, prepaid, report, vendor, and staging forms
+- [x] Added "funding-source" glossary entry to help terms
+- [x] Updated copilot contexts for terminology consistency
+- [x] Preserved correct accounting terms: General Fund, Fund Balance, Fund Accounting, Fund Allocation, Fund-Level P&L
+
+### Session 7: 2026-02-28 (Phase 8 — Loan GL + Interest Rates + Amortization Report)
+
+**Completed:**
+- [x] Phase 8 full implementation — all 18 tasks
+- [x] 3 new GL functions: `recordLoanProceeds`, `recordLoanRepayment`, `recordLoanInterestPayment`
+- [x] GL routing: Cash↔Loan Payable (2500) for proceeds/repayment, Interest Expense (5100) for interest
+- [x] New `funding_source_rate_history` table with migration (`0020_funding_source_rate_history.sql`)
+- [x] Rate change modal on funding source detail page
+- [x] Rate history timeline on detail page
+- [x] Loan operations UI: 3-card grid (proceeds, repayment, interest) on detail page
+- [x] `getEffectiveRate()` — fund-specific rate lookup from history table
+- [x] Auto-seed initial rate history entry on loan creation
+- [x] Auto-record loan proceeds GL on creation
+- [x] Amortization Schedule report: `/reports/amortization-schedule` with loan selector
+- [x] API route: `/api/reports/amortization-schedule?fundId=`
+- [x] Added to REPORT_DEFINITIONS (28 available reports total)
+- [x] 4 new validators: `loanProceedsSchema`, `loanRepaymentSchema`, `loanInterestPaymentSchema`, `loanRateChangeSchema`
+- [x] TypeScript: 0 errors
+- [x] Schema tests: 35/35 pass
+- [x] Report tests: 36/36 pass
+
+**Status:** All 8 phases complete. Revenue Classification & Funding Source Taxonomy plan is DONE.

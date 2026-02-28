@@ -165,6 +165,8 @@ export const REPORT_DEFINITIONS: ReportCardDef[] = [
   { slug: 'w2-verification', title: 'W-2 Verification', description: 'Pre-filing W-2 data verification against payroll records', category: 'payroll', isAvailable: true },
   { slug: 'employer-payroll-cost', title: 'Employer Payroll Cost', description: 'Total employer cost per employee including benefits and taxes', category: 'payroll', isAvailable: true },
   { slug: 'quarterly-tax-prep', title: 'Quarterly Tax Prep', description: 'Quarterly 941/M-941 data for tax filing preparation', category: 'payroll', isAvailable: true },
+  // Phase 8: Loan Reports
+  { slug: 'amortization-schedule', title: 'Amortization Schedule', description: 'Projected payment schedule for loan funding sources with principal and interest breakdown', category: 'fund', isAvailable: true },
   // Future reports (Coming Soon)
   { slug: 'trial-balance', title: 'Trial Balance', description: 'Full chart of accounts with debit/credit balances', category: 'core', isAvailable: false },
   { slug: 'general-ledger-detail', title: 'General Ledger Detail', description: 'Transaction-level detail by account and date range', category: 'core', isAvailable: false },

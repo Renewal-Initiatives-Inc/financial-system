@@ -28,8 +28,12 @@ import {
   recognizeConditionalFundRevenue,
   createArInvoice,
   recordArInvoicePayment,
+  recordLoanProceedsAction,
+  recordLoanRepaymentAction,
+  recordLoanInterestPaymentAction,
+  recordLoanRateChange,
 } from '../../actions'
-import type { FundDetail, ArInvoiceRow } from '../../actions'
+import type { FundDetail, ArInvoiceRow, RateHistoryRow } from '../../actions'
 import { toast } from 'sonner'
 
 function formatCurrency(value: string | null): string {
@@ -60,9 +64,10 @@ interface Props {
     createdAt: Date
   }>
   arInvoices: ArInvoiceRow[]
+  rateHistory: RateHistoryRow[]
 }
 
-export function FundingSourceDetailClient({ source, transactions, arInvoices }: Props) {
+export function FundingSourceDetailClient({ source, transactions, arInvoices, rateHistory }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [isEditing, setIsEditing] = useState(false)
@@ -93,11 +98,34 @@ export function FundingSourceDetailClient({ source, transactions, arInvoices }: 
     new Date().toISOString().split('T')[0]
   )
 
+  // Loan state
+  const [loanProceedsAmount, setLoanProceedsAmount] = useState('')
+  const [loanProceedsDate, setLoanProceedsDate] = useState(
+    new Date().toISOString().split('T')[0]
+  )
+  const [repaymentAmount, setRepaymentAmount] = useState('')
+  const [repaymentDate, setRepaymentDate] = useState(
+    new Date().toISOString().split('T')[0]
+  )
+  const [repaymentNote, setRepaymentNote] = useState('')
+  const [interestAmount, setInterestAmount] = useState('')
+  const [interestDate, setInterestDate] = useState(
+    new Date().toISOString().split('T')[0]
+  )
+  // Rate change modal
+  const [isRateChangeOpen, setIsRateChangeOpen] = useState(false)
+  const [newRate, setNewRate] = useState('')
+  const [rateEffectiveDate, setRateEffectiveDate] = useState(
+    new Date().toISOString().split('T')[0]
+  )
+  const [rateReason, setRateReason] = useState('')
+
   const balance = parseFloat(source.balance)
   const hasNonZeroBalance = Math.abs(balance) >= 0.005
   const isRestricted = source.restrictionType === 'RESTRICTED'
   const isGrantOrContract =
     source.fundingCategory === 'GRANT' || source.fundingCategory === 'CONTRACT'
+  const isLoan = source.fundingCategory === 'LOAN'
   const hasCategory = !!source.fundingCategory
 
   // Close-out approach warnings
@@ -222,6 +250,83 @@ export function FundingSourceDetailClient({ source, transactions, arInvoices }: 
         router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to recognize revenue')
+      }
+    })
+  }
+
+  const handleLoanProceeds = () => {
+    startTransition(async () => {
+      try {
+        await recordLoanProceedsAction(
+          { fundId: source.id, amount: loanProceedsAmount, date: loanProceedsDate },
+          'system'
+        )
+        toast.success('Loan proceeds recorded')
+        setLoanProceedsAmount('')
+        router.refresh()
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Failed to record proceeds')
+      }
+    })
+  }
+
+  const handleLoanRepayment = () => {
+    startTransition(async () => {
+      try {
+        await recordLoanRepaymentAction(
+          {
+            fundId: source.id,
+            amount: repaymentAmount,
+            date: repaymentDate,
+            note: repaymentNote,
+          },
+          'system'
+        )
+        toast.success('Loan repayment recorded')
+        setRepaymentAmount('')
+        setRepaymentNote('')
+        router.refresh()
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Failed to record repayment')
+      }
+    })
+  }
+
+  const handleInterestPayment = () => {
+    startTransition(async () => {
+      try {
+        await recordLoanInterestPaymentAction(
+          { fundId: source.id, amount: interestAmount, date: interestDate },
+          'system'
+        )
+        toast.success('Interest payment recorded')
+        setInterestAmount('')
+        router.refresh()
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Failed to record interest payment')
+      }
+    })
+  }
+
+  const handleRateChange = () => {
+    startTransition(async () => {
+      try {
+        await recordLoanRateChange(
+          {
+            fundId: source.id,
+            rate: newRate,
+            effectiveDate: rateEffectiveDate,
+            reason: rateReason,
+          },
+          'system'
+        )
+        toast.success('Rate change recorded')
+        setIsRateChangeOpen(false)
+        setNewRate('')
+        setRateReason('')
+        router.refresh()
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Failed to record rate change')
       }
     })
   }
@@ -428,6 +533,70 @@ export function FundingSourceDetailClient({ source, transactions, arInvoices }: 
                 </Badge>
               </div>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Loan Details (LOAN category) */}
+      {isLoan && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              Loan Details
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsRateChangeOpen(true)}
+                data-testid="loan-rate-change-btn"
+              >
+                Change Rate
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label className="text-muted-foreground">Current Interest Rate</Label>
+              <p className="text-lg font-medium">
+                {source.interestRate
+                  ? `${(parseFloat(source.interestRate) * 100).toFixed(2)}%`
+                  : '-'}
+              </p>
+            </div>
+            <div>
+              <Label className="text-muted-foreground">Principal Amount</Label>
+              <p className="text-lg font-medium">{formatCurrency(source.amount)}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Rate History (LOAN category) */}
+      {isLoan && rateHistory.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Rate History</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {rateHistory.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="flex justify-between text-sm border-b pb-2"
+                >
+                  <div>
+                    <span className="font-medium">
+                      {(parseFloat(entry.rate) * 100).toFixed(2)}%
+                    </span>
+                    <span className="ml-2 text-muted-foreground">
+                      — {entry.reason}
+                    </span>
+                  </div>
+                  <span className="text-muted-foreground">
+                    Effective {formatDate(entry.effectiveDate)}
+                  </span>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -810,6 +979,125 @@ export function FundingSourceDetailClient({ source, transactions, arInvoices }: 
         </Card>
       )}
 
+      {/* Loan Operations (LOAN category) */}
+      {isLoan && (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Record Loan Proceeds</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <Label>Amount</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={loanProceedsAmount}
+                  onChange={(e) => setLoanProceedsAmount(e.target.value)}
+                  data-testid="loan-proceeds-amount"
+                />
+              </div>
+              <div>
+                <Label>Date</Label>
+                <Input
+                  type="date"
+                  value={loanProceedsDate}
+                  onChange={(e) => setLoanProceedsDate(e.target.value)}
+                  data-testid="loan-proceeds-date"
+                />
+              </div>
+              <Button
+                onClick={handleLoanProceeds}
+                disabled={isPending || !loanProceedsAmount}
+                data-testid="loan-proceeds-submit"
+              >
+                {isPending ? 'Recording...' : 'Record Proceeds'}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Record Repayment</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <Label>Amount (Principal)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={repaymentAmount}
+                  onChange={(e) => setRepaymentAmount(e.target.value)}
+                  data-testid="loan-repayment-amount"
+                />
+              </div>
+              <div>
+                <Label>Date</Label>
+                <Input
+                  type="date"
+                  value={repaymentDate}
+                  onChange={(e) => setRepaymentDate(e.target.value)}
+                  data-testid="loan-repayment-date"
+                />
+              </div>
+              <div>
+                <Label>Note</Label>
+                <Textarea
+                  value={repaymentNote}
+                  onChange={(e) => setRepaymentNote(e.target.value)}
+                  placeholder="Describe repayment"
+                  data-testid="loan-repayment-note"
+                />
+              </div>
+              <Button
+                onClick={handleLoanRepayment}
+                disabled={isPending || !repaymentAmount || !repaymentNote.trim()}
+                data-testid="loan-repayment-submit"
+              >
+                {isPending ? 'Recording...' : 'Record Repayment'}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Record Interest Payment</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <Label>Amount</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={interestAmount}
+                  onChange={(e) => setInterestAmount(e.target.value)}
+                  data-testid="loan-interest-amount"
+                />
+              </div>
+              <div>
+                <Label>Date</Label>
+                <Input
+                  type="date"
+                  value={interestDate}
+                  onChange={(e) => setInterestDate(e.target.value)}
+                  data-testid="loan-interest-date"
+                />
+              </div>
+              <Button
+                onClick={handleInterestPayment}
+                disabled={isPending || !interestAmount}
+                data-testid="loan-interest-submit"
+              >
+                {isPending ? 'Recording...' : 'Record Interest'}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Active Status */}
       <Card>
         <CardHeader>
@@ -842,6 +1130,70 @@ export function FundingSourceDetailClient({ source, transactions, arInvoices }: 
           )}
         </CardContent>
       </Card>
+
+      {/* Rate Change Modal */}
+      <Dialog open={isRateChangeOpen} onOpenChange={setIsRateChangeOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Interest Rate</DialogTitle>
+            <DialogDescription>
+              Record a new interest rate for <strong>{source.name}</strong>.
+              {source.interestRate && (
+                <> Current rate: {(parseFloat(source.interestRate) * 100).toFixed(2)}%</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label>New Rate (as decimal, e.g. 0.0525 = 5.25%)</Label>
+              <Input
+                value={newRate}
+                onChange={(e) => setNewRate(e.target.value)}
+                placeholder="0.0525"
+                data-testid="rate-change-rate"
+              />
+              {newRate && !isNaN(parseFloat(newRate)) && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  = {(parseFloat(newRate) * 100).toFixed(2)}%
+                </p>
+              )}
+            </div>
+            <div>
+              <Label>Effective Date</Label>
+              <Input
+                type="date"
+                value={rateEffectiveDate}
+                onChange={(e) => setRateEffectiveDate(e.target.value)}
+                data-testid="rate-change-date"
+              />
+            </div>
+            <div>
+              <Label>Reason</Label>
+              <Textarea
+                value={rateReason}
+                onChange={(e) => setRateReason(e.target.value)}
+                placeholder="e.g. Annual rate adjustment per lender notice"
+                data-testid="rate-change-reason"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsRateChangeOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleRateChange}
+              disabled={isPending || !newRate || !rateReason.trim()}
+              data-testid="rate-change-submit"
+            >
+              {isPending ? 'Saving...' : 'Save Rate Change'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Deactivation Confirmation */}
       <Dialog open={isConfirmDeactivateOpen} onOpenChange={setIsConfirmDeactivateOpen}>
