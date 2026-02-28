@@ -43,7 +43,7 @@ export const helpTerms: Record<string, string> = {
     'A hierarchical grouping account that contains sub-accounts. For example, the CIP parent account contains sub-accounts for Hard Costs, Soft Costs, etc.',
 
   'sub-type':
-    'A secondary classification within an account type. For example, Asset accounts may have sub-types like Cash, Current Asset, Fixed Asset, or CIP.',
+    'A secondary classification within an account type. For example, Asset accounts may have sub-types like Cash, Receivable, Prepaid, or Fixed Asset.',
 
   deactivation:
     'Soft-delete pattern used instead of deletion. Deactivated accounts/funds are hidden from selection dropdowns but preserved for historical reporting (INV-013).',
@@ -333,6 +333,41 @@ export const helpTerms: Record<string, string> = {
 
   'ramp-settlement':
     'When Ramp autopay settles, the bank debit should match the sum of categorized Ramp transactions for that period. The cross-check highlights any discrepancies between settlement amounts and posted GL entries.',
+
+  // --- Funding Source Creation ---
+
+  'funding-category':
+    'How this funding source is structured: Grant (no direct value returned to funder, ASC 958), Contract (value exchanged for payment, ASC 606), or Loan (debt instrument creating a liability).',
+
+  'grant-conditional':
+    'Conditional: revenue recognized only when measurable barriers are met (e.g., spending requirements, program milestones). Unconditional: revenue recognized immediately at award because there are no donor-imposed barriers.',
+
+  'funding-source-funder':
+    'The organization providing funds — a granting agency, contracting party, or lender. Must exist as a Vendor first.',
+
+  'funding-source-amount':
+    'Total award amount for grants/contracts, or principal amount for loans. Used for budget tracking and compliance monitoring.',
+
+  'reporting-frequency':
+    'How often reports are due to the funder. Creates recurring deadlines in the compliance calendar so nothing is missed.',
+
+  'funding-start-date':
+    'When the grant period, contract term, or loan begins. Used for compliance calendar scheduling.',
+
+  'funding-end-date':
+    'When the grant period, contract term, or loan matures. Triggers close-out reminders in the compliance calendar.',
+
+  'match-requirement':
+    'Percentage of grant funds the organization must match with its own resources. Common in government grants (e.g., 10% match = organization contributes $1 for every $9 of grant funds).',
+
+  'retainage-percent':
+    'Percentage of grant funds withheld by the funder until final reporting is complete. Released after close-out requirements are satisfied.',
+
+  'interest-rate':
+    'Annual interest rate on the loan. Used for monthly interest accrual calculations (DR Interest Expense or CIP Interest, CR Accrued Interest).',
+
+  'revenue-classification':
+    'Determines which GL revenue account is credited: Grant Revenue (4100) for contributions without exchange, or Earned Income (4300) for exchange transactions. AI recommends this from the contract text.',
 }
 
 /** Get a help term by its slug. Returns undefined for unknown terms. */

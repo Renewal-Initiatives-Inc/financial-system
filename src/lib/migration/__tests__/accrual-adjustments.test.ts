@@ -15,12 +15,11 @@ const accountLookup: AccountLookup = new Map([
   ['2520', 10], // Accrued Interest Payable
   ['4000', 13], // Rental Income
   ['5410', 18], // Property Insurance
-  ['5600', 20], // Other Operating Costs
+  ['5600', 20], // Admin Operating Costs
 ])
 
 const fundLookup: FundLookup = new Map([
   ['General Fund', 1],
-  ['AHP Fund', 2],
   ['CPA Fund', 3],
 ])
 
@@ -127,7 +126,7 @@ describe('generateAccrualAdjustments', () => {
 
     // DR Expense account
     const debitLine = reimb!.glInput.lines.find((l) => l.debit)
-    expect(debitLine!.accountId).toBe(20) // Other Operating Costs (5600)
+    expect(debitLine!.accountId).toBe(20) // Admin Operating Costs (5600)
     expect(debitLine!.debit).toBe(4472)
 
     // CR Reimbursements Payable
@@ -179,15 +178,15 @@ describe('generateAccrualAdjustments', () => {
     expect(ahp).toBeDefined()
     expect(ahp!.amount).toBeCloseTo(164.38, 2)
 
-    // DR CIP - Construction Interest (AHP Fund)
+    // DR CIP - Construction Interest (General Fund — AHP proceeds unrestricted)
     const debitLine = ahp!.glInput.lines.find((l) => l.debit)
     expect(debitLine!.accountId).toBe(7) // CIP - Construction Interest (1550)
-    expect(debitLine!.fundId).toBe(2) // AHP Fund
+    expect(debitLine!.fundId).toBe(1) // General Fund
 
-    // CR Accrued Interest Payable (AHP Fund)
+    // CR Accrued Interest Payable (General Fund)
     const creditLine = ahp!.glInput.lines.find((l) => l.credit)
     expect(creditLine!.accountId).toBe(10) // Accrued Interest Payable (2520)
-    expect(creditLine!.fundId).toBe(2) // AHP Fund
+    expect(creditLine!.fundId).toBe(1) // General Fund
   })
 
   it('all adjustments use FY25_IMPORT source type', async () => {

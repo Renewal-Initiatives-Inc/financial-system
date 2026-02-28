@@ -86,7 +86,7 @@ export function PrepaidClient({
     (a) => a.subType && ['Operating', 'Property Ops', 'Financial', 'Non-Cash', 'Payroll'].includes(a.subType)
   )
   const prepaidAccounts = accountOptions.filter(
-    (a) => a.code === '1200' || a.subType === 'Current Asset'
+    (a) => a.code === '1200' || a.subType === 'Prepaid'
   )
 
   // Default prepaid account to 1200

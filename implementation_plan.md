@@ -671,27 +671,39 @@ These help Claude Code answer questions about RI's tax status, validate design d
 
 ## 22. Phase 20: FY25 Migration & Data Import
 
-**Goal:** Import all FY25 transactions from QBO and generate accrual-basis opening balances.
+**Goal:** Import all FY25 transactions from QBO through **December 31, 2025** and generate accrual-basis opening balances via a combined single-pass review.
+
+**Status:** Import tooling built and tested. QBO export in progress. Heather review session scheduled ~3 days from 2026-02-27.
+
+**Key decisions from Heather Sessions 1–2 (2026-02-27):**
+- **Cutoff date:** December 31, 2025. QBO reconciled through this date (completed 2026-01-10).
+- **Bank accounts:** UMass Five checking, UMass Five savings, Ramp credit card. No PayPal, no petty cash.
+- **QBO Classes:** Ignored/stripped during import. Heather abandoned Classes (originally for Program/Property/Farming/Training bucketing; FVC partnership eliminated need for farming/training tracking; program and property collapsed to same thing).
+- **AHP Fund:** Folds into General Fund. Board confirmed no separate restricted fund or reporting requirement for AHP loan proceeds.
+- **Parallel run:** Heather will enter in both QBO and the new system for Jan–Feb 2026+ until comfortable. Low transaction volume makes this feasible.
+- **Combined review approach:** Transaction mapping (Session 2) and cash→accrual conversion (Session 3) merged into a single pass. Claude presents each transaction with GL mapping recommendation AND flags any accrual implications simultaneously.
+- **No known problem transactions** before 12/31/2025.
 
 **Tasks:**
 
-1. Build QBO CSV import script (`src/lib/migration/qbo-import.ts`): parse QBO CSV export format, map QBO account names to seed chart of accounts, map QBO categories to funds. Flag all imported transactions with source_type = FY25_IMPORT (SYS-P0-011)
+1. Build QBO CSV import script (`src/lib/migration/qbo-import.ts`): parse QBO CSV export format, map QBO account names to seed chart of accounts, map QBO categories to funds. Strip QBO Class data (confirmed irrelevant). Flag all imported transactions with source_type = FY25_IMPORT (SYS-P0-011)
 2. Implement import validation: for each transaction, verify debits = credits (INV-001), verify valid account references, verify valid fund references. Reject invalid rows with descriptive errors. Collect all errors before failing (batch validation)
 3. Implement rollback on failure: entire import runs in a single database transaction. Any validation failure rolls back all imported data
-4. Build accrual-basis adjustment generator (SYS-P0-012): identify timing differences and generate adjustment entries:
+4. Build combined review mode: per-transaction presentation where Claude maps the GL account/fund, deconflicts against Plaid and Ramp API data already in the DB, and flags accrual implications — all in one pass. Accrual adjustments posted as of 12/31/2025 with `sourceType = 'ACCRUAL_CONVERSION'`
+5. Known FY25 accrual adjustments (from prior analysis):
     - Prepaid insurance: $501 (DR Prepaid Expenses, CR Insurance Expense)
-    - Accrued reimbursements: $4,472 to Heather (DR Expense account, CR Reimbursements Payable)
-    - December rent AR (DR Accounts Receivable, CR Rental Income)
-    - Accrued AHP loan interest (calculated from last payment date to period end)
-5. Generate conversion summary report: cash-basis ending balances → accrual-basis opening balances. Show each adjustment with explanation. Format for Jeff's review
-6. Build import verification queries: total debits = total credits across all imported data, account balances match expected QBO ending balances, fund balances are correct
-7. Run import against dev database first, verify, then staging, then production
-8. Build initial Plaid history sync: pull up to 24 months of bank transaction history. Start from $0 balance per D-102. Match historical bank transactions against imported GL data
-9. Document the import process: steps taken, account mapping table, adjustment rationale. This becomes the conversion audit trail
-10. Write unit tests: CSV parsing, account mapping, adjustment calculations
-11. This phase is run once — no E2E tests needed, but import script should be idempotent (can re-run after rollback)
+    - Accrued reimbursements: imported per-transaction (not as blob) to avoid double-counting
+    - December rent AR: $0 (no tenants yet, building under construction)
+    - AHP interest: $0 accrual ($100K drawn 11/18/2025 at 4.75%; $572.60 paid 12/19 covers through 12/31)
+6. Generate conversion summary report: cash-basis ending balances → accrual-basis opening balances. Show each adjustment with explanation. Format for Jeff's review
+7. Build import verification queries: total debits = total credits across all imported data, account balances match expected QBO ending balances, fund balances are correct
+8. Multi-source reconciliation: match QBO entries against `bank_transactions` (Plaid) and `ramp_transactions` (Ramp API) already in the DB. Code already implemented with `--from-db` flag.
+9. Run import against dev database first, verify, then staging, then production
+10. Document the import process: steps taken, account mapping table, adjustment rationale. This becomes the conversion audit trail
+11. Write unit tests: CSV parsing, account mapping, adjustment calculations
+12. This phase is run once — no E2E tests needed, but import script should be idempotent (can re-run after rollback)
 
-**Deliverable:** All FY25 transactions imported from QBO with accrual-basis adjustments. Conversion summary reviewed and approved. Bank history loaded and ready for reconciliation.
+**Deliverable:** All FY25 transactions through 12/31/2025 imported from QBO with accrual-basis adjustments (reviewed in single pass with Heather). Conversion summary reviewed and approved. Reconciliation against API-sourced bank/Ramp data verified.
 
 ---
 
@@ -737,7 +749,7 @@ These help Claude Code answer questions about RI's tax status, validate design d
 1. Configure production environment variables in Vercel: Neon production DB connection string, Plaid production credentials, Ramp API production key, Postmark API key, Anthropic API key, PEOPLE_ENCRYPTION_KEY, Zitadel OIDC credentials
 2. Run database migrations against production Neon DB
 3. Run seed scripts against production: chart of accounts, funds, CIP cost codes, compliance deadlines
-4. Run FY25 import against production (if not already done in Phase 20)
+4. Run FY25 import against production (cutoff: 12/31/2025; combined transaction review + accrual conversion with Heather)
 5. Configure Plaid production access: connect UMass Five checking and savings accounts. Run initial history sync
 6. Configure Ramp production API: verify daily sync pulls live transactions
 7. Verify Postmark production: send test donor acknowledgment letter, verify formatting with Heather's signature and letterhead
@@ -800,7 +812,7 @@ Phase 22 (Deployment)             ── depends on: Phase 21
 | **Ramp API integration.** API docs and auth patterns to be determined at build time. Refund handling and edge cases unknown. | Medium | Build with abstraction layer. Start with basic transaction sync, iterate on edge cases. Categorization queue handles any unexpected data gracefully (falls to manual review). |
 | **Cross-Neon-project database connectivity.** Integration pattern decided, but Neon-specific mechanics (cross-project connection strings vs co-location) determined at build time. | Medium | Test connectivity early in Phase 2. If cross-project connections don't work cleanly, fall back to co-locating databases in a single Neon project. The application code is identical either way. |
 | **macOS dev → Linux production (Vercel).** No containers. Potential for platform-specific behavior differences. | Low | CI runs on Linux (GitHub Actions) to catch issues before production. Node.js and Next.js are fully portable. Playwright tests run on both platforms. Main risk area: native dependencies (unlikely given the pure-JS stack). Flag and investigate any CI-only failures immediately. |
-| **FY25 migration data quality.** QBO CSV export may have inconsistencies, unmapped accounts, or missing fund coding. | Medium | Build validation-first: reject invalid rows with descriptive errors. Map accounts manually before running import. Run against dev DB first, review conversion summary, iterate. Keep QBO active as fallback until migration verified. |
+| **FY25 migration data quality.** QBO CSV export may have inconsistencies, unmapped accounts, or missing fund coding. | Medium | Build validation-first: reject invalid rows with descriptive errors. Map accounts manually before running import. Run against dev DB first, review conversion summary, iterate. QBO Classes stripped (confirmed irrelevant by Heather). Parallel run period (Jan-Feb 2026+) provides ongoing cross-check. |
 | **29 reports at launch.** Large surface area. Risk of report bugs or performance issues discovered late. | Medium | Build reports in two batches (Phases 15-16). Use shared query/formatter infrastructure to reduce per-report effort. Prioritize core financial statements (Reports 1-4) for early user validation. |
 | **AI copilot context quality.** Copilot usefulness depends on context package quality and tax knowledge corpus accuracy. Poor context = poor answers. Stale tax law = dangerous answers. | Low | Start with minimal context packages, iterate based on usage. The copilot is additive — the system works without it. Context packages are easy to update (just data/tools/knowledge arrays). Tax knowledge corpus sourced exclusively from primary authorities (IRC, Treasury Regs via eCFR API, IRS publications). Copilot responses always include source citations so users can verify. eCFR API provides point-in-time access to current regulations. Annual review of IRS publication updates (especially Pub 15-T withholding tables, Pub 946 depreciation) when new tax year guidance is released. |
 | **Vercel cron job limits.** Multiple scheduled jobs (Plaid, Ramp, depreciation, interest, rent, amortization, compliance). Vercel hobby plan has cron limitations. | Low | Consolidate cron jobs where possible (e.g., single daily job handles Plaid + Ramp + compliance checks). Verify plan limits early. Upgrade Vercel plan if needed — cost is minimal for this scale. |

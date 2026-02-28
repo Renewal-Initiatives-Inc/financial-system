@@ -92,6 +92,17 @@ export const depreciationMethodEnum = pgEnum('depreciation_method', [
   'STRAIGHT_LINE',
 ])
 
+export const revenueClassificationEnum = pgEnum('revenue_classification', [
+  'GRANT_REVENUE',
+  'EARNED_INCOME',
+])
+
+export const fundingCategoryEnum = pgEnum('funding_category', [
+  'GRANT',
+  'CONTRACT',
+  'LOAN',
+])
+
 export const fundingTypeEnum = pgEnum('funding_type', [
   'CONDITIONAL',
   'UNCONDITIONAL',
@@ -164,4 +175,10 @@ export const reconciliationStatusEnum = pgEnum('reconciliation_status', [
 export const bankTransactionStatusEnum = pgEnum('bank_transaction_status', [
   'pending',
   'posted',
+])
+
+export const importReviewStatusEnum = pgEnum('import_review_status', [
+  'pending',
+  'approved',
+  'skipped',
 ])

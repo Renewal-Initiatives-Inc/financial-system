@@ -14,13 +14,12 @@ const accountLookup: AccountLookup = new Map([
   ['4100', 7],  // Grant Revenue
   ['5410', 8],  // Property Insurance
   ['5500', 9],  // Utilities - Electric
-  ['5600', 10], // Other Operating Costs
+  ['5600', 10], // Admin Operating Costs
 ])
 
 const fundLookup: FundLookup = new Map([
   ['General Fund', 1],
-  ['AHP Fund', 2],
-  ['CPA Fund', 3],
+  ['CPA Fund', 2],
 ])
 
 describe('buildGlTransaction', () => {
@@ -174,8 +173,8 @@ describe('buildGlTransaction', () => {
 
     const result = buildGlTransaction(qboTxn, accountLookup, fundLookup, 'system:fy25-import')
     expect(result.lines[0].fundId).toBe(1) // General
-    expect(result.lines[1].fundId).toBe(2) // AHP
-    expect(result.lines[2].fundId).toBe(3) // CPA
+    expect(result.lines[1].fundId).toBe(1) // AHP → General Fund (unrestricted)
+    expect(result.lines[2].fundId).toBe(2) // CPA
   })
 })
 

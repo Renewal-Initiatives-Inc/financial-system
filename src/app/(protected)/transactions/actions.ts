@@ -318,6 +318,8 @@ export async function getAccountsForSelector(): Promise<AccountRow[]> {
 }
 
 export async function getFundsForSelector(): Promise<FundRow[]> {
+  // Only show General Fund (system-locked) + restricted funds.
+  // Unrestricted user-created funding sources exist for tracking, not GL posting.
   const rows = await db
     .select({
       id: funds.id,
@@ -326,7 +328,12 @@ export async function getFundsForSelector(): Promise<FundRow[]> {
       isActive: funds.isActive,
     })
     .from(funds)
-    .where(eq(funds.isActive, true))
+    .where(
+      and(
+        eq(funds.isActive, true),
+        or(eq(funds.isSystemLocked, true), eq(funds.restrictionType, 'RESTRICTED'))
+      )
+    )
     .orderBy(funds.name)
 
   return rows

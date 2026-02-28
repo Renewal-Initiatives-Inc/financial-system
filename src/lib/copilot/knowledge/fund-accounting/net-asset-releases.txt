@@ -22,9 +22,9 @@ RI should use method 1 for clarity in fund tracking.
 
 PARTIAL RELEASES
 If a restricted fund is partially spent, release only the amount that satisfies the restriction:
-- Example: $500K AHP grant received. $200K spent on construction in FY2025.
-- Release $200K from restricted to unrestricted.
-- $300K remains in restricted net assets.
+- Example: $250K CPA grant received. $100K spent on construction in FY2025.
+- Release $100K from restricted to unrestricted.
+- $150K remains in restricted net assets.
 
 MULTI-FUND RESTRICTIONS
 Some grants have multiple conditions/restrictions:
@@ -39,4 +39,4 @@ FORM 990 REPORTING
 - Balance Sheet (Part X): Net assets without donor restrictions (Line 27), with donor restrictions (Line 28)
 
 RI-SPECIFIC CONTEXT
-RI's primary release event is construction completion/PIS date. When the property is placed in service, restricted construction funds (AHP, CPA, MassDev) are released to unrestricted. The GL engine handles this with automatic release journal entries triggered by the PIS date posting.
+RI's primary release event is construction completion/PIS date. When the property is placed in service, restricted construction funds (CPA, MassDev, HTC Equity, MassSave) are released to unrestricted. The GL engine handles this with automatic release journal entries triggered by the PIS date posting. Note: AHP loan proceeds are unrestricted (board resolution 2026-02) and do not require net asset release entries.

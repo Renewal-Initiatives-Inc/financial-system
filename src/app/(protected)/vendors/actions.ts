@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { eq, ilike, and, sql, inArray } from 'drizzle-orm'
+import { eq, ilike, and, sql, inArray, or } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { vendors, accounts, funds, invoices } from '@/lib/db/schema'
 import {
@@ -301,9 +301,16 @@ export async function getAccountOptions(): Promise<
 export async function getFundOptions(): Promise<
   { id: number; name: string }[]
 > {
+  // Only show General Fund (system-locked) + restricted funds.
+  // Unrestricted user-created funding sources exist for tracking, not GL posting.
   return db
     .select({ id: funds.id, name: funds.name })
     .from(funds)
-    .where(eq(funds.isActive, true))
+    .where(
+      and(
+        eq(funds.isActive, true),
+        or(eq(funds.isSystemLocked, true), eq(funds.restrictionType, 'RESTRICTED'))
+      )
+    )
     .orderBy(funds.name)
 }

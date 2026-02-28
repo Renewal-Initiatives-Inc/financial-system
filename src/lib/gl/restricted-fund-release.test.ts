@@ -108,10 +108,10 @@ describe('detectRestrictedFundExpenses', () => {
 
   it('creates separate release pairs for different restricted funds', () => {
     const expenseAccount = makeAccount({ id: 1, type: 'EXPENSE' })
-    const ahpFund = makeFund({
+    const massDev = makeFund({
       id: 10,
       restrictionType: 'RESTRICTED',
-      name: 'AHP',
+      name: 'MassDev',
     })
     const cpaFund = makeFund({
       id: 11,
@@ -121,7 +121,7 @@ describe('detectRestrictedFundExpenses', () => {
 
     const accountMap = new Map([[1, expenseAccount]])
     const fundMap = new Map([
-      [10, ahpFund],
+      [10, massDev],
       [11, cpaFund],
     ])
 

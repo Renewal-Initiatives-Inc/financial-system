@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { eq, and, or } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { bankAccounts, accounts, funds } from '@/lib/db/schema'
 import { BankRecClient } from './bank-rec-client'
@@ -23,7 +23,12 @@ export default async function BankReconciliationPage() {
     db
       .select({ id: funds.id, name: funds.name })
       .from(funds)
-      .where(eq(funds.isActive, true))
+      .where(
+        and(
+          eq(funds.isActive, true),
+          or(eq(funds.isSystemLocked, true), eq(funds.restrictionType, 'RESTRICTED'))
+        )
+      )
       .orderBy(funds.name),
   ])
 

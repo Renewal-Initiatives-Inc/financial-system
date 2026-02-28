@@ -8,12 +8,24 @@
 
 import { eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { accounts } from '@/lib/db/schema'
+import { accounts, funds } from '@/lib/db/schema'
 import { createTransaction } from '@/lib/gl/engine'
 
 /**
+ * Resolve the revenue account code for a fund based on its classification.
+ * GRANT_REVENUE → 4100, EARNED_INCOME → 4300, fallback → 4100.
+ */
+async function getRevenueAccountCode(fundId: number): Promise<string> {
+  const [fund] = await db
+    .select({ revenueClassification: funds.revenueClassification })
+    .from(funds)
+    .where(eq(funds.id, fundId))
+  return fund?.revenueClassification === 'EARNED_INCOME' ? '4300' : '4100'
+}
+
+/**
  * Record an unconditional funding source.
- * GL: DR Grants Receivable (1110), CR Grant Revenue (4100) — coded to restricted fund.
+ * GL: DR Grants Receivable (1110), CR revenue account (4100 or 4300) — coded to restricted fund.
  */
 export async function recordUnconditionalFunding(
   fundId: number,
@@ -21,18 +33,19 @@ export async function recordUnconditionalFunding(
   date: string,
   userId: string
 ): Promise<{ transactionId: number }> {
+  const revenueCode = await getRevenueAccountCode(fundId)
   const [grantsReceivable] = await db
     .select()
     .from(accounts)
     .where(eq(accounts.code, '1110'))
-  const [grantRevenue] = await db
+  const [revenueAccount] = await db
     .select()
     .from(accounts)
-    .where(eq(accounts.code, '4100'))
+    .where(eq(accounts.code, revenueCode))
 
-  if (!grantsReceivable || !grantRevenue) {
+  if (!grantsReceivable || !revenueAccount) {
     throw new Error(
-      'Required accounts not found: Grants Receivable (1110) and/or Grant Revenue (4100)'
+      `Required accounts not found: Grants Receivable (1110) and/or Revenue (${revenueCode})`
     )
   }
 
@@ -50,7 +63,7 @@ export async function recordUnconditionalFunding(
         credit: null,
       },
       {
-        accountId: grantRevenue.id,
+        accountId: revenueAccount.id,
         fundId,
         debit: null,
         credit: amount,
@@ -164,7 +177,7 @@ export async function recordConditionalFundingCash(
 
 /**
  * Recognize revenue for a conditional funding source when conditions are met.
- * GL: DR Refundable Advance (2050), CR Grant Revenue (4100)
+ * GL: DR Refundable Advance (2050), CR revenue account (4100 or 4300)
  */
 export async function recognizeConditionalRevenue(
   fundId: number,
@@ -173,18 +186,19 @@ export async function recognizeConditionalRevenue(
   note: string,
   userId: string
 ): Promise<{ transactionId: number }> {
+  const revenueCode = await getRevenueAccountCode(fundId)
   const [refundableAdvance] = await db
     .select()
     .from(accounts)
     .where(eq(accounts.code, '2050'))
-  const [grantRevenue] = await db
+  const [revenueAccount] = await db
     .select()
     .from(accounts)
-    .where(eq(accounts.code, '4100'))
+    .where(eq(accounts.code, revenueCode))
 
-  if (!refundableAdvance || !grantRevenue) {
+  if (!refundableAdvance || !revenueAccount) {
     throw new Error(
-      'Required accounts not found: Refundable Advance (2050) and/or Grant Revenue (4100)'
+      `Required accounts not found: Refundable Advance (2050) and/or Revenue (${revenueCode})`
     )
   }
 
@@ -202,7 +216,7 @@ export async function recognizeConditionalRevenue(
         credit: null,
       },
       {
-        accountId: grantRevenue.id,
+        accountId: revenueAccount.id,
         fundId,
         debit: null,
         credit: amount,

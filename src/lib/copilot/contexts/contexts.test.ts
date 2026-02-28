@@ -2,14 +2,15 @@ import { describe, it, expect } from 'vitest'
 import { getContextForPage, getRegisteredPageIds } from './index'
 
 describe('Context packages', () => {
-  it('has 16 registered page IDs', () => {
+  it('has 17 registered page IDs', () => {
     const ids = getRegisteredPageIds()
-    expect(ids.length).toBe(16)
+    expect(ids.length).toBe(17)
     expect(ids).toContain('dashboard')
     expect(ids).toContain('accounts')
     expect(ids).toContain('funds')
     expect(ids).toContain('transactions')
     expect(ids).toContain('compliance')
+    expect(ids).toContain('migration-review')
   })
 
   it('each context returns valid CopilotContextPackage shape', () => {

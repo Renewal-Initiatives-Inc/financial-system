@@ -36,6 +36,7 @@ export * from './bank-matches'
 export * from './matching-rules'
 export * from './reconciliation-sessions'
 export * from './functional-allocations'
+export * from './import-review'
 
 // Re-import for relations definitions
 import { accounts } from './accounts'
@@ -70,6 +71,7 @@ import { bankMatches } from './bank-matches'
 import { matchingRules } from './matching-rules'
 import { reconciliationSessions } from './reconciliation-sessions'
 import { functionalAllocations } from './functional-allocations'
+import { importReviewItems } from './import-review'
 
 // --- Relations ---
 
@@ -509,6 +511,16 @@ export const functionalAllocationsRelations = relations(
     account: one(accounts, {
       fields: [functionalAllocations.accountId],
       references: [accounts.id],
+    }),
+  })
+)
+
+export const importReviewItemsRelations = relations(
+  importReviewItems,
+  ({ one }) => ({
+    glTransaction: one(transactions, {
+      fields: [importReviewItems.glTransactionId],
+      references: [transactions.id],
     }),
   })
 )

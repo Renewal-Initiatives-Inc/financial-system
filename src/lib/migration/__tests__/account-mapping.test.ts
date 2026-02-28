@@ -33,16 +33,15 @@ const mockAccountLookup: AccountLookup = new Map([
   ['5100', 17], // Interest Expense
   ['5410', 18], // Property Insurance
   ['5500', 19], // Utilities - Electric
-  ['5600', 20], // Other Operating Costs
+  ['5600', 20], // Admin Operating Costs
 ])
 
 const mockFundLookup: FundLookup = new Map([
   ['General Fund', 1],
-  ['AHP Fund', 2],
-  ['CPA Fund', 3],
-  ['MassDev Fund', 4],
-  ['HTC Equity Fund', 5],
-  ['MassSave Fund', 6],
+  ['CPA Fund', 2],
+  ['MassDev Fund', 3],
+  ['HTC Equity Fund', 4],
+  ['MassSave Fund', 5],
 ])
 
 describe('resolveAccountId', () => {
@@ -90,11 +89,11 @@ describe('resolveAccountId', () => {
 describe('resolveFundId', () => {
   it('resolves known class names to fund IDs', () => {
     expect(resolveFundId('General', mockFundLookup)).toBe(1)
-    expect(resolveFundId('AHP', mockFundLookup)).toBe(2)
-    expect(resolveFundId('CPA', mockFundLookup)).toBe(3)
-    expect(resolveFundId('MassDev', mockFundLookup)).toBe(4)
-    expect(resolveFundId('HTC Equity', mockFundLookup)).toBe(5)
-    expect(resolveFundId('MassSave', mockFundLookup)).toBe(6)
+    expect(resolveFundId('AHP', mockFundLookup)).toBe(1) // AHP maps to General Fund (unrestricted per board resolution)
+    expect(resolveFundId('CPA', mockFundLookup)).toBe(2)
+    expect(resolveFundId('MassDev', mockFundLookup)).toBe(3)
+    expect(resolveFundId('HTC Equity', mockFundLookup)).toBe(4)
+    expect(resolveFundId('MassSave', mockFundLookup)).toBe(5)
   })
 
   it('defaults to General Fund when class is empty (D-024)', () => {
@@ -104,8 +103,8 @@ describe('resolveFundId', () => {
 
   it('resolves full fund names', () => {
     expect(resolveFundId('General Fund', mockFundLookup)).toBe(1)
-    expect(resolveFundId('AHP Fund', mockFundLookup)).toBe(2)
-    expect(resolveFundId('HTC Equity Fund', mockFundLookup)).toBe(5)
+    expect(resolveFundId('AHP Fund', mockFundLookup)).toBe(1) // AHP maps to General Fund
+    expect(resolveFundId('HTC Equity Fund', mockFundLookup)).toBe(4)
   })
 
   it('throws on unknown class name', () => {
@@ -173,14 +172,18 @@ describe('QBO_ACCOUNT_MAPPING completeness', () => {
 })
 
 describe('QBO_FUND_MAPPING completeness', () => {
-  it('maps all 6 funds', () => {
+  it('maps all 5 funds (AHP folded into General)', () => {
     const uniqueFundNames = new Set(Object.values(QBO_FUND_MAPPING))
-    expect(uniqueFundNames.size).toBe(6)
+    expect(uniqueFundNames.size).toBe(5)
     expect(uniqueFundNames).toContain('General Fund')
-    expect(uniqueFundNames).toContain('AHP Fund')
     expect(uniqueFundNames).toContain('CPA Fund')
     expect(uniqueFundNames).toContain('MassDev Fund')
     expect(uniqueFundNames).toContain('HTC Equity Fund')
     expect(uniqueFundNames).toContain('MassSave Fund')
+  })
+
+  it('maps AHP class names to General Fund', () => {
+    expect(QBO_FUND_MAPPING['AHP']).toBe('General Fund')
+    expect(QBO_FUND_MAPPING['AHP Fund']).toBe('General Fund')
   })
 })

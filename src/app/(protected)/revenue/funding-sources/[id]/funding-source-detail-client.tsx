@@ -96,6 +96,9 @@ export function FundingSourceDetailClient({ source, transactions, arInvoices }: 
   const balance = parseFloat(source.balance)
   const hasNonZeroBalance = Math.abs(balance) >= 0.005
   const isRestricted = source.restrictionType === 'RESTRICTED'
+  const isGrantOrContract =
+    source.fundingCategory === 'GRANT' || source.fundingCategory === 'CONTRACT'
+  const hasCategory = !!source.fundingCategory
 
   // Close-out approach warnings
   const daysUntilEnd = source.endDate
@@ -245,6 +248,24 @@ export function FundingSourceDetailClient({ source, transactions, arInvoices }: 
             )}
           </div>
           <div className="mt-1 flex items-center gap-2">
+            {source.fundingCategory && (
+              <Badge
+                variant="outline"
+                className={
+                  source.fundingCategory === 'GRANT'
+                    ? 'bg-purple-100 text-purple-800'
+                    : source.fundingCategory === 'CONTRACT'
+                      ? 'bg-blue-100 text-blue-800'
+                      : 'bg-orange-100 text-orange-800'
+                }
+              >
+                {source.fundingCategory === 'GRANT'
+                  ? 'Grant'
+                  : source.fundingCategory === 'CONTRACT'
+                    ? 'Contract'
+                    : 'Loan'}
+              </Badge>
+            )}
             <Badge
               variant="outline"
               className={
@@ -355,8 +376,8 @@ export function FundingSourceDetailClient({ source, transactions, arInvoices }: 
         </div>
       )}
 
-      {/* Funding Source Information (restricted only) */}
-      {isRestricted && (
+      {/* Funding Source Information */}
+      {hasCategory && (
         <Card>
           <CardHeader>
             <CardTitle>Funding Information</CardTitle>
@@ -406,6 +427,27 @@ export function FundingSourceDetailClient({ source, transactions, arInvoices }: 
                   Unusual Grant
                 </Badge>
               </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Revenue Classification (GRANT + CONTRACT categories) */}
+      {isGrantOrContract && source.revenueClassification && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Revenue Classification</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="font-medium">
+              {source.revenueClassification === 'GRANT_REVENUE'
+                ? 'Grant Revenue'
+                : 'Earned Income'}
+            </p>
+            {source.classificationRationale && (
+              <p className="text-sm text-muted-foreground mt-1">
+                {source.classificationRationale}
+              </p>
             )}
           </CardContent>
         </Card>
@@ -527,8 +569,8 @@ export function FundingSourceDetailClient({ source, transactions, arInvoices }: 
         </CardContent>
       </Card>
 
-      {/* Cash Receipt & Revenue Recognition (restricted only) */}
-      {isRestricted && source.type && (
+      {/* Cash Receipt & Revenue Recognition (GRANT + CONTRACT) */}
+      {isGrantOrContract && source.type && (
         <div className="grid gap-4 sm:grid-cols-2">
           <Card>
             <CardHeader>
@@ -617,8 +659,8 @@ export function FundingSourceDetailClient({ source, transactions, arInvoices }: 
         </div>
       )}
 
-      {/* AR Invoices (restricted funding sources only) */}
-      {isRestricted && (
+      {/* AR Invoices (GRANT + CONTRACT) */}
+      {isGrantOrContract && (
         <Card>
           <CardHeader>
             <CardTitle>AR Invoices</CardTitle>

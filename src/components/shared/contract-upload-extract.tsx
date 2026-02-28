@@ -15,6 +15,9 @@ export interface ContractExtractionData {
   extractedMilestones: string | null
   extractedTerms: string | null
   extractedCovenants: string | null
+  revenueClassification: 'GRANT_REVENUE' | 'EARNED_INCOME' | null
+  classificationRationale: string | null
+  fundingCategory: 'GRANT' | 'CONTRACT' | 'LOAN' | null
 }
 
 interface ContractUploadExtractProps {
@@ -42,12 +45,19 @@ export function ContractUploadExtract({
   const [termsOpen, setTermsOpen] = useState(false)
   const [covenantsOpen, setCovenantsOpen] = useState(false)
 
+  const [revenueClassification, setRevenueClassification] = useState<'GRANT_REVENUE' | 'EARNED_INCOME' | null>(null)
+  const [classificationRationale, setClassificationRationale] = useState<string | null>(null)
+  const [fundingCategory, setFundingCategory] = useState<'GRANT' | 'CONTRACT' | 'LOAN' | null>(null)
+
   const emitChange = (overrides: Partial<ContractExtractionData> = {}) => {
     onChange({
       contractPdfUrl: overrides.contractPdfUrl ?? contractPdfUrl,
       extractedMilestones: overrides.extractedMilestones ?? extractedMilestones,
       extractedTerms: overrides.extractedTerms ?? extractedTerms,
       extractedCovenants: overrides.extractedCovenants ?? extractedCovenants,
+      revenueClassification: overrides.revenueClassification ?? revenueClassification,
+      classificationRationale: overrides.classificationRationale ?? classificationRationale,
+      fundingCategory: overrides.fundingCategory ?? fundingCategory,
     })
   }
 
@@ -136,10 +146,20 @@ export function ContractUploadExtract({
         setCovenantsOpen(true)
       }
 
+      const newClassification = data.revenueClassification ?? null
+      const newRationale = data.classificationRationale ?? null
+      const newCategory = data.fundingCategory ?? null
+      if (newClassification) setRevenueClassification(newClassification)
+      if (newRationale) setClassificationRationale(newRationale)
+      if (newCategory) setFundingCategory(newCategory)
+
       emitChange({
         extractedMilestones: newMilestones,
         extractedTerms: newTerms,
         extractedCovenants: newCovenants,
+        revenueClassification: newClassification,
+        classificationRationale: newRationale,
+        fundingCategory: newCategory,
       })
 
       toast.success('Contract terms extracted')

@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { eq, and, sql, desc, inArray } from 'drizzle-orm'
+import { eq, and, sql, desc, inArray, or } from 'drizzle-orm'
 import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 import { db } from '@/lib/db'
 import {
@@ -764,6 +764,8 @@ export async function getExpenseAndCipAccounts(): Promise<
 export async function getActiveFunds(): Promise<
   { id: number; name: string; restrictionType: string }[]
 > {
+  // Only show General Fund (system-locked) + restricted funds.
+  // Unrestricted user-created funding sources exist for tracking, not GL posting.
   return db
     .select({
       id: funds.id,
@@ -771,7 +773,12 @@ export async function getActiveFunds(): Promise<
       restrictionType: funds.restrictionType,
     })
     .from(funds)
-    .where(eq(funds.isActive, true))
+    .where(
+      and(
+        eq(funds.isActive, true),
+        or(eq(funds.isSystemLocked, true), eq(funds.restrictionType, 'RESTRICTED'))
+      )
+    )
     .orderBy(funds.name)
 }
 

@@ -201,12 +201,14 @@ export async function generateAccrualAdjustments(
   }
 
   // ── d. Accrued AHP Loan Interest ──
+  // AHP loan proceeds are unrestricted (board resolution 2026-02), so interest
+  // accrues against General Fund. The loan itself remains as liability account 2500.
   if (options.ahpInterest) {
     const cipInterestId = accountLookup.get('1550') // CIP - Construction Interest
     const accruedInterestId = accountLookup.get('2520') // Accrued Interest Payable
-    const ahpFundId = fundLookup.get('AHP Fund')
+    const generalFundId = fundLookup.get('General Fund')
 
-    if (cipInterestId && accruedInterestId && ahpFundId) {
+    if (cipInterestId && accruedInterestId && generalFundId) {
       const interestAmount = calculateAhpInterest(options.ahpInterest)
 
       if (interestAmount > 0) {
@@ -218,8 +220,8 @@ export async function generateAccrualAdjustments(
           isSystemGenerated: false,
           createdBy,
           lines: [
-            { accountId: cipInterestId, fundId: ahpFundId, debit: interestAmount, credit: null },
-            { accountId: accruedInterestId, fundId: ahpFundId, debit: null, credit: interestAmount },
+            { accountId: cipInterestId, fundId: generalFundId, debit: interestAmount, credit: null },
+            { accountId: accruedInterestId, fundId: generalFundId, debit: null, credit: interestAmount },
           ],
         }
 
@@ -242,7 +244,7 @@ export async function generateAccrualAdjustments(
     } else {
       errors.push({
         name: 'AHP Interest Accrual',
-        message: `Missing: ${!cipInterestId ? 'CIP Interest (1550)' : ''} ${!accruedInterestId ? 'Accrued Interest (2520)' : ''} ${!ahpFundId ? 'AHP Fund' : ''}`.trim(),
+        message: `Missing: ${!cipInterestId ? 'CIP Interest (1550)' : ''} ${!accruedInterestId ? 'Accrued Interest (2520)' : ''} ${!generalFundId ? 'General Fund' : ''}`.trim(),
       })
     }
   }

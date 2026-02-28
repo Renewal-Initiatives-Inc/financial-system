@@ -58,7 +58,7 @@ describe('verifyFundBalance', () => {
     const db = createMockDb({
       funds: {
         rows: [{
-          fund_name: 'AHP Fund',
+          fund_name: 'CPA Fund',
           total_debits: '1000.00',
           total_credits: '900.00',
           difference: '100.00',
@@ -68,7 +68,7 @@ describe('verifyFundBalance', () => {
 
     const result = await verifyFundBalance(db as any)
     expect(result.passed).toBe(false)
-    expect(result.message).toContain('AHP Fund')
+    expect(result.message).toContain('CPA Fund')
   })
 })
 
@@ -174,12 +174,12 @@ describe('verifyRestrictedFundReleases', () => {
     const { verifyRestrictedFundReleases } = await import('../verification')
     const db = createMockDb({
       releases: {
-        rows: [{ txn_id: 10, fund_name: 'AHP Fund', amount: '500.00' }],
+        rows: [{ txn_id: 10, fund_name: 'CPA Fund', amount: '500.00' }],
       },
     })
 
     const result = await verifyRestrictedFundReleases(db as any)
     expect(result.passed).toBe(false)
-    expect(result.message).toContain('AHP Fund')
+    expect(result.message).toContain('CPA Fund')
   })
 })

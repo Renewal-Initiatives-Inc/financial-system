@@ -11,7 +11,7 @@ import {
   timestamp,
   varchar,
 } from 'drizzle-orm/pg-core'
-import { fundRestrictionEnum, fundingTypeEnum, fundingStatusEnum } from './enums'
+import { fundRestrictionEnum, fundingTypeEnum, fundingStatusEnum, revenueClassificationEnum, fundingCategoryEnum } from './enums'
 
 export const funds = pgTable(
   'funds',
@@ -22,7 +22,8 @@ export const funds = pgTable(
     isActive: boolean('is_active').notNull().default(true),
     description: text('description'),
     isSystemLocked: boolean('is_system_locked').notNull().default(false),
-    // Funding source fields (nullable — unrestricted funds don't need these)
+    fundingCategory: fundingCategoryEnum('funding_category'),
+    // Funding source fields (nullable — General Fund doesn't need these)
     funderId: integer('funder_id'), // FK → vendors.id (defined in migration SQL, avoids circular import)
     amount: numeric('amount', { precision: 15, scale: 2 }),
     type: fundingTypeEnum('type'),
@@ -35,12 +36,15 @@ export const funds = pgTable(
     extractedMilestones: jsonb('extracted_milestones'),
     extractedTerms: jsonb('extracted_terms'),
     extractedCovenants: jsonb('extracted_covenants'),
+    revenueClassification: revenueClassificationEnum('revenue_classification'),
+    classificationRationale: text('classification_rationale'),
     matchRequirementPercent: numeric('match_requirement_percent', {
       precision: 5,
       scale: 2,
     }),
     retainagePercent: numeric('retainage_percent', { precision: 5, scale: 2 }),
     reportingFrequency: varchar('reporting_frequency', { length: 50 }),
+    interestRate: numeric('interest_rate', { precision: 7, scale: 4 }),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },

@@ -40,7 +40,10 @@ When donors fund acquisition of long-lived assets without explicit time restrict
 
 RI-SPECIFIC CONTEXT
 Key restricted funds for RI:
-- AHP Grant Fund: government grant with purpose restriction (construction)
 - CPA Fund: government grant with purpose restriction (affordable housing)
 - MassDev Fund: government grant with purpose restriction (development)
+- HTC Equity Fund: historic tax credit equity with purpose restriction (historic preservation)
+- MassSave Fund: energy rebate funds for energy efficiency improvements
 Each fund tracks compliance with donor/grantor requirements. Net asset releases occur when construction milestones are met or the asset is placed in service.
+
+Note: AHP loan proceeds are unrestricted per board resolution (2026-02). The AHP loan is tracked as a liability (account 2500) under General Fund, not as a separate restricted fund.

@@ -13,7 +13,7 @@
 
 ---
 
-## Session 1 — "Where Does the Money Go?"
+## Session 1 — "Where Does the Money Go?" ***DONE***
 
 **Time:** ~30 minutes
 **Covers:** GL Account Review (#1), including fund mapping
@@ -33,25 +33,25 @@ Walk through 3-4 of the scenarios below. For each one, narrate what happens in t
 
 ### Pick 3-4 of these real-world examples
 
-1. **A donor mails a $500 check for general support.** Deposit it, record it. → General Fund, Donation Revenue. Does "Donation Revenue" match what she'd call it?
+1. **A donor mails a $500 check for general support.** Deposit it, record it. → General Fund, Donation Revenue. Does "Donation Revenue" match what she'd call it? &&&& YES
 
-2. **MassDev sends a quarterly grant disbursement.** Wire hits checking. → MassDev Fund, Grant Revenue. Does she think of grant money as "revenue" or something else?
+2. **MassDev sends a quarterly grant disbursement.** Wire hits checking. → MassDev Fund, Grant Revenue. Does she think of grant money as "revenue" or something else? &&&& YES. For 990, I think grants and service revenues have to be shown separately so let's make sure the accounting for those differences is in there. 
 
-3. **Heather buys printer paper on the Ramp card.** $47 at Staples. → General Fund, Office Supplies, classified as Admin. Does she agree it's Admin and not Program?
+3. **Heather buys printer paper on the Ramp card.** $47 at Staples. → General Fund, Office Supplies, classified as Admin. Does she agree it's Admin and not Program? &&&& In some cases, she might buy paper for marketing of a specific program so it's not "always" that we'd apply this expense to Admin, but it's highly likely in the general scenario that we would. And it's often enough that we could hard code that in. 
 
 4. **Tenant pays January rent for a CPA unit.** Check deposited. → CPA Fund, Rental Income. Is "Rental Income" the right label? Does she associate rent with the CPA fund?
 
-5. **Eversource bill arrives for a property.** $280. → Utilities Expense, allocated to the property's fund. Does she track utilities by property? By fund? Both?
+5. **Eversource bill arrives for a property.** $280. → Utilities Expense, allocated to the property's fund. Does she track utilities by property? By fund? Both? &&&& I don't see property as a "fund" it's more of a class or something -- I DO want to see revenues and expenses for that specific property. Each individual expense won't go to two different funds (no double dipping), but we'll want to be able to see the P&L for the property itself. QBO uses "classes" for this functionality and that's how I see it here. Utilities are expensable against the property, but may not map cleanly to any restricted funds. One potential wrinkle is that we currently have three property assets (barn, garage, home) but when it comes to looking at a P&L or allocating a utility expense to that asset, we're really just talking about one single asset (the property) and not "the garage" for instance. 
 
-6. **Payroll runs for an employee splitting 60% Program / 40% Admin.** → System splits salary expense across functional categories. Does she do this split today? Does the ratio feel right?
+6. **Payroll runs for an employee splitting 60% Program / 40% Admin.** → System splits salary expense across functional categories. Does she do this split today? Does the ratio feel right? &&&& For the next three years, we're pretty much donating our time if it's an Admin activity and only submitting timesheets and billing if the expense is to Programs. 
 
-7. **A contractor invoices $2,000 for property repair work.** Heather cuts a check. → Maintenance & Repairs expense under the relevant fund. Does she call it "Maintenance & Repairs" or something else?
+7. **A contractor invoices $2,000 for property repair work.** Heather cuts a check. → Maintenance & Repairs expense under the relevant fund. Does she call it "Maintenance & Repairs" or something else? &&&& That's fine as is. 
 
-8. **Someone donates furniture for a rental unit.** No cash changes hands. → In-Kind Donation at fair market value. Does she track in-kind today? Does she need guidance in the flow for estimating value?
+8. **Someone donates furniture for a rental unit.** No cash changes hands. → In-Kind Donation at fair market value. Does she track in-kind today? Does she need guidance in the flow for estimating value? &&&& I don't know. From what I've heard we need to track this. Would love some help estimating value IF that's something we need to do. I though donor was the one who had to estimate value. 
 
-9. **Annual insurance renewal — $3,600 paid upfront.** → Prepaid Expense that amortizes monthly. Does she think of this as one big January expense or a little one each month? (Good accrual teaching moment.)
+9. **Annual insurance renewal — $3,600 paid upfront.** → Prepaid Expense that amortizes monthly. Does she think of this as one big January expense or a little one each month? (Good accrual teaching moment.) &&&& Yes, do it a little each month. 
 
-10. **Jeff transfers $5,000 from savings to checking to cover payroll.** → Internal transfer — no revenue, no expense. Does she record transfers in QBO today, or let the bank statements sort it out?
+10. **Jeff transfers $5,000 from savings to checking to cover payroll.** → Internal transfer — no revenue, no expense. Does she record transfers in QBO today, or let the bank statements sort it out? &&&& I tag the incoming transaction as a "transfer" and during reconciliation, it all gets allocated across accounts then. 
 
 ### What to ask at the end
 
@@ -63,12 +63,12 @@ Walk through 3-4 of the scenarios below. For each one, narrate what happens in t
 
 ### Decisions to capture
 
-- [ ] Are there accounts missing that she needs for her workflows?
-- [ ] Are there accounts she thinks are unnecessary or confusing?
-- [ ] Does the account numbering scheme make sense to her?
-- [ ] Does she want hide/show or activate/deactivate on accounts in the UI?
-- [ ] Does she use QBO "Classes" consistently? Are there transactions with no class, or class names that don't match our fund names?
-- [ ] Any funds missing or funds that should be consolidated?
+- [ ] Are there accounts missing that she needs for her workflows? &&&& No, looks good. 
+- [ ] Are there accounts she thinks are unnecessary or confusing? &&&& No, looks good.
+- [ ] Does the account numbering scheme make sense to her? &&&& yes
+- [ ] Does she want hide/show or activate/deactivate on accounts in the UI? &&&& Didn't express an interest in that
+- [ ] Does she use QBO "Classes" consistently? Are there transactions with no class, or class names that don't match our fund names? She used classes but it didn't really work out as intended so we can ignore whatever comes from QBO "class". Originally we'd thought to track expenses and revenues by Program, Property, Farming, and Training, but then we're now partnered with someone else who is taking care of farming and training and program+property are essentially the same thing, we've found in our case, so ultimately we abandoned the use of classes and don't need to try and rescussitate it here. &&&& No, she started using classes to bucket different types of business we thought RI would be involved in, but subsequent negotiation with Farmer Veteran Coalition (FVC), a partner on this project clarified that they'd be handling the farming operations and training operations, so we don't need to account for those separately. The implication is that when building the QBO import and reconciliation process/script, we can ignore or strip any prior use of Classes from QBO. No need to preserve that even for posterity. 
+- [ ] Any funds missing or funds that should be consolidated? &&&& No, we talked about potentially collapsing some of the COA items and subitems but I think we're good for now. 
 
 ### ⚠️ Pre-session prerequisite: AHP Fund resolution
 
@@ -79,6 +79,11 @@ The AHP loan agreement (executed 2025-10-29) specifies proceeds are for "general
 - The only accounting basis for a separate "AHP Fund" would be a **board designation** — a voluntary internal tracking choice, not a GAAP requirement
 
 **Resolve before Session 1:** Confirm with the board whether they want a board-designated tracking bucket for AHP-related activity or whether it belongs in General Fund. Either answer is valid, but presenting it as a restricted fund alongside CPA/MassDev is misleading. If this isn't resolved, the fund discussion in Session 1 will get derailed.
+
+
+&&&& What is "Transition Reserve" and "Replacement Reserve" in COA Assets?
+&&&& We need a way to track operating costs that are not subclassified as Property Operations. 
+&&&& AHP funds will just fold into General Funds. Confirmed that the board accepts that we don't need a separate restricted fund nor reporting requirement for the AHP loan proceed use. 
 
 ---
 
@@ -103,7 +108,9 @@ Don't show her the import tool. Don't explain the technical migration process. S
 
 - "Are you current on bank rec in QBO, or are you behind? No judgment — I just need to know the timeline."
 - "Checking, savings, Ramp — are those the only accounts, or is there anything else? PayPal? Petty cash?"
-- "Any transactions in QBO you know are wrong — duplicates, miscategorized, things you've been meaning to fix?"
+- "Any transactions in QBO you know are wrong — duplicates, miscategorized, things you've been meaning to fix?" &&&& There are no transactions I'm concerned about before December 31st, 2025. We'd have to look at the new ones to confirm that over the past two months' time (current date is February 27, 2026). 
+
+&&&& February 28, 2026 is a great cutoff date. I'll do end of February and all the reconciliation. Heather would like to run both systems in parallel until we're comfortable. First, that will help us better identify quirks or bugs if we're running both in parallel. Second, there aren't a ton of transactions so it's not a huge bunch of work to run them both for a couple months. Heather is current on bank reconciliation through December 31, 2025 and that reconciliation was done January 10, 2026. Checking, savings, and ramp are the only three "bank transactions" accounts--no paypal, no petty cash. 
 
 ### Cutoff Date — what to ask
 

@@ -21,7 +21,7 @@ const mockSummaryData: ConversionSummaryData = {
   ],
   fundBalances: [
     { name: 'General Fund', restrictionType: 'UNRESTRICTED', totalDebits: 200000, totalCredits: 200000, netActivity: 0 },
-    { name: 'AHP Fund', restrictionType: 'RESTRICTED', totalDebits: 50000, totalCredits: 50000, netActivity: 0 },
+    { name: 'CPA Fund', restrictionType: 'RESTRICTED', totalDebits: 50000, totalCredits: 50000, netActivity: 0 },
   ],
   accrualAdjustments: [
     { name: 'Prepaid Insurance', description: 'DR Prepaid Expenses $501 / CR Property Insurance $501', amount: 501 },
@@ -71,7 +71,7 @@ describe('formatConversionSummary', () => {
 
     expect(output).toContain('General Fund')
     expect(output).toContain('UNRESTRICTED')
-    expect(output).toContain('AHP Fund')
+    expect(output).toContain('CPA Fund')
     expect(output).toContain('RESTRICTED')
   })
 

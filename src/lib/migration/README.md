@@ -59,18 +59,20 @@ See `account-mapping.ts` for the complete mapping including all aliases.
 
 ## Fund Mapping
 
-QBO classes map to our 6 seed funds.
+QBO classes map to our 5 seed funds. AHP loan proceeds are unrestricted per board
+resolution (2026-02), so AHP class maps to General Fund.
 
 | QBO Class | Our Fund |
 |-----------|----------|
 | General / (blank) | General Fund |
-| AHP | AHP Fund |
+| AHP | General Fund |
 | CPA | CPA Fund |
 | MassDev | MassDev Fund |
 | HTC / HTC Equity | HTC Equity Fund |
 | MassSave | MassSave Fund |
 
 Blank class defaults to General Fund per design decision D-024.
+QBO classes are stripped during import per Heather's guidance (classes were abandoned in QBO).
 
 ## Accrual Adjustments (SYS-P0-012)
 
@@ -86,7 +88,7 @@ Rationale: Insurance policy extends beyond FY25 end date.
 ### b. Accrued Reimbursements — SKIPPED
 The $4,472 reimbursement to Heather will be imported per-transaction (not as a blob)
 to avoid double-counting. The split is:
-- CIP Soft Costs: $1,875.58 → DR 1520 / AHP Fund
+- CIP Soft Costs: $1,875.58 → DR 1520 / General Fund
 - Organizational Costs: $1,174.50 → DR 5600 / General Fund
 - Operating Expenses: $1,421.88 → DR various / General Fund
 

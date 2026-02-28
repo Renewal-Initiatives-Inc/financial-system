@@ -3,23 +3,13 @@ import type { funds } from '@/lib/db/schema'
 type SeedFund = typeof funds.$inferInsert
 
 export const seedFunds: SeedFund[] = [
+  // AHP loan proceeds are unrestricted per board resolution (2026-02).
+  // No separate AHP fund needed — loan liability tracked via account 2500.
   { name: 'General Fund', restrictionType: 'UNRESTRICTED', isSystemLocked: true, description: 'Default unrestricted operating fund' },
-  {
-    name: 'AHP Fund',
-    restrictionType: 'RESTRICTED',
-    isSystemLocked: false,
-    description: 'Affordable Housing Program grant funds',
-    amount: '500000.00',
-    type: 'CONDITIONAL',
-    conditions: 'Complete renovation milestones per AHP agreement',
-    startDate: '2025-01-01',
-    endDate: '2027-12-31',
-    status: 'ACTIVE',
-    reportingFrequency: 'QUARTERLY',
-  },
   {
     name: 'CPA Fund',
     restrictionType: 'RESTRICTED',
+    fundingCategory: 'GRANT',
     isSystemLocked: false,
     description: 'Community Preservation Act funds',
     amount: '250000.00',
@@ -28,10 +18,12 @@ export const seedFunds: SeedFund[] = [
     endDate: '2026-06-30',
     status: 'ACTIVE',
     reportingFrequency: 'ANNUAL',
+    revenueClassification: 'GRANT_REVENUE',
   },
   {
     name: 'MassDev Fund',
     restrictionType: 'RESTRICTED',
+    fundingCategory: 'GRANT',
     isSystemLocked: false,
     description: 'MassDevelopment grant funds',
     amount: '150000.00',
@@ -42,10 +34,12 @@ export const seedFunds: SeedFund[] = [
     status: 'ACTIVE',
     matchRequirementPercent: '25.00',
     reportingFrequency: 'QUARTERLY',
+    revenueClassification: 'GRANT_REVENUE',
   },
   {
     name: 'HTC Equity Fund',
     restrictionType: 'RESTRICTED',
+    fundingCategory: 'GRANT',
     isSystemLocked: false,
     description: 'Historic Tax Credit equity funds',
     amount: '800000.00',
@@ -56,10 +50,12 @@ export const seedFunds: SeedFund[] = [
     status: 'ACTIVE',
     retainagePercent: '10.00',
     reportingFrequency: 'ANNUAL',
+    revenueClassification: 'GRANT_REVENUE',
   },
   {
     name: 'MassSave Fund',
     restrictionType: 'RESTRICTED',
+    fundingCategory: 'GRANT',
     isSystemLocked: false,
     description: 'MassSave energy rebate funds',
     amount: '45000.00',
@@ -67,5 +63,6 @@ export const seedFunds: SeedFund[] = [
     startDate: '2025-09-01',
     endDate: '2026-03-31',
     status: 'ACTIVE',
+    revenueClassification: 'GRANT_REVENUE',
   },
 ]

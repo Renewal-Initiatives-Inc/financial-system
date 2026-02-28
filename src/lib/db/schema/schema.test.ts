@@ -4,7 +4,7 @@ import { seedFunds } from '../seed/funds'
 import { seedCipCostCodes } from '../seed/cip-cost-codes'
 import { funds } from './funds'
 import { pledges } from './pledges'
-import { fundingTypeEnum, fundingStatusEnum, pledgeStatusEnum } from './enums'
+import { fundingTypeEnum, fundingStatusEnum, pledgeStatusEnum, revenueClassificationEnum, fundingCategoryEnum } from './enums'
 
 describe('Seed data integrity', () => {
   // --- Account counts ---
@@ -35,18 +35,18 @@ describe('Seed data integrity', () => {
   })
 
   // --- Normal balance consistency ---
-  it('all Asset accounts have normalBalance = DEBIT (except contra-assets)', () => {
+  it('all Asset accounts have normalBalance = DEBIT (except contra)', () => {
     const assets = seedAccounts.filter(
-      (a) => a.type === 'ASSET' && a.subType !== 'Contra-Asset'
+      (a) => a.type === 'ASSET' && a.subType !== 'Contra'
     )
     for (const account of assets) {
       expect(account.normalBalance).toBe('DEBIT')
     }
   })
 
-  it('all Contra-Asset accounts have normalBalance = CREDIT', () => {
+  it('all Contra asset accounts have normalBalance = CREDIT', () => {
     const contraAssets = seedAccounts.filter(
-      (a) => a.type === 'ASSET' && a.subType === 'Contra-Asset'
+      (a) => a.type === 'ASSET' && a.subType === 'Contra'
     )
     expect(contraAssets.length).toBeGreaterThan(0)
     for (const account of contraAssets) {
@@ -68,22 +68,22 @@ describe('Seed data integrity', () => {
     }
   })
 
-  it('all Revenue accounts have normalBalance = CREDIT (except contra-revenue)', () => {
+  it('all Revenue accounts have normalBalance = CREDIT (except contra)', () => {
     const revenue = seedAccounts.filter(
       (a) =>
         a.type === 'REVENUE' &&
-        a.subType !== 'Contra-Revenue'
+        a.subType !== 'Contra'
     )
     for (const account of revenue) {
       expect(account.normalBalance).toBe('CREDIT')
     }
   })
 
-  it('contra-revenue accounts have normalBalance = DEBIT', () => {
+  it('contra revenue accounts have normalBalance = DEBIT', () => {
     const contraRevenue = seedAccounts.filter(
       (a) =>
         a.type === 'REVENUE' &&
-        a.subType === 'Contra-Revenue'
+        a.subType === 'Contra'
     )
     expect(contraRevenue.length).toBeGreaterThan(0)
     for (const account of contraRevenue) {
@@ -138,8 +138,8 @@ describe('Seed data integrity', () => {
   })
 
   // --- Fund seed data ---
-  it('has 6 seed funds', () => {
-    expect(seedFunds).toHaveLength(6)
+  it('has 5 seed funds', () => {
+    expect(seedFunds).toHaveLength(5)
   })
 
   it('General Fund is unrestricted and system-locked', () => {
@@ -151,7 +151,7 @@ describe('Seed data integrity', () => {
 
   it('all non-General funds are restricted', () => {
     const otherFunds = seedFunds.filter((f) => f.name !== 'General Fund')
-    expect(otherFunds).toHaveLength(5)
+    expect(otherFunds).toHaveLength(4)
     for (const fund of otherFunds) {
       expect(fund.restrictionType).toBe('RESTRICTED')
     }
@@ -247,6 +247,17 @@ describe('Enriched funds table schema', () => {
     expect(columns).toContain('retainagePercent')
     expect(columns).toContain('reportingFrequency')
   })
+
+  it('has revenue classification columns', () => {
+    const columns = Object.keys(funds)
+    expect(columns).toContain('revenueClassification')
+    expect(columns).toContain('classificationRationale')
+  })
+
+  it('has funding category column', () => {
+    const columns = Object.keys(funds)
+    expect(columns).toContain('fundingCategory')
+  })
 })
 
 describe('Pledges table schema', () => {
@@ -275,5 +286,13 @@ describe('Revenue enums', () => {
 
   it('pledgeStatusEnum has correct values', () => {
     expect(pledgeStatusEnum.enumValues).toEqual(['PLEDGED', 'RECEIVED', 'WRITTEN_OFF'])
+  })
+
+  it('revenueClassificationEnum has correct values', () => {
+    expect(revenueClassificationEnum.enumValues).toEqual(['GRANT_REVENUE', 'EARNED_INCOME'])
+  })
+
+  it('fundingCategoryEnum has correct values', () => {
+    expect(fundingCategoryEnum.enumValues).toEqual(['GRANT', 'CONTRACT', 'LOAN'])
   })
 })

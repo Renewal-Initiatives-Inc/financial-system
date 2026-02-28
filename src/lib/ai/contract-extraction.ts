@@ -23,6 +23,9 @@ export type ExtractedTerms = {
   paymentTerms: ExtractedPaymentTerm[]
   deliverables: string[]
   covenants: ExtractedCovenant[]
+  revenueClassification: 'GRANT_REVENUE' | 'EARNED_INCOME'
+  classificationRationale: string
+  fundingCategory: 'GRANT' | 'CONTRACT' | 'LOAN'
 }
 
 const EXTRACTION_PROMPT = `You are analyzing a construction/vendor contract for a nonprofit housing organization. Extract the following structured information from the contract:
@@ -44,12 +47,27 @@ const EXTRACTION_PROMPT = `You are analyzing a construction/vendor contract for 
    - description: What is required
    - deadline: When it must be provided/maintained, or null
 
+5. **Revenue Classification**: Determine whether this funding should be classified as Grant Revenue or Earned Income for the nonprofit. Apply the distinction between ASC 958-605 (contributions) and ASC 606 (exchange transactions):
+   - If the funder receives only public benefit and reporting (no commensurate value in return) → "GRANT_REVENUE"
+   - If the funder receives direct value in return (services, deliverables for the funder's own benefit) → "EARNED_INCOME"
+   - revenueClassification: Either "GRANT_REVENUE" or "EARNED_INCOME"
+   - classificationRationale: 2-3 sentence explanation of why this classification applies
+
+6. **Funding Category**: Classify the type of financial instrument:
+   - "GRANT" — A contribution or award where no direct value is returned to the funder (grants, donations, awards)
+   - "CONTRACT" — An exchange transaction where the organization delivers value to the contracting party (fee-for-service, construction contracts)
+   - "LOAN" — A debt instrument creating a liability (credit facilities, mortgages, lines of credit)
+   - fundingCategory: One of "GRANT", "CONTRACT", or "LOAN"
+
 Return ONLY a valid JSON object with this exact structure:
 {
   "milestones": [...],
   "paymentTerms": [...],
   "deliverables": [...],
-  "covenants": [...]
+  "covenants": [...],
+  "revenueClassification": "GRANT_REVENUE" or "EARNED_INCOME",
+  "classificationRationale": "...",
+  "fundingCategory": "GRANT" or "CONTRACT" or "LOAN"
 }
 
 If a section has no relevant content, return an empty array for that section.`
@@ -111,6 +129,17 @@ export async function extractContractTerms(
       paymentTerms: parsed.paymentTerms ?? [],
       deliverables: parsed.deliverables ?? [],
       covenants: parsed.covenants ?? [],
+      revenueClassification:
+        parsed.revenueClassification === 'EARNED_INCOME'
+          ? 'EARNED_INCOME'
+          : 'GRANT_REVENUE',
+      classificationRationale: parsed.classificationRationale ?? '',
+      fundingCategory:
+        parsed.fundingCategory === 'CONTRACT'
+          ? 'CONTRACT'
+          : parsed.fundingCategory === 'LOAN'
+            ? 'LOAN'
+            : 'GRANT',
     }
   } catch {
     console.error('Failed to parse extraction JSON:', jsonStr.slice(0, 200))

@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Select,
@@ -25,6 +26,8 @@ import {
 import { toast } from 'sonner'
 import { createFundingSource } from '../../actions'
 
+type FundingCategory = 'GRANT' | 'CONTRACT' | 'LOAN'
+
 interface Props {
   vendors: { id: number; name: string }[]
 }
@@ -33,6 +36,7 @@ export function CreateFundingSourceClient({ vendors }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [name, setName] = useState('')
+  const [fundingCategory, setFundingCategory] = useState<FundingCategory | ''>('')
   const [restrictionType, setRestrictionType] = useState<'RESTRICTED' | 'UNRESTRICTED' | ''>('')
   const [description, setDescription] = useState('')
   const [funderId, setFunderId] = useState('')
@@ -45,6 +49,12 @@ export function CreateFundingSourceClient({ vendors }: Props) {
   const [matchRequirementPercent, setMatchRequirementPercent] = useState('')
   const [retainagePercent, setRetainagePercent] = useState('')
   const [reportingFrequency, setReportingFrequency] = useState('')
+  const [interestRate, setInterestRate] = useState('')
+
+  // Revenue classification
+  const [revenueClassification, setRevenueClassification] = useState<'GRANT_REVENUE' | 'EARNED_INCOME' | ''>('')
+  const [classificationRationale, setClassificationRationale] = useState('')
+  const [aiRecommended, setAiRecommended] = useState(false)
 
   // Contract extraction state (managed by shared component)
   const [contractData, setContractData] = useState<ContractExtractionData>({
@@ -52,9 +62,41 @@ export function CreateFundingSourceClient({ vendors }: Props) {
     extractedMilestones: null,
     extractedTerms: null,
     extractedCovenants: null,
+    revenueClassification: null,
+    classificationRationale: null,
+    fundingCategory: null,
   })
 
-  const isRestricted = restrictionType === 'RESTRICTED'
+  const handleCategoryChange = (cat: FundingCategory) => {
+    setFundingCategory(cat)
+    // Always update revenue classification when category changes
+    if (cat === 'GRANT') {
+      setRevenueClassification('GRANT_REVENUE')
+    } else if (cat === 'CONTRACT') {
+      setRevenueClassification('EARNED_INCOME')
+    } else if (cat === 'LOAN') {
+      setRevenueClassification('')
+    }
+  }
+
+  const handleContractDataChange = (data: ContractExtractionData) => {
+    setContractData(data)
+    // If AI returned a classification, pre-fill it
+    if (data.revenueClassification && !revenueClassification) {
+      setRevenueClassification(data.revenueClassification)
+      setClassificationRationale(data.classificationRationale ?? '')
+      setAiRecommended(true)
+    }
+    // If AI returned a category, pre-fill it
+    if (data.fundingCategory && !fundingCategory) {
+      handleCategoryChange(data.fundingCategory)
+    }
+  }
+
+  const isGrantOrContract = fundingCategory === 'GRANT' || fundingCategory === 'CONTRACT'
+  const isGrant = fundingCategory === 'GRANT'
+  const isLoan = fundingCategory === 'LOAN'
+  const hasCategory = fundingCategory !== ''
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -79,22 +121,26 @@ export function CreateFundingSourceClient({ vendors }: Props) {
         const result = await createFundingSource(
           {
             name,
+            fundingCategory: fundingCategory as FundingCategory,
             restrictionType: restrictionType as 'RESTRICTED' | 'UNRESTRICTED',
             description: description || null,
-            funderId: funderId ? parseInt(funderId) : null,
+            funderId: funderId ? parseInt(funderId) : 0, // validator requires positive int
             amount: amount || null,
-            type: (type as 'CONDITIONAL' | 'UNCONDITIONAL') || null,
+            type: (isGrantOrContract && type ? type : null) as 'CONDITIONAL' | 'UNCONDITIONAL' | null,
             conditions: type === 'CONDITIONAL' ? conditions : null,
             startDate: startDate || null,
             endDate: endDate || null,
-            isUnusualGrant,
-            matchRequirementPercent: matchRequirementPercent || null,
-            retainagePercent: retainagePercent || null,
+            isUnusualGrant: isGrant ? isUnusualGrant : false,
+            matchRequirementPercent: isGrant ? matchRequirementPercent || null : null,
+            retainagePercent: isGrant ? retainagePercent || null : null,
             reportingFrequency: reportingFrequency || null,
+            interestRate: isLoan ? interestRate || null : null,
             contractPdfUrl: contractData.contractPdfUrl,
             extractedMilestones: milestones,
             extractedTerms: terms,
             extractedCovenants: covenants,
+            revenueClassification: isGrantOrContract ? revenueClassification || null : null,
+            classificationRationale: isGrantOrContract ? classificationRationale || null : null,
           },
           'system'
         )
@@ -123,20 +169,43 @@ export function CreateFundingSourceClient({ vendors }: Props) {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Row 1: Name */}
+            <div>
+              <Label>Name <span className="text-destructive">*</span></Label>
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g., CPA Grant, MassDev Contract, AHP Loan"
+                data-testid="funding-source-name"
+              />
+            </div>
+
+            {/* Row 2: Category + Restriction */}
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <Label>Name <span className="text-destructive">*</span></Label>
-                <Input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g., AHP Fund, General Fund"
-                  data-testid="funding-source-name"
-                />
+                <Label className="flex items-center gap-1">
+                  Category <span className="text-destructive">*</span>
+                  <HelpTooltip term="funding-category" />
+                </Label>
+                <Select
+                  value={fundingCategory}
+                  onValueChange={(v) => handleCategoryChange(v as FundingCategory)}
+                >
+                  <SelectTrigger data-testid="funding-source-category-select">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="GRANT">Grant</SelectItem>
+                    <SelectItem value="CONTRACT">Contract</SelectItem>
+                    <SelectItem value="LOAN">Loan</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
                 <Label className="flex items-center gap-1">
-                  Restriction <HelpTooltip term="restriction-type" /> <span className="text-destructive">*</span>
+                  Restriction <span className="text-destructive">*</span>
+                  <HelpTooltip term="restriction-type" />
                 </Label>
                 <Select
                   value={restrictionType}
@@ -163,18 +232,25 @@ export function CreateFundingSourceClient({ vendors }: Props) {
               />
             </div>
 
-            {isRestricted && (
+            {/* Detail fields — shown once a category is selected */}
+            {hasCategory && (
               <>
                 <div className="border-t pt-4">
-                  <h3 className="text-sm font-medium mb-3">Funder & Contract Details</h3>
+                  <h3 className="text-sm font-medium mb-3">
+                    {isLoan ? 'Lender & Loan Details' : 'Funder & Contract Details'}
+                  </h3>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <Label>Funder (Vendor) <span className="text-destructive">*</span></Label>
+                    <Label className="flex items-center gap-1">
+                      {isLoan ? 'Lender' : 'Funder'} (Vendor){' '}
+                      <span className="text-destructive">*</span>
+                      <HelpTooltip term="funding-source-funder" />
+                    </Label>
                     <Select value={funderId} onValueChange={setFunderId}>
                       <SelectTrigger data-testid="funding-source-funder-select">
-                        <SelectValue placeholder="Select funder" />
+                        <SelectValue placeholder={isLoan ? 'Select lender' : 'Select funder'} />
                       </SelectTrigger>
                       <SelectContent>
                         {vendors.map((v) => (
@@ -187,7 +263,10 @@ export function CreateFundingSourceClient({ vendors }: Props) {
                   </div>
 
                   <div>
-                    <Label>Award Amount</Label>
+                    <Label className="flex items-center gap-1">
+                      {isLoan ? 'Principal Amount' : 'Award Amount'}
+                      <HelpTooltip term="funding-source-amount" />
+                    </Label>
                     <Input
                       type="number"
                       step="0.01"
@@ -198,26 +277,52 @@ export function CreateFundingSourceClient({ vendors }: Props) {
                     />
                   </div>
 
-                  <div>
-                    <Label className="flex items-center gap-1">
-                      Type <HelpTooltip term="grant-conditional" />
-                    </Label>
-                    <Select
-                      value={type}
-                      onValueChange={(v) => setType(v as 'CONDITIONAL' | 'UNCONDITIONAL')}
-                    >
-                      <SelectTrigger data-testid="funding-source-type-select">
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="UNCONDITIONAL">Unconditional</SelectItem>
-                        <SelectItem value="CONDITIONAL">Conditional</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {/* Conditional/Unconditional — GRANT + CONTRACT only */}
+                  {isGrantOrContract && (
+                    <div>
+                      <Label className="flex items-center gap-1">
+                        Type <HelpTooltip term="grant-conditional" />
+                      </Label>
+                      <Select
+                        value={type}
+                        onValueChange={(v) => setType(v as 'CONDITIONAL' | 'UNCONDITIONAL')}
+                      >
+                        <SelectTrigger data-testid="funding-source-type-select">
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="UNCONDITIONAL">Unconditional</SelectItem>
+                          <SelectItem value="CONDITIONAL">Conditional</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {/* Interest Rate — LOAN only */}
+                  {isLoan && (
+                    <div>
+                      <Label className="flex items-center gap-1">
+                        Interest Rate (%)
+                        <HelpTooltip term="interest-rate" />
+                      </Label>
+                      <Input
+                        type="number"
+                        step="0.0001"
+                        min="0"
+                        max="100"
+                        value={interestRate}
+                        onChange={(e) => setInterestRate(e.target.value)}
+                        placeholder="e.g., 4.75"
+                        data-testid="funding-source-interest-rate"
+                      />
+                    </div>
+                  )}
 
                   <div>
-                    <Label>Reporting Frequency</Label>
+                    <Label className="flex items-center gap-1">
+                      Reporting Frequency
+                      <HelpTooltip term="reporting-frequency" />
+                    </Label>
                     <Select value={reportingFrequency} onValueChange={setReportingFrequency}>
                       <SelectTrigger data-testid="funding-source-reporting-select">
                         <SelectValue placeholder="Select frequency" />
@@ -232,7 +337,10 @@ export function CreateFundingSourceClient({ vendors }: Props) {
                   </div>
 
                   <div>
-                    <Label>Start Date</Label>
+                    <Label className="flex items-center gap-1">
+                      Start Date
+                      <HelpTooltip term="funding-start-date" />
+                    </Label>
                     <Input
                       type="date"
                       value={startDate}
@@ -242,7 +350,10 @@ export function CreateFundingSourceClient({ vendors }: Props) {
                   </div>
 
                   <div>
-                    <Label>End Date</Label>
+                    <Label className="flex items-center gap-1">
+                      End Date
+                      <HelpTooltip term="funding-end-date" />
+                    </Label>
                     <Input
                       type="date"
                       value={endDate}
@@ -251,33 +362,45 @@ export function CreateFundingSourceClient({ vendors }: Props) {
                     />
                   </div>
 
-                  <div>
-                    <Label>Match Requirement %</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max="100"
-                      value={matchRequirementPercent}
-                      onChange={(e) => setMatchRequirementPercent(e.target.value)}
-                      data-testid="funding-source-match-pct"
-                    />
-                  </div>
+                  {/* Match + Retainage — GRANT only */}
+                  {isGrant && (
+                    <>
+                      <div>
+                        <Label className="flex items-center gap-1">
+                          Match Requirement %
+                          <HelpTooltip term="match-requirement" />
+                        </Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          value={matchRequirementPercent}
+                          onChange={(e) => setMatchRequirementPercent(e.target.value)}
+                          data-testid="funding-source-match-pct"
+                        />
+                      </div>
 
-                  <div>
-                    <Label>Retainage %</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max="100"
-                      value={retainagePercent}
-                      onChange={(e) => setRetainagePercent(e.target.value)}
-                      data-testid="funding-source-retainage-pct"
-                    />
-                  </div>
+                      <div>
+                        <Label className="flex items-center gap-1">
+                          Retainage %
+                          <HelpTooltip term="retainage-percent" />
+                        </Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          value={retainagePercent}
+                          onChange={(e) => setRetainagePercent(e.target.value)}
+                          data-testid="funding-source-retainage-pct"
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
 
+                {/* Conditions — shown when CONDITIONAL selected */}
                 {type === 'CONDITIONAL' && (
                   <div>
                     <Label>
@@ -292,22 +415,63 @@ export function CreateFundingSourceClient({ vendors }: Props) {
                   </div>
                 )}
 
-                {/* Contract PDF Upload + AI Extraction */}
+                {/* Contract PDF Upload + AI Extraction — all categories */}
                 <ContractUploadExtract
-                  onChange={setContractData}
+                  onChange={handleContractDataChange}
                   testIdPrefix="funding-source"
                 />
 
-                <div className="flex items-center gap-3">
-                  <Switch
-                    checked={isUnusualGrant}
-                    onCheckedChange={setIsUnusualGrant}
-                    data-testid="funding-source-unusual-toggle"
-                  />
-                  <Label className="flex items-center gap-1">
-                    Unusual Grant <HelpTooltip term="unusual-grant" />
-                  </Label>
-                </div>
+                {/* Revenue Classification — GRANT + CONTRACT only */}
+                {isGrantOrContract && (
+                  <div className="border-t pt-4">
+                    <h3 className="text-sm font-medium mb-3 flex items-center gap-1">
+                      Revenue Classification
+                      <HelpTooltip term="revenue-classification" />
+                    </h3>
+                    <RadioGroup
+                      value={revenueClassification}
+                      onValueChange={(v) => {
+                        setRevenueClassification(v as 'GRANT_REVENUE' | 'EARNED_INCOME')
+                        if (aiRecommended && v !== contractData.revenueClassification) {
+                          setClassificationRationale(
+                            (contractData.classificationRationale ?? '') +
+                              '\n[User override]'
+                          )
+                        }
+                      }}
+                      className="flex gap-6"
+                      data-testid="funding-source-revenue-classification"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="GRANT_REVENUE" id="rc-grant" />
+                        <Label htmlFor="rc-grant">Grant Revenue</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="EARNED_INCOME" id="rc-earned" />
+                        <Label htmlFor="rc-earned">Earned Income</Label>
+                      </div>
+                    </RadioGroup>
+                    {classificationRationale && (
+                      <p className="text-sm text-muted-foreground mt-2">
+                        {classificationRationale}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Unusual Grant toggle — GRANT only */}
+                {isGrant && (
+                  <div className="flex items-center gap-3">
+                    <Switch
+                      checked={isUnusualGrant}
+                      onCheckedChange={setIsUnusualGrant}
+                      data-testid="funding-source-unusual-toggle"
+                    />
+                    <Label className="flex items-center gap-1">
+                      Unusual Grant <HelpTooltip term="unusual-grant" />
+                    </Label>
+                  </div>
+                )}
               </>
             )}
 
@@ -316,8 +480,9 @@ export function CreateFundingSourceClient({ vendors }: Props) {
               disabled={
                 isPending ||
                 !name.trim() ||
+                !fundingCategory ||
                 !restrictionType ||
-                (isRestricted && !funderId) ||
+                !funderId ||
                 (type === 'CONDITIONAL' && !conditions.trim())
               }
               data-testid="funding-source-submit"

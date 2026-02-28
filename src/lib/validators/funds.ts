@@ -3,6 +3,8 @@ import { z } from 'zod'
 const fundRestrictions = ['RESTRICTED', 'UNRESTRICTED'] as const
 const fundingTypes = ['CONDITIONAL', 'UNCONDITIONAL'] as const
 const fundingStatuses = ['ACTIVE', 'COMPLETED', 'CANCELLED'] as const
+const revenueClassifications = ['GRANT_REVENUE', 'EARNED_INCOME'] as const
+const fundingCategories = ['GRANT', 'CONTRACT', 'LOAN'] as const
 
 export const insertFundSchema = z.object({
   name: z.string().min(1, 'Fund name is required').max(255),
@@ -14,10 +16,13 @@ export const insertFundSchema = z.object({
 export const insertFundingSourceSchema = z
   .object({
     name: z.string().min(1, 'Name is required').max(255),
+    fundingCategory: z.enum(fundingCategories, {
+      message: 'Category is required',
+    }),
     restrictionType: z.enum(fundRestrictions),
     description: z.string().nullable().optional(),
-    // Funding source fields (optional — unrestricted funds don't need these)
-    funderId: z.number().int().positive('Funder is required').nullable().optional(),
+    // Funding source fields — available for all categories
+    funderId: z.number().int().positive('Funder is required'),
     amount: z
       .string()
       .regex(/^\d+(\.\d{1,2})?$/, 'Invalid amount')
@@ -39,24 +44,21 @@ export const insertFundingSourceSchema = z
       .nullable()
       .optional(),
     reportingFrequency: z.string().max(50).nullable().optional(),
+    // Loan-specific
+    interestRate: z
+      .string()
+      .regex(/^\d+(\.\d{1,4})?$/, 'Invalid rate')
+      .nullable()
+      .optional(),
     // Contract extraction fields
     contractPdfUrl: z.string().nullable().optional(),
     extractedMilestones: z.unknown().nullable().optional(),
     extractedTerms: z.unknown().nullable().optional(),
     extractedCovenants: z.unknown().nullable().optional(),
+    // Revenue classification (GRANT + CONTRACT only; null for LOAN)
+    revenueClassification: z.enum(revenueClassifications).nullable().optional(),
+    classificationRationale: z.string().nullable().optional(),
   })
-  .refine(
-    (data) => {
-      if (data.restrictionType === 'RESTRICTED' && !data.funderId) {
-        return false
-      }
-      return true
-    },
-    {
-      message: 'Funder is required for restricted funding sources',
-      path: ['funderId'],
-    }
-  )
   .refine(
     (data) => {
       if (data.type === 'CONDITIONAL' && !data.conditions) {
@@ -74,6 +76,7 @@ export const updateFundSchema = z.object({
   name: z.string().min(1).max(255).optional(),
   isActive: z.boolean().optional(),
   description: z.string().nullable().optional(),
+  fundingCategory: z.enum(fundingCategories).nullable().optional(),
   funderId: z.number().int().positive().nullable().optional(),
   amount: z
     .string()
@@ -97,6 +100,11 @@ export const updateFundSchema = z.object({
     .nullable()
     .optional(),
   reportingFrequency: z.string().max(50).nullable().optional(),
+  interestRate: z
+    .string()
+    .regex(/^\d+(\.\d{1,4})?$/, 'Invalid rate')
+    .nullable()
+    .optional(),
 })
 
 export type InsertFund = z.input<typeof insertFundSchema>

@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { eq, and, desc, ilike, sql, isNotNull, count } from 'drizzle-orm'
+import { eq, and, desc, ilike, sql, isNotNull, count, or } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import {
   transactions,
@@ -225,6 +225,16 @@ export async function getRentAccruals(year: number, month: number) {
 export async function getFundingSources(filters?: {
   status?: string
 }): Promise<FundingSourceRow[]> {
+  const conditions = [eq(funds.isSystemLocked, false)]
+  if (filters?.status) {
+    conditions.push(
+      eq(
+        funds.status,
+        filters.status as (typeof funds.status.enumValues)[number]
+      )
+    )
+  }
+
   const rows = await db
     .select({
       fund: funds,
@@ -232,14 +242,7 @@ export async function getFundingSources(filters?: {
     })
     .from(funds)
     .leftJoin(vendors, eq(funds.funderId, vendors.id))
-    .where(
-      filters?.status
-        ? eq(
-            funds.status,
-            filters.status as (typeof funds.status.enumValues)[number]
-          )
-        : undefined
-    )
+    .where(and(...conditions))
     .orderBy(desc(funds.createdAt))
 
   return rows.map((r) => ({
@@ -510,6 +513,8 @@ export async function getActiveVendors() {
 }
 
 export async function getActiveFunds() {
+  // Only show General Fund (system-locked) + restricted funds.
+  // Unrestricted user-created funding sources exist for tracking, not GL posting.
   return db
     .select({
       id: funds.id,
@@ -517,7 +522,12 @@ export async function getActiveFunds() {
       restrictionType: funds.restrictionType,
     })
     .from(funds)
-    .where(eq(funds.isActive, true))
+    .where(
+      and(
+        eq(funds.isActive, true),
+        or(eq(funds.isSystemLocked, true), eq(funds.restrictionType, 'RESTRICTED'))
+      )
+    )
     .orderBy(funds.name)
 }
 
@@ -687,9 +697,10 @@ export async function createFundingSource(
       .insert(funds)
       .values({
         name: validated.name,
+        fundingCategory: validated.fundingCategory,
         restrictionType: validated.restrictionType,
         description: validated.description ?? null,
-        funderId: validated.funderId ?? null,
+        funderId: validated.funderId,
         amount: validated.amount ?? null,
         type: validated.type ?? null,
         conditions: validated.conditions ?? null,
@@ -699,10 +710,13 @@ export async function createFundingSource(
         matchRequirementPercent: validated.matchRequirementPercent ?? null,
         retainagePercent: validated.retainagePercent ?? null,
         reportingFrequency: validated.reportingFrequency ?? null,
+        interestRate: validated.interestRate ?? null,
         contractPdfUrl: validated.contractPdfUrl ?? null,
         extractedMilestones: validated.extractedMilestones ?? null,
         extractedTerms: validated.extractedTerms ?? null,
         extractedCovenants: validated.extractedCovenants ?? null,
+        revenueClassification: validated.revenueClassification ?? null,
+        classificationRationale: validated.classificationRationale ?? null,
       })
       .returning()
 
@@ -717,10 +731,10 @@ export async function createFundingSource(
     return result
   })
 
-  // Create GL entry for unconditional restricted funding
+  // Create GL entry for unconditional grants/contracts (restricted or unrestricted)
   let transactionId = 0
   if (
-    validated.restrictionType === 'RESTRICTED' &&
+    (validated.fundingCategory === 'GRANT' || validated.fundingCategory === 'CONTRACT') &&
     validated.type === 'UNCONDITIONAL' &&
     validated.amount
   ) {
@@ -810,6 +824,7 @@ export async function updateFund(
         ...(validated.matchRequirementPercent !== undefined ? { matchRequirementPercent: validated.matchRequirementPercent } : {}),
         ...(validated.retainagePercent !== undefined ? { retainagePercent: validated.retainagePercent } : {}),
         ...(validated.reportingFrequency !== undefined ? { reportingFrequency: validated.reportingFrequency } : {}),
+        ...(validated.interestRate !== undefined ? { interestRate: validated.interestRate } : {}),
         updatedAt: new Date(),
       })
       .where(eq(funds.id, id))
@@ -1208,7 +1223,7 @@ export async function getArInvoices(fundId: number): Promise<ArInvoiceRow[]> {
 
 /**
  * Issue an AR invoice against a funding source.
- * GL: DR 1110 Grants Receivable, CR 4100 Grant Revenue
+ * GL: DR 1110 Grants Receivable, CR revenue account (4100 or 4300)
  */
 export async function createArInvoice(
   data: InsertArInvoice,
@@ -1222,6 +1237,8 @@ export async function createArInvoice(
     .where(eq(funds.id, validated.fundId))
   if (!fund) throw new Error(`Funding source ${validated.fundId} not found`)
 
+  const revenueCode = fund.revenueClassification === 'EARNED_INCOME' ? '4300' : '4100'
+
   const [arAccount] = await db
     .select()
     .from(accounts)
@@ -1232,9 +1249,9 @@ export async function createArInvoice(
   const [revenueAccount] = await db
     .select()
     .from(accounts)
-    .where(eq(accounts.code, '4100'))
+    .where(eq(accounts.code, revenueCode))
   if (!revenueAccount)
-    throw new Error('Grant Revenue account (4100) not found. Run seed data first.')
+    throw new Error(`Revenue account (${revenueCode}) not found. Run seed data first.`)
 
   const [newInvoice] = await db
     .insert(invoices)

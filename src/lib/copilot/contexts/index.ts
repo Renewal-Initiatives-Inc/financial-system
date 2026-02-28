@@ -15,6 +15,7 @@ import { getBankRecContext } from './bank-rec'
 import { getBudgetsContext } from './budgets'
 import { getReportsContext } from './reports'
 import { getComplianceContext } from './compliance'
+import { getMigrationReviewContext } from './migration-review'
 
 type ContextFactory = (data?: Record<string, unknown>) => CopilotContextPackage
 
@@ -36,6 +37,7 @@ const contextRegistry: Record<string, ContextFactory> = {
   budgets: getBudgetsContext,
   reports: getReportsContext,
   compliance: getComplianceContext,
+  'migration-review': getMigrationReviewContext,
 }
 
 /**

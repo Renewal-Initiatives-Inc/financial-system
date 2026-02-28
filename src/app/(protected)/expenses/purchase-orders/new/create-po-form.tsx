@@ -121,6 +121,9 @@ export function CreatePOForm({
     extractedMilestones: null,
     extractedTerms: null,
     extractedCovenants: null,
+    revenueClassification: null,
+    classificationRationale: null,
+    fundingCategory: null,
   })
 
   // Validation state

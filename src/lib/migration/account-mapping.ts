@@ -138,6 +138,7 @@ export const QBO_ACCOUNT_MAPPING: Record<string, string> = {
   'Utilities - Trash': '5550',
   'Trash': '5550',
   'Other Operating Costs': '5600',
+  'Admin Operating Costs': '5600',
   'Miscellaneous': '5600',
   'Office Supplies': '5600',
   // TODO: Add any remaining QBO accounts once we see the actual export
@@ -146,12 +147,13 @@ export const QBO_ACCOUNT_MAPPING: Record<string, string> = {
 /**
  * QBO class name → seed fund name mapping.
  * QBO classes map to our fund structure.
+ * AHP maps to General Fund — loan proceeds are unrestricted per board resolution (2026-02).
  */
 export const QBO_FUND_MAPPING: Record<string, string> = {
   'General': 'General Fund',
   'General Fund': 'General Fund',
-  'AHP': 'AHP Fund',
-  'AHP Fund': 'AHP Fund',
+  'AHP': 'General Fund',
+  'AHP Fund': 'General Fund',
   'CPA': 'CPA Fund',
   'CPA Fund': 'CPA Fund',
   'MassDev': 'MassDev Fund',

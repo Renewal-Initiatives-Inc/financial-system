@@ -5,10 +5,16 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { getFundingSources } from '../actions'
 
-const statusColors: Record<string, string> = {
-  ACTIVE: 'bg-green-100 text-green-800',
-  COMPLETED: 'bg-blue-100 text-blue-800',
-  CANCELLED: 'bg-gray-100 text-gray-800',
+const categoryColors: Record<string, string> = {
+  GRANT: 'bg-purple-100 text-purple-800',
+  CONTRACT: 'bg-blue-100 text-blue-800',
+  LOAN: 'bg-orange-100 text-orange-800',
+}
+
+const categoryLabels: Record<string, string> = {
+  GRANT: 'Grant',
+  CONTRACT: 'Contract',
+  LOAN: 'Loan',
 }
 
 function formatCurrency(value: string | null) {
@@ -53,16 +59,19 @@ export default async function FundingSourcesPage() {
             <thead>
               <tr className="border-b bg-muted/50">
                 <th className="px-4 py-3 text-left font-medium">Name</th>
+                <th className="px-4 py-3 text-left font-medium">Category</th>
                 <th className="px-4 py-3 text-left font-medium">Restriction</th>
                 <th className="px-4 py-3 text-left font-medium">Funder</th>
                 <th className="px-4 py-3 text-left font-medium">Amount</th>
-                <th className="px-4 py-3 text-left font-medium">Type</th>
                 <th className="px-4 py-3 text-left font-medium">Status</th>
               </tr>
             </thead>
             <tbody>
               {sources.map((source) => (
-                <tr key={source.id} className="border-b">
+                <tr
+                  key={source.id}
+                  className={`border-b ${!source.isActive ? 'opacity-50' : ''}`}
+                >
                   <td className="px-4 py-3">
                     <Link
                       href={`/revenue/funding-sources/${source.id}`}
@@ -71,6 +80,18 @@ export default async function FundingSourcesPage() {
                     >
                       {source.name}
                     </Link>
+                  </td>
+                  <td className="px-4 py-3">
+                    {source.fundingCategory ? (
+                      <Badge
+                        variant="outline"
+                        className={categoryColors[source.fundingCategory] ?? ''}
+                      >
+                        {categoryLabels[source.fundingCategory] ?? source.fundingCategory}
+                      </Badge>
+                    ) : (
+                      '-'
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <Badge
@@ -87,27 +108,19 @@ export default async function FundingSourcesPage() {
                   <td className="px-4 py-3">{source.funderName ?? '-'}</td>
                   <td className="px-4 py-3">{formatCurrency(source.amount)}</td>
                   <td className="px-4 py-3">
-                    {source.type ? (
-                      <Badge variant="outline">
-                        {source.type === 'CONDITIONAL' ? 'Conditional' : 'Unconditional'}
-                      </Badge>
-                    ) : (
-                      '-'
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {source.status ? (
+                    <div className="flex items-center gap-2">
                       <Badge
                         variant="outline"
-                        className={statusColors[source.status] ?? ''}
+                        className={source.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}
                       >
-                        {source.status}
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className={source.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
                         {source.isActive ? 'Active' : 'Inactive'}
                       </Badge>
-                    )}
+                      {source.status && source.status !== 'ACTIVE' && (
+                        <Badge variant="outline" className="bg-blue-100 text-blue-800">
+                          {source.status}
+                        </Badge>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -59,7 +59,7 @@ export function CreateAssetDialog({
     (a) => a.subType === 'Fixed Asset'
   )
   const contraAssetAccounts = accountOptions.filter(
-    (a) => a.subType === 'Contra-Asset'
+    (a) => a.subType === 'Contra'
   )
   const expenseAccounts = accountOptions.filter(
     (a) =>

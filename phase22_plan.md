@@ -288,7 +288,7 @@ git push origin main
 |-----------|-------|
 | **Source system** | QuickBooks Online (cash basis) |
 | **Target system** | financial-system (accrual basis) |
-| **Date range** | All transactions through the **cutoff date** (Jeff provides — approx. Feb 13–15, 2026) |
+| **Date range** | All transactions through **December 31, 2025** (confirmed with Heather — Session 2) |
 | **Basis conversion** | Full cash → accrual conversion for ALL history (no split by year) |
 | **Authority** | Board-approved; under asset cap, <$50k revenue FY25; no external disclosure required |
 | **Reset strategy** | Neon database branch snapshot after import — resettable for dev/staging testing |
@@ -296,10 +296,14 @@ git push origin main
 
 ### 8a. Before You Start
 
+- [x] Cutoff date confirmed: **December 31, 2025** (Heather Session 2, 2026-02-27)
+- [x] Heather reconciled QBO through 12/31/2025 (completed 2026-01-10)
+- [x] Bank accounts confirmed: UMass Five checking, UMass Five savings, Ramp — no others (no PayPal, no petty cash)
+- [x] No known problem transactions before 12/31/2025
 - [ ] Log in to QBO as the **primary admin** or **company admin**
-- [ ] Reconcile all bank and credit card accounts through the cutoff date
-- [ ] Confirm the **cutoff date** with Jeff (the "good through" date — all QBO transactions on or before this date are included)
-- [ ] Save all exports into a single folder: `qbo-export-YYYY-MM-DD/` (using the cutoff date)
+- [ ] Save all exports into a single folder: `qbo-export-2025-12-31/`
+
+**Parallel run plan:** Heather will continue entering in QBO for Jan–Feb 2026 (and possibly beyond) while also using the new system. Low transaction volume makes dual entry feasible. Cross-checking both systems surfaces bugs early. QBO remains the backup until both Jeff and Heather are comfortable.
 
 ### 8b. QBO Bulk Export (Reports + Lists)
 
@@ -310,7 +314,7 @@ git push origin main
 3. Select a reason for exporting, click **Continue**
 4. You'll see two tabs: **Reports** and **Lists**
 
-**Reports Tab** — Set date range to **All Dates**, turn ON all five:
+**Reports Tab** — Set date range to **All Dates** (or start of history through **12/31/2025**), turn ON all five:
 
 | Report | What it contains | What we use it for |
 |--------|-----------------|-------------------|
@@ -341,14 +345,14 @@ Save as `chart-of-accounts.xlsx`. Used to verify our `QBO_ACCOUNT_MAPPING` in `a
 **Navigation:** Left sidebar → **Reports** → search "Journal"
 
 1. Click **Journal** (under "For My Accountant")
-2. Set date range: start of QBO history to **[CUTOFF DATE]**
+2. Set date range: start of QBO history to **12/31/2025**
 3. Click **Customize** → under **Rows/Columns**, ensure these columns are checked:
    - Date, Transaction Type, Num, Name, Memo/Description, Account, **Class** (maps to funds), Debit, Credit
 4. Click **Run Report** → **Export** → **Export to Excel**
 5. Save as `journal-all.xlsx`
 6. Open in Excel → **File → Save As → CSV (Comma Delimited)** → save as `journal-all.csv`
 
-> **Important:** If "Class" column is missing, enable it: Settings gear → Account and Settings → Advanced → Categories → Track classes. Re-run the report.
+> **Note on QBO Classes:** Heather confirmed (Session 1) that QBO Classes were abandoned and should be **ignored during import**. Originally used to bucket Program/Property/Farming/Training, but FVC partnership made farming/training tracking unnecessary, and program/property collapsed to the same thing. The import script strips any Class data — no need to preserve it.
 
 **Expected CSV columns** (our parser handles case-insensitive):
 
@@ -381,7 +385,7 @@ Save as `chart-of-accounts.xlsx`. Used to verify our `QBO_ACCOUNT_MAPPING` in `a
 
 ### 8f. Export Folder Checklist
 
-Your `qbo-export-YYYY-MM-DD/` folder should contain:
+Your `qbo-export-2025-12-31/` folder should contain:
 
 | # | File | Status |
 |---|------|--------|
@@ -397,8 +401,8 @@ Your `qbo-export-YYYY-MM-DD/` folder should contain:
 ### 8g. Dry Run
 ```bash
 DATABASE_URL=<prod-connection-string> npx tsx src/lib/migration/run-import.ts \
-  --csv-path ./qbo-export-YYYY-MM-DD/journal-all.csv \
-  --cutoff-date YYYY-MM-DD \
+  --csv-path ./qbo-export-2025-12-31/journal-all.csv \
+  --cutoff-date 2025-12-31 \
   --dry-run
 ```
 - Review any unmapped accounts or funds
@@ -413,32 +417,48 @@ DATABASE_URL=<prod-connection-string> npx tsx src/lib/migration/run-import.ts \
 ### 8h. Live Import
 ```bash
 DATABASE_URL=<prod-connection-string> npx tsx src/lib/migration/run-import.ts \
-  --csv-path ./qbo-export-YYYY-MM-DD/journal-all.csv \
-  --cutoff-date YYYY-MM-DD \
+  --csv-path ./qbo-export-2025-12-31/journal-all.csv \
+  --cutoff-date 2025-12-31 \
   --env prod
 ```
 - All transactions tagged `sourceType = 'FY25_IMPORT'`
 - Restricted fund net asset releases auto-generated (INV-007)
 
-### 8i. Cash → Accrual Conversion
+### 8i. Combined Transaction Review + Cash → Accrual Conversion
 
-After importing the cash-basis QBO data, the system proposes accrual adjustments **one at a time**. Each shows the journal entry, explains why it's needed, and waits for Jeff's approval before posting. Posted as of the **cutoff date** with `sourceType = 'ACCRUAL_CONVERSION'`.
+**Updated approach (per Heather Session 2, 2026-02-27):** Instead of importing first and then doing accrual conversion as a separate pass, Claude reviews transactions and handles both concerns **simultaneously per transaction**. This merges what was originally Session 2 (transaction mapping/deconfliction) and Session 3 (cash→accrual conversion) from the pre-flight checklist into a single working session with Jeff and Heather.
+
+**How it works — single-pass review:**
+
+For each QBO transaction (or logical group), Claude:
+1. **Maps the transaction** — identifies the correct GL account and fund in the new system
+2. **Deconflicts sources** — cross-references against Plaid `bank_transactions` and Ramp `ramp_transactions` to confirm it's not a duplicate and classify it correctly (payment vs. transfer vs. fee, etc.)
+3. **Flags accrual implications** — if this transaction has a timing component (prepaid, deferred, accrued), proposes the accrual adjustment right then, in context
+4. **Presents recommendation** with plain-English explanation and waits for Jeff/Heather approval before posting
+
+This means the accrual questions happen while the transaction is already in front of everyone — no need to re-establish context in a separate session.
+
+**Accrual adjustment categories (evaluated per transaction as they come up):**
 
 | Category | What to look for | Adjustment entry |
 |----------|-----------------|-----------------|
-| **Unpaid vendor bills** | Services received before cutoff but not yet paid | DR Expense / CR Accounts Payable (2000) |
-| **Uncollected revenue** | Revenue earned before cutoff but not yet received | DR Accounts Receivable (1100) / CR Revenue |
-| **Prepaid expenses** | Cash paid before cutoff for future-period services (insurance, subscriptions) | DR Prepaid Expenses (1200) / CR Expense |
-| **Deferred revenue** | Cash received before cutoff for future-period services | DR Revenue / CR Deferred Revenue (2040) |
-| **Accrued payroll** | Wages earned but not yet paid at cutoff | DR Salaries & Wages (5000) / CR Accrued Payroll (2100) |
+| **Unpaid vendor bills** | Services received before 12/31 but not yet paid | DR Expense / CR Accounts Payable (2000) |
+| **Uncollected revenue** | Revenue earned before 12/31 but not yet received | DR Accounts Receivable (1100) / CR Revenue |
+| **Prepaid expenses** | Cash paid before 12/31 for future-period services (insurance, subscriptions) | DR Prepaid Expenses (1200) / CR Expense |
+| **Deferred revenue** | Cash received before 12/31 for future-period services | DR Revenue / CR Deferred Revenue (2040) |
+| **Accrued payroll** | Wages earned but not yet paid at 12/31 | DR Salaries & Wages (5000) / CR Accrued Payroll (2100) |
 | **Accrued interest** | AHP loan interest accrued since last payment | DR CIP Interest (1550) / CR Accrued Interest (2520) |
 | **Depreciation** | If assets placed in service, catch-up depreciation | DR Depreciation (5200) / CR Accum. Depr. |
 
-Known FY25 adjustments (from prior analysis):
+All accrual adjustments posted as of **12/31/2025** with `sourceType = 'ACCRUAL_CONVERSION'`.
+
+**Known FY25 adjustments (from prior analysis):**
 - Prepaid insurance: $501 (DR Prepaid Expenses, CR Property Insurance, General Fund)
 - Accrued reimbursements: imported per-transaction (not as blob) to avoid double-counting
 - December rent AR: $0 (no tenants yet, building under construction)
 - AHP interest: $0 accrual ($100K drawn 11/18/2025 at 4.75%; $572.60 paid 12/19 covers through 12/31)
+
+**Session logistics:** Jeff exports QBO data (Steps 8b–8f) in advance. Import script built and dry-run tested (Steps 8g–8h) before the session. The 3-person review session (Jeff + Heather + Claude) walks through the imported transactions with Claude presenting recommendations. Target: complete in one sitting given low FY25 transaction volume.
 
 ### 8j. Post-Import Verification
 - Run verification checks (INV-001: debits = credits, INV-010: per-fund balance)
@@ -453,10 +473,10 @@ The reconciliation script matches QBO entries against `bank_transactions` (from 
 
 ```bash
 DATABASE_URL=<prod-connection-string> npx tsx src/lib/migration/run-reconciliation.ts \
-  --qbo ./qbo-export-YYYY-MM-DD/journal-all.csv \
+  --qbo ./qbo-export-2025-12-31/journal-all.csv \
   --from-db \
-  --cutoff-date YYYY-MM-DD \
-  --output ./qbo-export-YYYY-MM-DD/reconciliation-report.txt
+  --cutoff-date 2025-12-31 \
+  --output ./qbo-export-2025-12-31/reconciliation-report.txt
 ```
 
 Two reconciliation passes:
@@ -480,7 +500,7 @@ Exit codes: 0 = fully reconciled, 2 = unmatched transactions found.
 
 After verified import + accrual conversion, create a Neon database branch as a resettable baseline:
 ```bash
-neonctl branches create --name baseline-import-YYYY-MM-DD --project-id $NEON_PROJECT_ID
+neonctl branches create --name baseline-import-2025-12-31 --project-id $NEON_PROJECT_ID
 ```
 
 This enables:
@@ -508,7 +528,18 @@ After GL import + accrual conversion, these entities need manual entry in the ap
 - Generate Report #2 (Statement of Activities) — verify activity through cutoff
 - Share conversion summary with Heather for review
 
-**Acceptance criteria:** All QBO history through cutoff imported. Cash → accrual conversion entries reviewed and posted. Debits equal credits across all funds. QBO ending balances match new system. Reconciliation against API-sourced bank/Ramp data clean (exit code 0) or all discrepancies explained. Neon snapshot created.
+**Acceptance criteria:** All QBO history through 12/31/2025 imported. Cash → accrual conversion entries reviewed and posted (combined single-pass review with Heather). Debits equal credits across all funds. QBO ending balances match new system. Reconciliation against API-sourced bank/Ramp data clean (exit code 0) or all discrepancies explained. Neon snapshot created.
+
+**Step 8 infrastructure — COMPLETED 2026-02-27:**
+
+Interactive Review UI built (replaces batch CLI import for the review session):
+- **New table:** `import_review_items` (migration 0018) — stores parsed QBO transactions with recommendations, match data, accrual flags, and user selections
+- **Review engine:** `src/lib/migration/review-engine.ts` — `parseAndStore()` parses CSV, generates deterministic GL account recommendations via static `QBO_ACCOUNT_MAPPING`, matches against Plaid/Ramp data in DB (4-pass algorithm: exact → ±1d → ±3d → amount-only), flags accrual candidates; `submitApproved()` posts all approved items to GL atomically via `createTransaction()`
+- **Summary page:** `/migration-review` — CSV upload, transaction table with filter tabs (All/Pending/Approved/Skipped), progress bar, balance check, Submit Final with confirmation dialog, Delete Batch
+- **Transaction review page:** `/migration-review/[id]` — single-card view with per-line AccountSelector + FundSelector, Plaid/Ramp match candidates (radio buttons with consumed-match tracking), accrual toggle with date range + amortization preview, Approve/Skip with auto-advance
+- **Copilot context:** `migration-review` context registered — copilot sidebar available during review for GAAP/990/fund questions
+- **Verification:** TypeScript 0 errors, lint 0 new errors, 988 tests pass, build succeeds
+- **Remaining before use:** Apply migration 0018 to prod/staging DBs; replace hardcoded `userId: 'jeff'` with real auth session user; Jeff exports QBO CSV (Steps 8b–8f)
 
 ---
 
@@ -843,7 +874,7 @@ Step 4  (deploy to production)    ─── COMPLETED 2026-02-16
 Step 5  (auth verification)       ─── COMPLETED 2026-02-16
 Step 6  (Plaid — full history)    ─── COMPLETED 2026-02-19
 Step 7  (Ramp — full history)     ─── COMPLETED 2026-02-18 (3 API fixes + pending txn support)
-Step 8  (QBO import + recon)      ─── READY (can start; both Plaid + Ramp data in DB for reconciliation)
+Step 8  (QBO import + recon)      ─── IN PROGRESS (cutoff: 12/31/2025; review UI built 2026-02-27; awaiting QBO CSV export + Heather review session)
 Step 9  (Postmark verification)   ─── READY (can parallel)
 Step 10 (cron job verification)   ─── COMPLETED 2026-02-19 (7/9 verified; Plaid + compliance deferred)
 Step 11 (cross-DB connectivity)   ─── COMPLETED 2026-02-17

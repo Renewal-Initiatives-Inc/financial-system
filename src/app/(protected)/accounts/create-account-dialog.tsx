@@ -218,7 +218,7 @@ export function CreateAccountDialog({
             <Input
               value={subType}
               onChange={(e) => setSubType(e.target.value)}
-              placeholder="Optional (e.g., Cash, Current Asset)"
+              placeholder="Optional (e.g., Cash, Receivable, Prepaid)"
               data-testid="create-account-subtype"
             />
           </div>
