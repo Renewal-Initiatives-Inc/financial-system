@@ -48,10 +48,6 @@ describe('Phase 16: Specialized financial reports', () => {
     expect(typeof mod.getCashProjectionData).toBe('function')
   })
 
-  it('ahp-loan-summary exports getAHPLoanSummaryData', async () => {
-    const mod = await import('../ahp-loan-summary')
-    expect(typeof mod.getAHPLoanSummaryData).toBe('function')
-  })
 })
 
 describe('Phase 16: Payroll reports', () => {
@@ -87,11 +83,6 @@ describe('Phase 16: Budget & annual reports', () => {
     expect(typeof mod.getCapitalBudgetData).toBe('function')
   })
 
-  it('ahp-annual-package exports getAHPAnnualPackageData', async () => {
-    const mod = await import('../ahp-annual-package')
-    expect(typeof mod.getAHPAnnualPackageData).toBe('function')
-  })
-
   it('form-990-data exports getForm990Data', async () => {
     const mod = await import('../form-990-data')
     expect(typeof mod.getForm990Data).toBe('function')
@@ -109,7 +100,6 @@ describe('REPORT_DEFINITIONS Phase 16 coverage', () => {
     'late-entries',
     'donor-giving-history',
     'cash-projection',
-    'ahp-loan-summary',
     'compliance-calendar',
     'payroll-register',
     'payroll-tax-liability',
@@ -117,11 +107,10 @@ describe('REPORT_DEFINITIONS Phase 16 coverage', () => {
     'employer-payroll-cost',
     'quarterly-tax-prep',
     'capital-budget',
-    'ahp-annual-package',
     'form-990-data',
   ]
 
-  it('all 15 Phase 16 reports are in REPORT_DEFINITIONS', async () => {
+  it('all 13 Phase 16 reports are in REPORT_DEFINITIONS', async () => {
     const { REPORT_DEFINITIONS } = await import('../types')
     const definedSlugs = REPORT_DEFINITIONS.map((r) => r.slug)
     for (const slug of PHASE_16_SLUGS) {
@@ -129,7 +118,7 @@ describe('REPORT_DEFINITIONS Phase 16 coverage', () => {
     }
   })
 
-  it('all 15 Phase 16 reports are marked available', async () => {
+  it('all 13 Phase 16 reports are marked available', async () => {
     const { REPORT_DEFINITIONS } = await import('../types')
     for (const slug of PHASE_16_SLUGS) {
       const def = REPORT_DEFINITIONS.find((r) => r.slug === slug)

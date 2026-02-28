@@ -10,7 +10,6 @@ import type {
   BalanceSheetSection,
 } from '@/lib/reports/balance-sheet'
 import { getBalanceSheetData } from '@/lib/reports/balance-sheet'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -195,44 +194,6 @@ export function BalanceSheetClient({
             testIdPrefix="balance-sheet"
           />
 
-          {/* AHP Loan Note */}
-          {data.ahpNote && (
-            <Card className="mt-6" data-testid="ahp-note">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold">
-                  Note: Affordable Housing Program (AHP) Line of Credit
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Credit Limit</p>
-                    <p className="font-mono font-medium">
-                      {formatCurrency(data.ahpNote.creditLimit)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Drawn Amount</p>
-                    <p className="font-mono font-medium">
-                      {formatCurrency(data.ahpNote.drawn)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Available</p>
-                    <p className="font-mono font-medium">
-                      {formatCurrency(data.ahpNote.available)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Interest Rate</p>
-                    <p className="font-mono font-medium">
-                      {(data.ahpNote.interestRate * 100).toFixed(3)}%
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </>
       )}
     </ReportShell>

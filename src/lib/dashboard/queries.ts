@@ -19,8 +19,6 @@ import {
 export interface CashSnapshotData {
   bankBalances: { name: string; balance: number }[]
   netAvailableCash: number
-  ahpDrawn: number
-  ahpAvailable: number
 }
 
 export interface AlertItem {
@@ -85,8 +83,6 @@ export async function getCashSnapshotData(): Promise<CashSnapshotData> {
       balance: a.balance,
     })),
     netAvailableCash: data.netAvailableCash,
-    ahpDrawn: data.ahpStatus?.drawn ?? 0,
-    ahpAvailable: data.ahpStatus?.available ?? 0,
   }
 }
 

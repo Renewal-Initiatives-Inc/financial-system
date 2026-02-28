@@ -5,7 +5,6 @@ import {
   transactionLines,
   transactions,
   funds,
-  ahpLoanConfig,
 } from '@/lib/db/schema'
 
 // ---------------------------------------------------------------------------
@@ -26,13 +25,6 @@ export interface BalanceSheetSection {
   total: number
 }
 
-export interface AHPNote {
-  creditLimit: number
-  drawn: number
-  available: number
-  interestRate: number
-}
-
 export interface BalanceSheetData {
   asOfDate: string
   currentAssets: BalanceSheetSection
@@ -45,7 +37,6 @@ export interface BalanceSheetData {
   netAssetsRestricted: BalanceSheetSection
   totalNetAssets: number
   totalLiabilitiesAndNetAssets: number
-  ahpNote: AHPNote | null
   fundName: string | null
 }
 
@@ -78,7 +69,6 @@ const CURRENT_LIABILITY_SUBTYPES = new Set([
 
 const LONG_TERM_LIABILITY_SUBTYPES = new Set([
   'Long-Term',
-  'AHP Loan',
   'Deferred',
 ])
 
@@ -362,21 +352,6 @@ export async function getBalanceSheetData(
 
   const totalLiabilitiesAndNetAssets = totalLiabilities + totalNetAssets
 
-  // ---- AHP Loan Note ----
-  let ahpNote: AHPNote | null = null
-  const ahpRows = await db.select().from(ahpLoanConfig).limit(1)
-  if (ahpRows.length > 0) {
-    const ahp = ahpRows[0]
-    const creditLimit = parseFloat(ahp.creditLimit) || 0
-    const drawn = parseFloat(ahp.currentDrawnAmount) || 0
-    ahpNote = {
-      creditLimit,
-      drawn,
-      available: creditLimit - drawn,
-      interestRate: parseFloat(ahp.currentInterestRate) || 0,
-    }
-  }
-
   // ---- Fund name lookup ----
   let fundName: string | null = null
   if (fundId) {
@@ -426,7 +401,6 @@ export async function getBalanceSheetData(
     },
     totalNetAssets,
     totalLiabilitiesAndNetAssets,
-    ahpNote,
     fundName,
   }
 }

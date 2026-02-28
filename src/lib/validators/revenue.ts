@@ -44,11 +44,6 @@ export const investmentIncomeSchema = z.object({
   date: z.string().date('Must be a valid date'),
 })
 
-export const ahpLoanForgivenessSchema = z.object({
-  amount: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid amount'),
-  date: z.string().date('Must be a valid date'),
-})
-
 export const inKindContributionSchema = z.object({
   amount: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid amount'),
   description: z.string().min(1, 'Description is required'),
@@ -77,7 +72,6 @@ export type RentAdjustment = z.infer<typeof rentAdjustmentSchema>
 export type Donation = z.infer<typeof donationSchema>
 export type EarnedIncome = z.infer<typeof earnedIncomeSchema>
 export type InvestmentIncome = z.infer<typeof investmentIncomeSchema>
-export type AhpLoanForgiveness = z.infer<typeof ahpLoanForgivenessSchema>
 export type InKindContribution = z.infer<typeof inKindContributionSchema>
 export type FundCashReceipt = z.infer<typeof fundCashReceiptSchema>
 export type FundConditionMet = z.infer<typeof fundConditionMetSchema>

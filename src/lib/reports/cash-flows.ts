@@ -249,7 +249,7 @@ export async function getCashFlows(
     deferredRevenueAccountIds,
     cipAccountIds,
     fixedAssetAccountIds,
-    ahpLoanAccountIds,
+    longTermLiabilityAccountIds,
   ] = await Promise.all([
     getAccountIdsByFilter('ASSET', ['Cash', 'Cash and Cash Equivalents']),
     getAccountIdsByFilter('EXPENSE', ['Non-Cash', 'Depreciation']),
@@ -260,7 +260,7 @@ export async function getCashFlows(
     getAccountIdsByFilter('LIABILITY', ['Deferred', 'Deferred Revenue']),
     getAccountIdsByFilter('ASSET', ['CIP']),
     getAccountIdsByFilter('ASSET', ['Fixed Asset', 'Property and Equipment']),
-    getAccountIdsByFilter('LIABILITY', ['AHP Loan']),
+    getAccountIdsByFilter('LIABILITY', ['Long-Term']),
   ])
 
   // -----------------------------------------------------------------------
@@ -356,20 +356,20 @@ export async function getCashFlows(
   // Financing Activities
   // -----------------------------------------------------------------------
 
-  const ahpBegin = await getBalanceAsOf(ahpLoanAccountIds, beforeStart, fundId)
-  const ahpEnd = await getBalanceAsOf(ahpLoanAccountIds, endDate, fundId)
-  const ahpNetChange = ahpEnd - ahpBegin
+  const ltDebtBegin = await getBalanceAsOf(longTermLiabilityAccountIds, beforeStart, fundId)
+  const ltDebtEnd = await getBalanceAsOf(longTermLiabilityAccountIds, endDate, fundId)
+  const ltDebtNetChange = ltDebtEnd - ltDebtBegin
 
   const financingLines: CashFlowLine[] = []
-  if (ahpNetChange !== 0) {
+  if (ltDebtNetChange !== 0) {
     financingLines.push({
-      label: ahpNetChange >= 0 ? 'AHP Loan Proceeds' : 'AHP Loan Repayments',
-      amount: ahpNetChange,
+      label: ltDebtNetChange >= 0 ? 'Loan Proceeds' : 'Loan Repayments',
+      amount: ltDebtNetChange,
       indent: 1,
     })
   }
 
-  const financingSubtotal = ahpNetChange
+  const financingSubtotal = ltDebtNetChange
 
   financingLines.push({
     label: 'Net Cash from Financing Activities',

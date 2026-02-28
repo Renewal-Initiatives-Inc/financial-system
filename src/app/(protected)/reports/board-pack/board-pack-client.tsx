@@ -28,7 +28,6 @@ const REPORTS = [
   { slug: 'security-deposit-register', title: 'Security Deposit Register', core: false },
   { slug: 'donor-giving-history', title: 'Donor Giving History', core: false },
   { slug: 'cash-projection', title: 'Cash Projection', core: false },
-  { slug: 'ahp-loan-summary', title: 'AHP Loan Summary', core: false },
   { slug: 'audit-log', title: 'Audit Log', core: false },
   { slug: 'transaction-history', title: 'Transaction History', core: false },
   { slug: 'late-entries', title: 'Late Entries', core: false },
@@ -40,7 +39,6 @@ const REPORTS = [
   { slug: 'w2-verification', title: 'W-2 Verification', core: false },
   { slug: 'employer-payroll-cost', title: 'Employer Payroll Cost', core: false },
   { slug: 'quarterly-tax-prep', title: 'Quarterly Tax Prep', core: false },
-  { slug: 'ahp-annual-package', title: 'AHP Annual Package', core: false },
 ]
 
 export function BoardPackClient() {

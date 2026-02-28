@@ -12,7 +12,6 @@ import {
   donors,
   vendors,
   pledges,
-  ahpLoanConfig,
   invoices,
 } from '@/lib/db/schema'
 import {
@@ -21,7 +20,6 @@ import {
   donationSchema,
   earnedIncomeSchema,
   investmentIncomeSchema,
-  ahpLoanForgivenessSchema,
   inKindContributionSchema,
   fundCashReceiptSchema,
   fundConditionMetSchema,
@@ -35,7 +33,6 @@ import {
   type Donation,
   type EarnedIncome,
   type InvestmentIncome,
-  type AhpLoanForgiveness,
   type InKindContribution,
   type FundCashReceipt,
   type FundConditionMet,
@@ -58,11 +55,6 @@ import {
   recordConditionalFundingCash,
   recognizeConditionalRevenue,
 } from '@/lib/revenue/funding-sources'
-import {
-  recordLoanForgiveness,
-  getAhpLoanConfig,
-  getAvailableCredit,
-} from '@/lib/revenue/ahp-loan'
 import { deactivateFund } from '@/lib/gl/deactivation'
 import { SystemLockedError } from '@/lib/gl/errors'
 import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
@@ -452,29 +444,6 @@ export async function getRecentInKindContributions(limit = 20) {
     )
     .orderBy(desc(transactions.date))
     .limit(limit)
-}
-
-export async function getRecentAhpForgiveness(limit = 20) {
-  return db
-    .select({
-      id: transactions.id,
-      date: transactions.date,
-      memo: transactions.memo,
-      createdAt: transactions.createdAt,
-    })
-    .from(transactions)
-    .where(
-      and(
-        ilike(transactions.memo, '%forgiveness%'),
-        eq(transactions.isVoided, false)
-      )
-    )
-    .orderBy(desc(transactions.date))
-    .limit(limit)
-}
-
-export async function getAhpLoanStatus() {
-  return getAhpLoanConfig()
 }
 
 // --- Dropdown helpers ---
@@ -1138,20 +1107,6 @@ export async function recordInvestmentIncome(
   revalidatePath('/revenue')
   revalidatePath('/transactions')
   return { transactionId: txnResult.transaction.id }
-}
-
-export async function recordAhpLoanForgivenessAction(
-  data: AhpLoanForgiveness,
-  userId: string
-): Promise<{ transactionId: number }> {
-  const validated = ahpLoanForgivenessSchema.parse(data)
-  const amount = parseFloat(validated.amount)
-
-  const result = await recordLoanForgiveness(amount, validated.date, userId)
-
-  revalidatePath('/revenue')
-  revalidatePath('/transactions')
-  return result
 }
 
 export async function recordInKindContribution(

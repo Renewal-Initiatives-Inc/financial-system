@@ -6,12 +6,6 @@ export {
   type DonorAcknowledgmentData,
 } from './donor-acknowledgment'
 export {
-  getAhpLoanConfig,
-  getAvailableCredit,
-  recordLoanForgiveness,
-  type AhpLoanStatus,
-} from './ahp-loan'
-export {
   recordUnconditionalFunding,
   recordFundCashReceipt,
   recordConditionalFundingCash,

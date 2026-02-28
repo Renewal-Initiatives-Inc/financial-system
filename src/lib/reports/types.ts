@@ -137,7 +137,7 @@ export const REPORT_DEFINITIONS: ReportCardDef[] = [
   { slug: 'cash-flows', title: 'Statement of Cash Flows', description: 'Indirect method: operating, investing, and financing activities', category: 'core', isAvailable: true },
   { slug: 'functional-expenses', title: 'Statement of Functional Expenses', description: 'Expense matrix by function (Program/Admin/Fundraising) with GAAP/990 toggle', category: 'core', isAvailable: true },
   // Operational Dashboards
-  { slug: 'cash-position', title: 'Cash Position Summary', description: 'Bank balances, payables, receivables, net available cash, AHP status', category: 'operational', isAvailable: true },
+  { slug: 'cash-position', title: 'Cash Position Summary', description: 'Bank balances, payables, receivables, net available cash', category: 'operational', isAvailable: true },
   { slug: 'ar-aging', title: 'AR Aging', description: 'Tenant, grant, and pledge receivables by aging bucket', category: 'operational', isAvailable: true },
   { slug: 'outstanding-payables', title: 'Outstanding Payables', description: 'AP, reimbursements, credit card, and accrued payables with aging', category: 'operational', isAvailable: true },
   { slug: 'rent-collection', title: 'Rent Collection Status', description: 'Billed vs collected by unit, occupancy, vacancy loss, collection rate', category: 'operational', isAvailable: true },
@@ -157,9 +157,7 @@ export const REPORT_DEFINITIONS: ReportCardDef[] = [
   // Phase 16: Specialized Financial
   { slug: 'donor-giving-history', title: 'Donor Giving History', description: 'Donation trends by donor for stewardship and 990 reporting', category: 'fund', isAvailable: true },
   { slug: 'cash-projection', title: 'Cash Projection', description: '90-day forward cash flow forecast with scenario analysis', category: 'operational', isAvailable: true },
-  { slug: 'ahp-loan-summary', title: 'AHP Loan Summary', description: 'AHP loan balance, draw schedule, and compliance status', category: 'fund', isAvailable: true },
   { slug: 'capital-budget', title: 'Capital Budget', description: 'CIP project budgets, actuals, and remaining authorization', category: 'specialized', isAvailable: true },
-  { slug: 'ahp-annual-package', title: 'AHP Annual Package', description: 'Annual AHP compliance documentation package', category: 'fund', isAvailable: true },
   { slug: 'form-990-data', title: 'Form 990 Data', description: '990 line-item data export for CPA preparation', category: 'compliance', isAvailable: true },
   // Phase 16: Payroll Reports
   { slug: 'payroll-register', title: 'Payroll Register', description: 'Detailed payroll register by pay period with functional allocation', category: 'payroll', isAvailable: true },

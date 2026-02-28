@@ -1,6 +1,6 @@
 import { eq, and, sql, inArray } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { accounts, transactionLines, transactions, ahpLoanConfig } from '@/lib/db/schema'
+import { accounts, transactionLines, transactions } from '@/lib/db/schema'
 
 export interface CashPositionAccount {
   accountId: number
@@ -15,20 +15,12 @@ export interface CashPositionSection {
   total: number
 }
 
-export interface AHPStatus {
-  creditLimit: number
-  drawn: number
-  available: number
-  interestRate: number
-}
-
 export interface CashPositionData {
   cashSection: CashPositionSection
   payablesSection: CashPositionSection
   receivablesSection: CashPositionSection
   netAvailableCash: number
   coverageRatio: number | null // cash / payables
-  ahpStatus: AHPStatus | null
 }
 
 const CASH_SUB_TYPES = ['Cash', 'Cash Equivalent']
@@ -158,22 +150,6 @@ export async function getCashPositionData(): Promise<CashPositionData> {
   const netAvailableCash = cashTotal - payablesTotal + receivablesTotal
   const coverageRatio = payablesTotal !== 0 ? cashTotal / payablesTotal : null
 
-  // --- AHP Loan Status ---
-  const ahpRows = await db.select().from(ahpLoanConfig).limit(1)
-  let ahpStatus: AHPStatus | null = null
-
-  if (ahpRows.length > 0) {
-    const ahp = ahpRows[0]
-    const creditLimit = parseFloat(ahp.creditLimit)
-    const drawn = parseFloat(ahp.currentDrawnAmount)
-    ahpStatus = {
-      creditLimit,
-      drawn,
-      available: creditLimit - drawn,
-      interestRate: parseFloat(ahp.currentInterestRate),
-    }
-  }
-
   return {
     cashSection: {
       title: 'Cash & Cash Equivalents',
@@ -192,6 +168,5 @@ export async function getCashPositionData(): Promise<CashPositionData> {
     },
     netAvailableCash,
     coverageRatio,
-    ahpStatus,
   }
 }

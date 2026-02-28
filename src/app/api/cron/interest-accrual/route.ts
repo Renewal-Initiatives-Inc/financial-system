@@ -1,35 +1,20 @@
 import { NextResponse } from 'next/server'
-import { generateInterestAccrualEntry } from '@/lib/assets/interest-accrual'
 
+/**
+ * Interest accrual cron job.
+ *
+ * Previously accrued AHP loan interest monthly. The AHP singleton has been
+ * removed — interest accrual will be reimplemented per-funding-source in
+ * Phase 8 (Loan GL Logic + Interest Rate Tracking).
+ */
 export async function GET(request: Request) {
-  // Verify Vercel cron authorization
   const authHeader = request.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  try {
-    const today = new Date().toISOString().split('T')[0]
-    const result = await generateInterestAccrualEntry(today, 'system:cron')
-
-    if (!result) {
-      return NextResponse.json({
-        success: true,
-        message: 'No interest to accrue (zero drawn amount or already processed)',
-      })
-    }
-
-    return NextResponse.json({
-      success: true,
-      mode: result.mode,
-      amount: result.amount,
-      transactionId: result.transactionId,
-    })
-  } catch (error) {
-    console.error('Interest accrual cron error:', error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    )
-  }
+  return NextResponse.json({
+    success: true,
+    message: 'Interest accrual disabled — pending Phase 8 reimplementation for funding-source-based loans',
+  })
 }

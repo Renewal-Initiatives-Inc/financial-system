@@ -121,21 +121,19 @@ describe('getBalanceSheetData', () => {
   })
 
   /**
-   * Helper: configure the 5 sequential db.select() calls the function makes:
+   * Helper: configure the sequential db.select() calls the function makes:
    *   0 — balanceRows (ASSET / LIABILITY aggregation)
    *   1 — netAssetRows (NET_ASSET by restriction)
    *   2 — revenueExpenseRows (REVENUE / EXPENSE roll-up)
-   *   3 — ahpLoanConfig
-   *   4 — fund name lookup (only when fundId provided)
+   *   3 — fund name lookup (only when fundId provided)
    */
   function setDbResults(
     balanceRows: MockBalanceRow[],
     netAssetRows: MockNetAssetRow[],
     revenueExpenseRows: MockRevenueExpenseRow[],
-    ahpRows: unknown[] = [],
     fundRows: unknown[] = []
   ) {
-    selectResults = [balanceRows, netAssetRows, revenueExpenseRows, ahpRows, fundRows]
+    selectResults = [balanceRows, netAssetRows, revenueExpenseRows, fundRows]
   }
 
   // ---- Structure tests ---------------------------------------------------
@@ -157,7 +155,6 @@ describe('getBalanceSheetData', () => {
       netAssetsRestricted: { title: 'With Donor Restrictions', rows: [], total: 0 },
       totalNetAssets: 0,
       totalLiabilitiesAndNetAssets: 0,
-      ahpNote: null,
       fundName: null,
     })
   })
@@ -229,14 +226,14 @@ describe('getBalanceSheetData', () => {
     expect(result.longTermLiabilities.rows).toHaveLength(0)
   })
 
-  it('classifies AHP Loan subType as long-term liability', async () => {
+  it('classifies Long-Term subType as long-term liability', async () => {
     const rows = [
       makeBalanceRow({
         accountId: 11,
         accountCode: '2500',
         accountName: 'AHP Loan Payable',
         accountType: 'LIABILITY',
-        subType: 'AHP Loan',
+        subType: 'Long-Term',
         normalBalance: 'CREDIT',
         totalDebit: '0',
         totalCredit: '200000',
@@ -494,7 +491,7 @@ describe('getBalanceSheetData', () => {
   // ---- Fund filter -------------------------------------------------------
 
   it('passes fundId to WHERE conditions and looks up fund name', async () => {
-    setDbResults([], [], [], [], [{ name: 'Operating Fund' }])
+    setDbResults([], [], [], [{ name: 'Operating Fund' }])
 
     const result = await getBalanceSheetData({
       endDate: '2026-01-31',
@@ -502,8 +499,8 @@ describe('getBalanceSheetData', () => {
     })
 
     expect(result.fundName).toBe('Operating Fund')
-    // Verify db.select was called (5 calls: balanceRows, netAssets, revExp, ahp, fund)
-    expect(mockSelect).toHaveBeenCalledTimes(5)
+    // Verify db.select was called (4 calls: balanceRows, netAssets, revExp, fund)
+    expect(mockSelect).toHaveBeenCalledTimes(4)
   })
 
   it('does not look up fund name when fundId is not provided', async () => {
@@ -512,8 +509,8 @@ describe('getBalanceSheetData', () => {
     const result = await getBalanceSheetData({ endDate: '2026-01-31' })
 
     expect(result.fundName).toBeNull()
-    // Only 4 calls: balanceRows, netAssets, revExp, ahp — no fund lookup
-    expect(mockSelect).toHaveBeenCalledTimes(4)
+    // Only 3 calls: balanceRows, netAssets, revExp — no fund lookup
+    expect(mockSelect).toHaveBeenCalledTimes(3)
   })
 
   // ---- Empty database ----------------------------------------------------
@@ -554,34 +551,6 @@ describe('getBalanceSheetData', () => {
 
     expect(result.currentAssets.rows).toHaveLength(0)
     expect(result.totalAssets).toBe(0)
-  })
-
-  // ---- AHP note ----------------------------------------------------------
-
-  it('returns AHP note when ahpLoanConfig exists', async () => {
-    const ahpRow = {
-      creditLimit: '500000.00',
-      currentDrawnAmount: '150000.00',
-      currentInterestRate: '3.75000',
-    }
-    setDbResults([], [], [], [ahpRow])
-
-    const result = await getBalanceSheetData({ endDate: '2026-01-31' })
-
-    expect(result.ahpNote).toEqual({
-      creditLimit: 500000,
-      drawn: 150000,
-      available: 350000,
-      interestRate: 3.75,
-    })
-  })
-
-  it('returns null AHP note when no config exists', async () => {
-    setDbResults([], [], [], [])
-
-    const result = await getBalanceSheetData({ endDate: '2026-01-31' })
-
-    expect(result.ahpNote).toBeNull()
   })
 
   // ---- Section totals aggregate correctly --------------------------------

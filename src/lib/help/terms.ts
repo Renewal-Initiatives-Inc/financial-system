@@ -188,9 +188,6 @@ export const helpTerms: Record<string, string> = {
   'developer-fee':
     'RI\'s development fee ($827K) — partially paid in cash during construction, remainder deferred as a long-term liability (Deferred Developer Fee Payable). Related-party transaction. Per DM-P0-033.',
 
-  'ahp-loan':
-    'Affordable Housing Program loan from FHLBB. $3.5M credit facility. Interest accrues monthly, paid annually Dec 31. Available credit = limit - drawn. Per DM-P0-025.',
-
   // --- Phase 7: Revenue Recording ---
 
   'rent-accrual':
@@ -231,9 +228,6 @@ export const helpTerms: Record<string, string> = {
 
   'investment-income':
     'Interest and investment returns on unrestricted cash. Classified as unrestricted revenue.',
-
-  'ahp-loan-forgiveness':
-    'AHP loan principal forgiven. Treated as unconditional donation: DR AHP Loan Payable, CR Donation Income. Permanently reduces maximum available credit.',
 
   'funding-cash-receipt':
     'Cash received on an unconditional funding source receivable. DR Cash, CR Grants Receivable. Does not trigger new revenue — revenue was recognized at award.',

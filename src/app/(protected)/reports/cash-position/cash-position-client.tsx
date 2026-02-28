@@ -6,7 +6,6 @@ import { formatCurrency } from '@/lib/reports/types'
 import type {
   CashPositionData,
   CashPositionSection,
-  AHPStatus,
 } from '@/lib/reports/cash-position'
 
 interface CashPositionClientProps {
@@ -103,53 +102,6 @@ function NetAvailableCard({
   )
 }
 
-function AHPCard({ ahp }: { ahp: AHPStatus }) {
-  const utilizationPct =
-    ahp.creditLimit > 0
-      ? ((ahp.drawn / ahp.creditLimit) * 100).toFixed(1)
-      : '0.0'
-
-  return (
-    <Card data-testid="ahp-status-card">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base font-semibold">
-          AHP Line of Credit
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Credit Limit</span>
-          <span className="font-medium tabular-nums" data-testid="ahp-credit-limit">
-            {formatCurrency(ahp.creditLimit)}
-          </span>
-        </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Drawn</span>
-          <span className="font-medium tabular-nums" data-testid="ahp-drawn">
-            {formatCurrency(ahp.drawn)}
-          </span>
-        </div>
-        <div className="flex items-center justify-between text-sm border-t pt-2">
-          <span className="font-semibold">Available</span>
-          <span className="text-lg font-bold tabular-nums text-green-600 dark:text-green-400" data-testid="ahp-available">
-            {formatCurrency(ahp.available)}
-          </span>
-        </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Interest Rate</span>
-          <span className="font-medium" data-testid="ahp-rate">
-            {(ahp.interestRate * 100).toFixed(3)}%
-          </span>
-        </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Utilization</span>
-          <span className="font-medium">{utilizationPct}%</span>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
 export function CashPositionClient({ data }: CashPositionClientProps) {
   return (
     <ReportShell
@@ -172,13 +124,6 @@ export function CashPositionClient({ data }: CashPositionClientProps) {
           coverageRatio={data.coverageRatio}
         />
       </div>
-
-      {/* AHP Line of Credit */}
-      {data.ahpStatus && (
-        <div className="mt-4">
-          <AHPCard ahp={data.ahpStatus} />
-        </div>
-      )}
     </ReportShell>
   )
 }

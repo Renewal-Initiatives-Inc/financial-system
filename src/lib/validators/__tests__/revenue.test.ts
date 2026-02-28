@@ -5,7 +5,6 @@ import {
   donationSchema,
   earnedIncomeSchema,
   investmentIncomeSchema,
-  ahpLoanForgivenessSchema,
   inKindContributionSchema,
   fundCashReceiptSchema,
   fundConditionMetSchema,
@@ -115,24 +114,6 @@ describe('Donation validation', () => {
       contributionSourceType: 'PUBLIC',
     })
     expect(result.isUnusualGrant).toBe(false)
-  })
-})
-
-describe('AHP loan forgiveness validation', () => {
-  it('valid forgiveness passes', () => {
-    const result = ahpLoanForgivenessSchema.safeParse({
-      amount: '50000.00',
-      date: '2026-02-01',
-    })
-    expect(result.success).toBe(true)
-  })
-
-  it('invalid amount format fails', () => {
-    const result = ahpLoanForgivenessSchema.safeParse({
-      amount: '-5000',
-      date: '2026-02-01',
-    })
-    expect(result.success).toBe(false)
   })
 })
 

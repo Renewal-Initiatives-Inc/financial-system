@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { RefreshCw, Save, ArrowLeft, Landmark } from 'lucide-react'
+import { RefreshCw, Save, ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -49,13 +49,11 @@ interface Projection {
 interface CashProjectionClientProps {
   initialProjection: Projection | null
   fiscalYear: number
-  ahpContext: { creditLimit: number; drawn: number; available: number } | null
 }
 
 export function CashProjectionClient({
   initialProjection,
   fiscalYear,
-  ahpContext,
 }: CashProjectionClientProps) {
   const router = useRouter()
   const [projection, setProjection] = useState(initialProjection)
@@ -390,24 +388,6 @@ export function CashProjectionClient({
           </TableBody>
         </Table>
       </div>
-
-      {/* AHP Credit Facility Context */}
-      {ahpContext && (
-        <Card data-testid="ahp-context-card">
-          <CardContent className="flex items-center gap-4 py-3">
-            <Landmark className="h-5 w-5 text-muted-foreground" />
-            <div className="text-sm">
-              <span className="font-medium">AHP Credit Facility</span>{' '}
-              <HelpTooltip term="ahp-loan" />:{' '}
-              {formatCurrency(ahpContext.creditLimit)} |{' '}
-              Drawn: {formatCurrency(ahpContext.drawn)} |{' '}
-              <span className="font-semibold text-green-700">
-                Available: {formatCurrency(ahpContext.available)}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Override Notes */}
       {overrides.size > 0 && (

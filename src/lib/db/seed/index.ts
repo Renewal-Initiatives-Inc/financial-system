@@ -8,7 +8,6 @@ import * as schema from '../schema'
 import { seedAccounts } from './accounts'
 import { seedFunds } from './funds'
 import { seedCipCostCodes } from './cip-cost-codes'
-import { seedAhpLoanConfig } from './ahp-loan-config'
 import { seedAnnualRates } from './annual-rates'
 
 async function seed() {
@@ -96,21 +95,6 @@ async function seed() {
   }
 
   console.log(`  Seeded ${seedCipCostCodes.length} CIP cost codes`)
-
-  // --- Seed AHP Loan Config ---
-  console.log('Seeding AHP loan config...')
-
-  const existingLoanConfig = await db
-    .select({ id: schema.ahpLoanConfig.id })
-    .from(schema.ahpLoanConfig)
-    .limit(1)
-
-  if (existingLoanConfig.length === 0) {
-    await db.insert(schema.ahpLoanConfig).values(seedAhpLoanConfig)
-    console.log('  Seeded AHP loan config')
-  } else {
-    console.log('  AHP loan config already exists, skipping')
-  }
 
   // --- Seed Annual Rate Config ---
   console.log('Seeding annual rate config...')

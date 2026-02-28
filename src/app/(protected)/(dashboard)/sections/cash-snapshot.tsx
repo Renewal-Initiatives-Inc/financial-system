@@ -29,19 +29,6 @@ export function CashSnapshot({ data }: { data: CashSnapshotData }) {
             <span className="tabular-nums">{fmt(data.netAvailableCash)}</span>
           </div>
         </div>
-        {(data.ahpDrawn > 0 || data.ahpAvailable > 0) && (
-          <div className="border-t pt-2 space-y-1">
-            <p className="text-xs text-muted-foreground font-medium">AHP Line of Credit</p>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Drawn</span>
-              <span className="tabular-nums">{fmt(data.ahpDrawn)}</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Available</span>
-              <span className="tabular-nums">{fmt(data.ahpAvailable)}</span>
-            </div>
-          </div>
-        )}
         <Link
           href="/reports/cash-position"
           className="block text-xs text-primary hover:underline pt-1"

@@ -6,7 +6,6 @@ import {
   HandCoins,
   Briefcase,
   TrendingUp,
-  Landmark,
   Gift,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -47,12 +46,6 @@ const revenueCards = [
     description: 'Interest and investment returns',
     href: '/revenue/investment-income',
     icon: TrendingUp,
-  },
-  {
-    label: 'AHP Loan Forgiveness',
-    description: 'Record loan principal forgiven',
-    href: '/revenue/ahp-forgiveness',
-    icon: Landmark,
   },
   {
     label: 'In-Kind Contributions',

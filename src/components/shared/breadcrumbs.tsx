@@ -43,7 +43,6 @@ const ROUTE_NAMES: Record<string, string> = {
   rent: 'Rent',
   adjustment: 'Adjustment',
   payment: 'Payment',
-  'ahp-forgiveness': 'AHP Forgiveness',
   // Assets sub-routes
   cip: 'Construction in Progress',
   convert: 'Convert',
@@ -83,8 +82,6 @@ const ROUTE_NAMES: Record<string, string> = {
   'rent-collection': 'Rent Collection',
   'security-deposit-register': 'Security Deposit Register',
   'board-pack': 'Board Pack',
-  'ahp-annual-package': 'AHP Annual Package',
-  'ahp-loan-summary': 'AHP Loan Summary',
   'form-990-data': 'Form 990 Data',
   'capital-budget': 'Capital Budget',
   // Settings sub-routes

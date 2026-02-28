@@ -47,7 +47,6 @@ const GL_ONLY_ACCOUNT_PATTERNS = [
   'net assets with donor restrictions',
   'net assets without donor restrictions',
   'accrued interest payable',
-  'ahp loan payable',
 ] as const
 
 /**

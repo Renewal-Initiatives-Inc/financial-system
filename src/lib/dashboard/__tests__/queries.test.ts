@@ -44,8 +44,6 @@ describe('Dashboard Data Shapes', () => {
     const snapshot = {
       bankBalances: [{ name: 'Operating', balance: 50000 }],
       netAvailableCash: 45000,
-      ahpDrawn: 0,
-      ahpAvailable: 100000,
     }
     expect(snapshot.bankBalances).toBeInstanceOf(Array)
     expect(snapshot.bankBalances[0]).toHaveProperty('name')

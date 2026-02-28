@@ -540,42 +540,7 @@ async function generateReportPDF(
               formatCurrency(data.netAvailableCash),
             ],
             isBold: true,
-          }),
-          ...(data.ahpStatus
-            ? [
-                el(PDFSectionDivider, { key: 'ahp-div' }),
-                el(PDFTableRow, {
-                  key: 'ahp-h',
-                  cells: ['AHP Line of Credit', ''],
-                  isSectionHeader: true,
-                }),
-                el(PDFTableRow, {
-                  key: 'ahp-lim',
-                  cells: [
-                    '  Credit Limit',
-                    formatCurrency(data.ahpStatus.creditLimit),
-                  ],
-                  indent: 1,
-                }),
-                el(PDFTableRow, {
-                  key: 'ahp-drawn',
-                  cells: [
-                    '  Drawn',
-                    formatCurrency(data.ahpStatus.drawn),
-                  ],
-                  indent: 1,
-                }),
-                el(PDFTableRow, {
-                  key: 'ahp-avail',
-                  cells: [
-                    '  Available',
-                    formatCurrency(data.ahpStatus.available),
-                  ],
-                  isBold: true,
-                  indent: 1,
-                }),
-              ]
-            : [])
+          })
         )
       )
     }
@@ -1304,70 +1269,6 @@ async function generateReportPDF(
     }
 
     // -----------------------------------------------------------------------
-    // Report #16: AHP Loan Summary
-    // -----------------------------------------------------------------------
-    case 'ahp-loan-summary': {
-      const { getAHPLoanSummaryData } = await import(
-        '@/lib/reports/ahp-loan-summary'
-      )
-      const data = await getAHPLoanSummaryData()
-      return renderToBuffer(
-        el(
-          ReportDocument,
-          { title: 'AHP Loan Summary', dateRange: `As of ${endDate}` },
-          ...(data.summary
-            ? [
-                el(PDFTableHeader, {
-                  key: 'ahp-hdr',
-                  columns: [{ label: 'Item' }, { label: 'Value' }],
-                }),
-                el(PDFTableRow, {
-                  key: 'ahp-cl',
-                  cells: ['Credit Limit', formatCurrency(data.summary.creditLimit)],
-                }),
-                el(PDFTableRow, {
-                  key: 'ahp-dr',
-                  cells: ['Current Drawn', formatCurrency(data.summary.currentDrawnAmount)],
-                }),
-                el(PDFTableRow, {
-                  key: 'ahp-av',
-                  cells: ['Available Credit', formatCurrency(data.summary.availableCredit)],
-                  isBold: true,
-                }),
-                el(PDFTableRow, {
-                  key: 'ahp-ir',
-                  cells: ['Interest Rate', `${data.summary.currentInterestRate}%`],
-                }),
-                el(PDFTableRow, {
-                  key: 'ahp-ia',
-                  cells: ['Total Interest Accrued', formatCurrency(data.totalInterestAccrued)],
-                }),
-                el(PDFSectionDivider, { key: 'ahp-div1' }),
-                el(PDFTableRow, {
-                  key: 'ahp-hist-h',
-                  cells: ['Draw/Payment History', ''],
-                  isSectionHeader: true,
-                }),
-                ...data.drawPaymentHistory.map((e, i) =>
-                  el(PDFTableRow, {
-                    key: `ahp-dp-${i}`,
-                    cells: [
-                      `${e.date} — ${e.type === 'draw' ? 'Draw' : 'Payment'}: ${e.memo}`,
-                      formatCurrency(e.amount),
-                    ],
-                  })
-                ),
-              ]
-            : [
-                el(PDFTableRow, {
-                  cells: ['No AHP loan configuration found.', ''],
-                }),
-              ])
-        )
-      )
-    }
-
-    // -----------------------------------------------------------------------
     // Report #17: Audit Log
     // -----------------------------------------------------------------------
     case 'audit-log': {
@@ -1500,64 +1401,6 @@ async function generateReportPDF(
             ],
             isBold: true,
           })
-        )
-      )
-    }
-
-    // -----------------------------------------------------------------------
-    // Report #20: AHP Annual Package
-    // -----------------------------------------------------------------------
-    case 'ahp-annual-package': {
-      const { getAHPAnnualPackageData } = await import(
-        '@/lib/reports/ahp-annual-package'
-      )
-      const year = params.get('year')
-        ? parseInt(params.get('year')!)
-        : new Date().getFullYear()
-      const data = await getAHPAnnualPackageData({ fiscalYear: year })
-      return renderToBuffer(
-        el(
-          ReportDocument,
-          {
-            title: 'AHP Annual Compliance Package',
-            dateRange: `FY${data.fiscalYear}`,
-          },
-          el(PDFTableRow, {
-            cells: ['Balance Sheet Summary', ''],
-            isSectionHeader: true,
-          }),
-          el(PDFTableRow, {
-            cells: ['Total Assets', formatCurrency(data.balanceSheet.totalAssets)],
-            isBold: true,
-          }),
-          el(PDFTableRow, {
-            cells: ['Total Liabilities', formatCurrency(data.balanceSheet.totalLiabilities)],
-          }),
-          el(PDFTableRow, {
-            cells: ['Total Net Assets', formatCurrency(data.balanceSheet.totalNetAssets)],
-            isBold: true,
-          }),
-          el(PDFSectionDivider),
-          el(PDFTableRow, {
-            cells: ['Loan Summary', ''],
-            isSectionHeader: true,
-          }),
-          ...(data.loanSummary.summary
-            ? [
-                el(PDFTableRow, {
-                  key: 'ahp-pkg-cl',
-                  cells: ['Credit Limit', formatCurrency(data.loanSummary.summary.creditLimit)],
-                }),
-                el(PDFTableRow, {
-                  key: 'ahp-pkg-dr',
-                  cells: ['Drawn', formatCurrency(data.loanSummary.summary.currentDrawnAmount)],
-                }),
-                el(PDFTableRow, {
-                  key: 'ahp-pkg-ia',
-                  cells: ['Interest Accrued', formatCurrency(data.loanSummary.totalInterestAccrued)],
-                }),
-              ]
-            : [el(PDFTableRow, { cells: ['No AHP loan data', ''] })])
         )
       )
     }
