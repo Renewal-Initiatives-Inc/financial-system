@@ -231,7 +231,7 @@ describe('getBalanceSheetData', () => {
       makeBalanceRow({
         accountId: 11,
         accountCode: '2500',
-        accountName: 'AHP Loan Payable',
+        accountName: 'Loans Payable',
         accountType: 'LIABILITY',
         subType: 'Long-Term',
         normalBalance: 'CREDIT',

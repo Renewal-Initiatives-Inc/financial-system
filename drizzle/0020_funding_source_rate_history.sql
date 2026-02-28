@@ -14,6 +14,6 @@ CREATE INDEX IF NOT EXISTS "fsrh_fund_effective_idx" ON "funding_source_rate_his
 
 -- Seed initial rate history for any existing LOAN funding sources that have an interest rate
 INSERT INTO "funding_source_rate_history" ("fund_id", "rate", "effective_date", "reason", "created_by")
-SELECT "id", "interest_rate", COALESCE("start_date", CURRENT_DATE), 'Initial rate from funding source setup', 'migration'
+SELECT "id", "interest_rate", CURRENT_DATE, 'Initial rate from funding source setup', 'migration'
 FROM "funds"
 WHERE "funding_category" = 'LOAN' AND "interest_rate" IS NOT NULL;

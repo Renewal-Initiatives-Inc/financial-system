@@ -48,7 +48,7 @@ The full mapping is in `account-mapping.ts` → `QBO_ACCOUNT_MAPPING`.
 | Prepaid Insurance | 1200 | Prepaid Expenses |
 | Construction in Progress | 1500 | Construction in Progress |
 | Accounts Payable (A/P) | 2000 | Accounts Payable |
-| AHP Loan Payable | 2500 | AHP Loan Payable |
+| AHP Loan Payable | 2500 | Loans Payable |
 | Rental Income | 4000 | Rental Income |
 | Grant Revenue | 4100 | Grant Revenue |
 | Donation Income | 4200 | Donation Income |

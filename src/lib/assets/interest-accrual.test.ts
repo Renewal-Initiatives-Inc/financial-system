@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { calculatePeriodInterest } from './interest-accrual'
+import { calculatePeriodInterest, accrualRefId } from './interest-accrual'
 
 describe('calculatePeriodInterest', () => {
   it('standard 31-day month: 3500000 * 0.05 * 31/365 = 14,863.01', () => {
@@ -90,5 +90,31 @@ describe('calculatePeriodInterest', () => {
     const result = calculatePeriodInterest(3500000, 0.12, '2025-01-01', '2025-02-01')
     const expected = Math.round(3500000 * 0.12 * (31 / 365) * 100) / 100
     expect(result).toBe(expected)
+  })
+
+  // AHP scenario: $100K * 4.75% * 12 days (Nov 18–30)
+  it('AHP partial month: 100000 * 0.0475 * 12/365', () => {
+    const result = calculatePeriodInterest(100000, 0.0475, '2025-11-18', '2025-11-30')
+    const expected = Math.round(100000 * 0.0475 * (12 / 365) * 100) / 100
+    expect(result).toBe(expected)
+    expect(result).toBe(156.16)
+  })
+
+  // AHP full December: $100K * 4.75% * 31 days
+  it('AHP full month: 100000 * 0.0475 * 31/365', () => {
+    const result = calculatePeriodInterest(100000, 0.0475, '2025-12-01', '2026-01-01')
+    const expected = Math.round(100000 * 0.0475 * (31 / 365) * 100) / 100
+    expect(result).toBe(expected)
+    expect(result).toBe(403.42)
+  })
+})
+
+describe('accrualRefId', () => {
+  it('builds correct reference id', () => {
+    expect(accrualRefId(42, '2026-01')).toBe('interest-accrual:42:2026-01')
+  })
+
+  it('handles different fund ids', () => {
+    expect(accrualRefId(1, '2025-12')).toBe('interest-accrual:1:2025-12')
   })
 })

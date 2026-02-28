@@ -76,7 +76,7 @@ export async function generateAccrualAdjustments(
   // ── a. Prepaid Insurance ($501) ──
   if (options.prepaidInsuranceAmount > 0) {
     const prepaidId = accountLookup.get('1200') // Prepaid Expenses
-    const insuranceId = accountLookup.get('5410') // Property Insurance
+    const insuranceId = accountLookup.get('5410') // Insurance
 
     if (prepaidId && insuranceId) {
       const glInput: InsertTransaction = {
@@ -94,7 +94,7 @@ export async function generateAccrualAdjustments(
 
       const entry: AdjustmentEntry = {
         name: 'Prepaid Insurance',
-        description: `DR Prepaid Expenses $${options.prepaidInsuranceAmount} / CR Property Insurance $${options.prepaidInsuranceAmount}`,
+        description: `DR Prepaid Expenses $${options.prepaidInsuranceAmount} / CR Insurance $${options.prepaidInsuranceAmount}`,
         amount: options.prepaidInsuranceAmount,
         glInput,
       }
@@ -110,7 +110,7 @@ export async function generateAccrualAdjustments(
     } else {
       errors.push({
         name: 'Prepaid Insurance',
-        message: `Missing accounts: ${!prepaidId ? 'Prepaid Expenses (1200)' : ''} ${!insuranceId ? 'Property Insurance (5410)' : ''}`.trim(),
+        message: `Missing accounts: ${!prepaidId ? 'Prepaid Expenses (1200)' : ''} ${!insuranceId ? 'Insurance (5410)' : ''}`.trim(),
       })
     }
   }

@@ -57,7 +57,7 @@ describe('Bank Reconciliation — Matching & GL-Only', () => {
       expect(
         isGlOnlyEntry({
           sourceType: 'MANUAL',
-          accountName: 'AHP Loan Payable',
+          accountName: 'Loans Payable',
         })
       ).toBe(false)
     })

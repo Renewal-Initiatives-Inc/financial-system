@@ -6,9 +6,9 @@
  * cash receipts, and loan proceeds/repayments.
  */
 
-import { eq } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { accounts, funds } from '@/lib/db/schema'
+import { accounts, funds, transactions, transactionLines } from '@/lib/db/schema'
 import { createTransaction } from '@/lib/gl/engine'
 
 /**
@@ -233,7 +233,7 @@ export async function recognizeConditionalRevenue(
 
 /**
  * Record loan proceeds received.
- * GL: DR Cash (1000), CR Loan Payable (2500) — balance sheet only, not revenue.
+ * GL: DR Cash (1000), CR Loans Payable (2500) — balance sheet only, not revenue.
  */
 export async function recordLoanProceeds(
   fundId: number,
@@ -283,7 +283,7 @@ export async function recordLoanProceeds(
 
 /**
  * Record loan repayment (principal only).
- * GL: DR Loan Payable (2500), CR Cash (1000)
+ * GL: DR Loans Payable (2500), CR Cash (1000)
  */
 export async function recordLoanRepayment(
   fundId: number,
@@ -334,7 +334,12 @@ export async function recordLoanRepayment(
 
 /**
  * Record loan interest payment.
- * GL: DR Interest Expense (6900), CR Cash (1000)
+ *
+ * If an accrual exists (balance on 2520 for this fund), the payment reverses
+ * the accrual: DR 2520 Accrued Interest Payable / CR 1000 Cash.
+ * Any excess above the accrued amount goes to DR 5100 Interest Expense.
+ *
+ * If no accrual exists, the full payment goes to DR 5100 Interest Expense / CR 1000 Cash.
  */
 export async function recordLoanInterestPayment(
   fundId: number,
@@ -350,6 +355,10 @@ export async function recordLoanInterestPayment(
     .select()
     .from(accounts)
     .where(eq(accounts.code, '5100'))
+  const [accruedInterest] = await db
+    .select()
+    .from(accounts)
+    .where(eq(accounts.code, '2520'))
 
   if (!cashAccount || !interestExpense) {
     throw new Error(
@@ -357,26 +366,82 @@ export async function recordLoanInterestPayment(
     )
   }
 
+  // Check outstanding accrual balance on 2520 for this fund
+  let accruedBalance = 0
+  if (accruedInterest) {
+    const [result] = await db
+      .select({
+        balance: sql<string>`COALESCE(SUM(${transactionLines.credit}), 0) - COALESCE(SUM(${transactionLines.debit}), 0)`,
+      })
+      .from(transactionLines)
+      .innerJoin(
+        transactions,
+        eq(transactionLines.transactionId, transactions.id)
+      )
+      .where(
+        and(
+          eq(transactionLines.accountId, accruedInterest.id),
+          eq(transactionLines.fundId, fundId),
+          eq(transactions.isVoided, false)
+        )
+      )
+    accruedBalance = parseFloat(result?.balance ?? '0')
+  }
+
+  // Build lines: apply payment against accrual first, then expense for any remainder
+  const lines: Array<{
+    accountId: number
+    fundId: number
+    debit: number | null
+    credit: number | null
+  }> = []
+
+  if (accruedBalance > 0 && accruedInterest) {
+    const accrualPortion = Math.min(accruedBalance, amount)
+    const expensePortion = Math.round((amount - accrualPortion) * 100) / 100
+
+    // Reverse accrual
+    lines.push({
+      accountId: accruedInterest.id,
+      fundId,
+      debit: accrualPortion,
+      credit: null,
+    })
+
+    // Any excess goes to expense
+    if (expensePortion > 0) {
+      lines.push({
+        accountId: interestExpense.id,
+        fundId,
+        debit: expensePortion,
+        credit: null,
+      })
+    }
+  } else {
+    // No accrual — full amount to expense
+    lines.push({
+      accountId: interestExpense.id,
+      fundId,
+      debit: amount,
+      credit: null,
+    })
+  }
+
+  // Credit side: Cash
+  lines.push({
+    accountId: cashAccount.id,
+    fundId,
+    debit: null,
+    credit: amount,
+  })
+
   const txnResult = await createTransaction({
     date,
     memo: `Loan interest payment - Fund #${fundId}`,
     sourceType: 'MANUAL',
     sourceReferenceId: `loan-interest:${fundId}`,
     createdBy: userId,
-    lines: [
-      {
-        accountId: interestExpense.id,
-        fundId,
-        debit: amount,
-        credit: null,
-      },
-      {
-        accountId: cashAccount.id,
-        fundId,
-        debit: null,
-        credit: amount,
-      },
-    ],
+    lines,
   })
 
   return { transactionId: txnResult.transaction.id }

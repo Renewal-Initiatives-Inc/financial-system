@@ -131,14 +131,19 @@ describe('parseQboCsv', () => {
     expect(() => parseQboCsv(csv)).toThrow(/Missing required CSV columns/)
   })
 
-  it('rejects rows with missing account name', () => {
+  it('skips rows with missing account name (QBO summary/filler rows)', () => {
     const csv = [
       HEADER,
-      '01/01/2025,1006,Journal Entry,Test,,,General,$100.00,',
+      '01/01/2025,1006,Journal Entry,Test,Checking,,General,$100.00,',
+      '01/01/2025,1006,Journal Entry,Test,Savings,,General,,$100.00',
+      ',,,,,,,$100.00,$100.00', // summary row — no account, skipped
     ].join('\n')
 
-    expect(() => parseQboCsv(csv)).toThrow(QboParseError)
-    expect(() => parseQboCsv(csv)).toThrow(/missing account name/)
+    const rows = parseQboCsv(csv)
+    // Only the two rows with account names are kept; summary row is skipped
+    expect(rows).toHaveLength(2)
+    expect(rows[0].accountName).toBe('Checking')
+    expect(rows[1].accountName).toBe('Savings')
   })
 
   it('handles empty CSV content', () => {

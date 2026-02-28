@@ -159,7 +159,7 @@ describe('QBO_ACCOUNT_MAPPING completeness', () => {
 
     // Key liabilities
     expect(QBO_ACCOUNT_MAPPING['Accounts Payable']).toBe('2000')
-    expect(QBO_ACCOUNT_MAPPING['AHP Loan Payable']).toBe('2500')
+    expect(QBO_ACCOUNT_MAPPING['Loans Payable']).toBe('2500')
 
     // Revenue
     expect(QBO_ACCOUNT_MAPPING['Rental Income']).toBe('4000')

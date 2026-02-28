@@ -40,6 +40,7 @@ import {
   type ReviewSummary,
 } from './actions'
 import type { ReviewRecommendation } from '@/lib/migration/review-engine'
+import type { QboParsedTransaction } from '@/lib/migration/qbo-csv-parser'
 
 interface Props {
   batchId: string | null
@@ -341,7 +342,9 @@ export function MigrationReviewClient({ batchId: initialBatchId, initialItems, i
                   <TableBody>
                     {filteredItems.map((item) => {
                       const rec = item.recommendation as ReviewRecommendation
+                      const parsed = item.parsedData as QboParsedTransaction
                       const firstAccount = rec.lines[0]
+                      const vendors = [...new Set(parsed.lines.map((l) => l.name).filter(Boolean))]
                       return (
                         <TableRow
                           key={item.id}
@@ -349,7 +352,12 @@ export function MigrationReviewClient({ batchId: initialBatchId, initialItems, i
                           onClick={() => router.push(`/migration-review/${item.id}`)}
                         >
                           <TableCell className="font-mono text-sm">{item.transactionDate}</TableCell>
-                          <TableCell className="max-w-xs truncate text-sm">{item.description}</TableCell>
+                          <TableCell className="max-w-sm text-sm">
+                            <div className="font-medium truncate">{parsed.memo || item.description}</div>
+                            {vendors.length > 0 && (
+                              <div className="text-xs text-muted-foreground truncate">{vendors.join(', ')}</div>
+                            )}
+                          </TableCell>
                           <TableCell className="text-right font-mono text-sm">
                             ${Number(item.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </TableCell>

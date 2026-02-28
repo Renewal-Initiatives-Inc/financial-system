@@ -71,6 +71,7 @@ export function parseCurrency(value: string | undefined | null): number {
 /** QBO CSV column header names (case-insensitive matching) */
 const COLUMN_MAP: Record<string, keyof QboRow> = {
   'date': 'date',
+  'transaction date': 'date',
   'trans no': 'transactionNo',
   'transaction no': 'transactionNo',
   'trans no.': 'transactionNo',
@@ -83,17 +84,67 @@ const COLUMN_MAP: Record<string, keyof QboRow> = {
   'description': 'memo',
   'account': 'accountName',
   'account name': 'accountName',
+  'full name': 'accountName',
   'name': 'name',
   'class': 'class',
+  'item class': 'class',
   'debit': 'debit',
   'credit': 'credit',
 }
 
 /**
+ * Strip QBO metadata header rows and BOM from CSV content.
+ * QBO exports start with report title, company name, date range, then a blank
+ * line before the actual column headers. We detect the header row by looking
+ * for a row that contains known column names (Date, Account, Debit, etc.).
+ */
+export function stripQboMetadataRows(csvContent: string): string {
+  // Strip BOM
+  let content = csvContent.replace(/^\uFEFF/, '')
+
+  const lines = content.split(/\r?\n/)
+  const knownHeaders = new Set(Object.keys(COLUMN_MAP))
+
+  let headerIndex = -1
+  for (let i = 0; i < Math.min(lines.length, 10); i++) {
+    const cells = lines[i].split(',').map(c => c.trim().toLowerCase().replace(/^"|"$/g, ''))
+    const matches = cells.filter(c => knownHeaders.has(c))
+    if (matches.length >= 3) {
+      headerIndex = i
+      break
+    }
+  }
+
+  if (headerIndex > 0) {
+    return lines.slice(headerIndex).join('\n')
+  }
+  return content
+}
+
+/**
+ * Check if a row is a QBO summary/total row or other non-data row that
+ * should be skipped (e.g., "Total for 17", "TOTAL", timestamp footers).
+ */
+function isSkippableRow(mapped: Record<string, string>): boolean {
+  const allValues = Object.values(mapped).join(' ').trim()
+  // "Total for X" summary rows
+  if (/^Total for /i.test(allValues)) return true
+  // Grand total row
+  if (/^TOTAL\b/i.test(allValues)) return true
+  // Timestamp footer (e.g., "Saturday, February 28, 2026 01:25 PM")
+  if (/^\s*(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/i.test(allValues)) return true
+  return false
+}
+
+/**
  * Parse QBO General Journal CSV into structured rows.
+ * Handles real QBO export format: metadata headers, summary rows,
+ * continuation rows with blank carry-forward fields, and trailing whitespace.
  */
 export function parseQboCsv(csvContent: string): QboRow[] {
-  const result = Papa.parse<Record<string, string>>(csvContent, {
+  const cleaned = stripQboMetadataRows(csvContent)
+
+  const result = Papa.parse<Record<string, string>>(cleaned, {
     header: true,
     skipEmptyLines: true,
     transformHeader: (header: string) => header.trim(),
@@ -146,6 +197,14 @@ export function parseQboCsv(csvContent: string): QboRow[] {
     for (const [csvHeader, fieldName] of columnMapping) {
       mapped[fieldName] = raw[csvHeader] ?? ''
     }
+
+    // Skip summary/total/footer rows
+    if (isSkippableRow(mapped)) continue
+
+    // Skip rows with no account name — these are QBO summary rows (debit/credit
+    // totals), blank separator rows, or trans-number-only header rows.
+    // Every legitimate QBO data row has an account name.
+    if (!mapped.accountName?.trim()) continue
 
     // QBO uses blank fields for continuation rows — carry forward
     const date = mapped.date?.trim() || lastDate

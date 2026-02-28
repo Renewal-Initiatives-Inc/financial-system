@@ -17,8 +17,11 @@ export const QBO_ACCOUNT_MAPPING: Record<string, string> = {
   // ── Cash ──
   'Business Checking': '1000',
   'Checking': '1000',
+  'UMass Five Checking (0180)': '1000',
   'Savings': '1010',
+  'UMass Five Savings (0172)': '1010',
   'Security Deposit Escrow': '1020',
+  'Undeposited Funds': '1000', // QBO transit account — settles to checking
 
   // ── Current Assets ──
   'Accounts Receivable': '1100',
@@ -54,6 +57,7 @@ export const QBO_ACCOUNT_MAPPING: Record<string, string> = {
   'Accounts Payable': '2000',
   'Accounts Payable (A/P)': '2000',
   'Reimbursements Payable': '2010',
+  'Employee Reimbursements Payable': '2010',
   'Credit Card Payable': '2020',
   'Credit Card': '2020',
   'Accrued Expenses Payable': '2030',
@@ -76,6 +80,7 @@ export const QBO_ACCOUNT_MAPPING: Record<string, string> = {
   // ── Long-Term Liabilities ──
   'AHP Loan Payable': '2500',
   'AHP Loan': '2500',
+  'Loans Payable': '2500',
   'Deferred Developer Fee Payable': '2510',
   'Accrued Interest Payable': '2520',
 
@@ -110,6 +115,7 @@ export const QBO_ACCOUNT_MAPPING: Record<string, string> = {
   'Salaries & Wages': '5000',
   'Payroll Expenses': '5000',
   'Interest Expense': '5100',
+  'Interest Paid': '5100',
   'Depreciation Expense': '5200',
   'Depreciation': '5200',
   'Bad Debt Expense': '5300',
@@ -117,6 +123,8 @@ export const QBO_ACCOUNT_MAPPING: Record<string, string> = {
   'Property Insurance': '5410',
   'Insurance Expense': '5410',
   'Insurance': '5410',
+  'Business Insurance': '5410',
+  'General Liability Insurance': '5410',
   'Management Fees': '5420',
   'Commissions': '5430',
   'Landscaping & Grounds': '5440',
@@ -141,7 +149,13 @@ export const QBO_ACCOUNT_MAPPING: Record<string, string> = {
   'Admin Operating Costs': '5600',
   'Miscellaneous': '5600',
   'Office Supplies': '5600',
-  // TODO: Add any remaining QBO accounts once we see the actual export
+  'Office Supplies & Expenses': '5600',
+  'Taxes & Licenses': '5600',
+  'Technology/Software': '5600',
+  'Bank Charges & Fees': '5600',
+  'Professional Fees (legal, accounting)': '5600',
+  'Training': '5600',
+  'Meals & Entertainment': '5600',
 }
 
 /**

@@ -47,7 +47,7 @@ export const seedAccounts: SeedAccount[] = [
   { code: '2140', name: 'Medicare Payable', type: 'LIABILITY', subType: 'Payroll', normalBalance: 'CREDIT', isSystemLocked: true },
   { code: '2150', name: 'Workers Comp Payable', type: 'LIABILITY', subType: 'Payroll', normalBalance: 'CREDIT', isSystemLocked: false },
   { code: '2160', name: '401(k) Withholding Payable', type: 'LIABILITY', subType: 'Payroll', normalBalance: 'CREDIT', isSystemLocked: false },
-  { code: '2500', name: 'AHP Loan Payable', type: 'LIABILITY', subType: 'Long-Term', normalBalance: 'CREDIT', isSystemLocked: true },
+  { code: '2500', name: 'Loans Payable', type: 'LIABILITY', subType: 'Long-Term', normalBalance: 'CREDIT', isSystemLocked: true },
   { code: '2510', name: 'Deferred Developer Fee Payable', type: 'LIABILITY', subType: 'Long-Term', normalBalance: 'CREDIT', isSystemLocked: true },
   { code: '2520', name: 'Accrued Interest Payable', type: 'LIABILITY', subType: 'Current', normalBalance: 'CREDIT', isSystemLocked: true },
 
@@ -75,7 +75,7 @@ export const seedAccounts: SeedAccount[] = [
   { code: '5200', name: 'Depreciation Expense', type: 'EXPENSE', subType: 'Non-Cash', normalBalance: 'DEBIT', isSystemLocked: true, form990Line: '22' },
   { code: '5300', name: 'Bad Debt Expense', type: 'EXPENSE', subType: 'Operating', normalBalance: 'DEBIT', isSystemLocked: false, form990Line: '24a' },
   { code: '5400', name: 'Property Taxes', type: 'EXPENSE', subType: 'Property Ops', normalBalance: 'DEBIT', isSystemLocked: false, form990Line: '24a' },
-  { code: '5410', name: 'Property Insurance', type: 'EXPENSE', subType: 'Property Ops', normalBalance: 'DEBIT', isSystemLocked: false, form990Line: '24a' },
+  { code: '5410', name: 'Insurance', type: 'EXPENSE', subType: 'Property Ops', normalBalance: 'DEBIT', isSystemLocked: false, form990Line: '24a' },
   { code: '5420', name: 'Management & Professional Fees', type: 'EXPENSE', subType: 'Property Ops', normalBalance: 'DEBIT', isSystemLocked: false, form990Line: '11g' },
   { code: '5430', name: 'Commissions', type: 'EXPENSE', subType: 'Property Ops', normalBalance: 'DEBIT', isSystemLocked: false, form990Line: '24a' },
   { code: '5440', name: 'Landscaping & Grounds', type: 'EXPENSE', subType: 'Property Ops', normalBalance: 'DEBIT', isSystemLocked: false, form990Line: '24a' },

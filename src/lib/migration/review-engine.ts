@@ -510,14 +510,20 @@ function buildGlInput(
   // Use user selections if present, otherwise use recommendation
   const useLines = selections?.lines ?? recommendation.lines
 
+  // Match rec lines back to QBO source lines (rec filters out zero-amount lines)
+  const qboLinesWithAmounts = parsed.lines.filter((l) => l.debit > 0 || l.credit > 0)
+
   const glLines = useLines.map((line, i) => {
     const recLine = recommendation.lines[i]
+    const qboLine = qboLinesWithAmounts[i]
+    // Prefer enriched per-line memo > user/rec memo > null
+    const lineMemo = (qboLine as any)?.lineMemo as string | undefined
     return {
       accountId: line.accountId,
       fundId: line.fundId,
       debit: recLine?.debit ?? null,
       credit: recLine?.credit ?? null,
-      memo: line.memo ?? null,
+      memo: lineMemo || line.memo || null,
     }
   }).filter((l) => (l.debit != null && l.debit > 0) || (l.credit != null && l.credit > 0))
 

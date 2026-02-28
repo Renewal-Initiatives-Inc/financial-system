@@ -9,7 +9,7 @@ import { calculateVariance, type VarianceResult } from '@/lib/budget/variance'
 
 const PROPERTY_EXPENSE_CATEGORIES = [
   'Property Taxes',
-  'Property Insurance',
+  'Insurance',
   'Management Fees',
   'Commissions',
   'Landscaping',
@@ -52,7 +52,7 @@ export interface PropertyExpensesFilters {
 
 const CATEGORY_PATTERNS: { pattern: RegExp; category: PropertyExpenseCategory }[] = [
   { pattern: /property\s*tax/i, category: 'Property Taxes' },
-  { pattern: /property\s*insurance/i, category: 'Property Insurance' },
+  { pattern: /insurance/i, category: 'Insurance' },
   { pattern: /management\s*fee/i, category: 'Management Fees' },
   { pattern: /commission/i, category: 'Commissions' },
   { pattern: /landscap/i, category: 'Landscaping' },

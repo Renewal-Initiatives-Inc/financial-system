@@ -23,7 +23,7 @@ to feed into our financial system's migration engine.
 
 ---
 
-## Before You Start
+## Before You Start -- COMPLETE
 
 - [ ] Log in to QBO as the **primary admin** or **company admin**
 - [ ] Reconcile all bank and credit card accounts through the cutoff date

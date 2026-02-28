@@ -38,10 +38,12 @@ import type {
   AccrualData,
   UserSelections,
 } from '@/lib/migration/review-engine'
+import type { QboParsedTransaction } from '@/lib/migration/qbo-csv-parser'
 
 interface Props {
   detail: {
     item: ReviewItemRow
+    parsedData: QboParsedTransaction
     recommendation: ReviewRecommendation
     matchData: MatchData | null
     accrualData: AccrualData | null
@@ -56,7 +58,7 @@ interface Props {
 export function ReviewItemClient({ detail, adjacent }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const { item, recommendation, matchData, accrualData, accounts, funds } = detail
+  const { item, parsedData, recommendation, matchData, accrualData, accounts, funds } = detail
   const consumedMatchIds = new Set(detail.consumedMatchIds)
 
   // Per-line selections (accountId + fundId)
@@ -200,14 +202,21 @@ export function ReviewItemClient({ detail, adjacent }: Props) {
           <CardTitle className="text-base">Transaction Details</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          <p className="text-lg font-semibold">{item.description}</p>
-          <div className="flex gap-4 text-sm text-muted-foreground">
+          <p className="text-lg font-semibold">{parsedData.memo || item.description}</p>
+          <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
             <span>QBO #{item.qboTransactionNo}</span>
+            <span>{parsedData.transactionType}</span>
             <span>Date: {item.transactionDate}</span>
             <span className="font-mono">
               Total: ${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
+          {(() => {
+            const vendors = [...new Set(parsedData.lines.map((l) => l.name).filter(Boolean))]
+            return vendors.length > 0 ? (
+              <p className="text-sm text-muted-foreground">Vendor/Name: {vendors.join(', ')}</p>
+            ) : null
+          })()}
         </CardContent>
       </Card>
 
@@ -220,43 +229,56 @@ export function ReviewItemClient({ detail, adjacent }: Props) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Account</TableHead>
+                <TableHead>Memo</TableHead>
+                <TableHead className="w-48">QBO Source</TableHead>
+                <TableHead>Mapped Account</TableHead>
                 <TableHead>Fund</TableHead>
-                <TableHead className="w-28 text-right">Debit</TableHead>
-                <TableHead className="w-28 text-right">Credit</TableHead>
-                <TableHead className="w-36">Payee</TableHead>
+                <TableHead className="w-24 text-right">Debit</TableHead>
+                <TableHead className="w-24 text-right">Credit</TableHead>
+                <TableHead className="w-32">Payee</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {recommendation.lines.map((recLine, i) => (
-                <TableRow key={i}>
-                  <TableCell>
-                    <AccountSelector
-                      accounts={accounts}
-                      value={lineSelections[i]?.accountId ?? recLine.accountId}
-                      onSelect={(id) => updateLine(i, 'accountId', id)}
-                      disabled={item.status !== 'pending'}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <FundSelector
-                      funds={funds}
-                      value={lineSelections[i]?.fundId ?? recLine.fundId}
-                      onSelect={(id) => updateLine(i, 'fundId', id)}
-                      disabled={item.status !== 'pending'}
-                    />
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm">
-                    {recLine.debit ? `$${recLine.debit.toFixed(2)}` : ''}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm">
-                    {recLine.credit ? `$${recLine.credit.toFixed(2)}` : ''}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {recLine.memo ?? ''}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {recommendation.lines.map((recLine, i) => {
+                // Match rec lines back to QBO source lines (rec filters out zero-amount lines)
+                const qboLinesWithAmounts = parsedData.lines.filter((l) => l.debit > 0 || l.credit > 0)
+                const qboLine = qboLinesWithAmounts[i] ?? parsedData.lines[i]
+                return (
+                  <TableRow key={i}>
+                    <TableCell className="text-sm text-muted-foreground max-w-xs">
+                      {(qboLine as any)?.lineMemo || parsedData.memo || ''}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {qboLine?.accountName ?? '—'}
+                    </TableCell>
+                    <TableCell>
+                      <AccountSelector
+                        accounts={accounts}
+                        value={lineSelections[i]?.accountId ?? recLine.accountId}
+                        onSelect={(id) => updateLine(i, 'accountId', id)}
+                        disabled={item.status !== 'pending'}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <FundSelector
+                        funds={funds}
+                        value={lineSelections[i]?.fundId ?? recLine.fundId}
+                        onSelect={(id) => updateLine(i, 'fundId', id)}
+                        disabled={item.status !== 'pending'}
+                      />
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm">
+                      {recLine.debit ? `$${recLine.debit.toFixed(2)}` : ''}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm">
+                      {recLine.credit ? `$${recLine.credit.toFixed(2)}` : ''}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {recLine.memo ?? ''}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
 
