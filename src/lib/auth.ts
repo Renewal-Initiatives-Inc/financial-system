@@ -64,7 +64,7 @@ export const authConfig: NextAuthConfig = {
       checks: ['pkce', 'state'],
       authorization: {
         params: {
-          scope: 'openid email profile urn:zitadel:iam:org:project:id:zitadel:aud',
+          scope: `openid email profile urn:zitadel:iam:org:projects:roles urn:zitadel:iam:org:project:id:${process.env.AUTH_ZITADEL_PROJECT_ID}:aud`,
         },
       },
       profile(profile) {

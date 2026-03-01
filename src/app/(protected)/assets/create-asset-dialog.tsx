@@ -21,8 +21,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { HelpTooltip } from '@/components/shared/help-tooltip'
+import { AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { createFixedAsset } from './actions'
+import {
+  ASSET_CATEGORIES,
+  CAPITALIZATION_THRESHOLD,
+  getAssetCategory,
+  checkUsefulLifeDeviation,
+} from '@/lib/assets/asset-categories'
 
 interface CreateAssetDialogProps {
   open: boolean
@@ -42,6 +49,7 @@ export function CreateAssetDialog({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   // Form state
+  const [categoryKey, setCategoryKey] = useState('')
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [acquisitionDate, setAcquisitionDate] = useState('')
@@ -70,7 +78,40 @@ export function CreateAssetDialog({
   // Default expense account to 5200 (Depreciation Expense)
   const defaultExpenseAccount = accountOptions.find((a) => a.code === '5200')
 
+  // Category auto-fill handler
+  const handleCategoryChange = (key: string) => {
+    setCategoryKey(key)
+    const cat = getAssetCategory(key)
+    if (!cat) return
+
+    // Auto-fill useful life
+    if (cat.usefulLifeMonths !== null) {
+      setUsefulLifeMonths(String(cat.usefulLifeMonths))
+    }
+
+    // Auto-fill GL accounts by matching code
+    if (cat.glAssetCode) {
+      const match = accountOptions.find((a) => a.code === cat.glAssetCode)
+      if (match) setGlAssetAccountId(String(match.id))
+    }
+    if (cat.glAccumDeprCode) {
+      const match = accountOptions.find((a) => a.code === cat.glAccumDeprCode)
+      if (match) setGlAccumDeprAccountId(String(match.id))
+    }
+  }
+
+  // Warnings (Option B: suggest + warn on deviation)
+  const usefulLifeWarning = categoryKey && usefulLifeMonths
+    ? checkUsefulLifeDeviation(categoryKey, Number(usefulLifeMonths))
+    : null
+
+  const capitalizationWarning =
+    cost && Number(cost) > 0 && Number(cost) < CAPITALIZATION_THRESHOLD
+      ? `Cost is below the $${CAPITALIZATION_THRESHOLD.toLocaleString()} de minimis safe harbor threshold. Consider expensing instead of capitalizing.`
+      : null
+
   const resetForm = () => {
+    setCategoryKey('')
     setName('')
     setDescription('')
     setAcquisitionDate('')
@@ -152,6 +193,38 @@ export function CreateAssetDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Asset Category */}
+          <div>
+            <Label>Asset Category</Label>
+            <Select value={categoryKey} onValueChange={handleCategoryChange}>
+              <SelectTrigger data-testid="asset-category-select">
+                <SelectValue placeholder="Select category..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="" disabled className="text-muted-foreground text-xs font-semibold">
+                  — 75 Oliver Street Components —
+                </SelectItem>
+                {ASSET_CATEGORIES.filter((c) => c.group === 'building_component').map(
+                  (cat) => (
+                    <SelectItem key={cat.key} value={cat.key}>
+                      {cat.label}
+                    </SelectItem>
+                  )
+                )}
+                <SelectItem value="" disabled className="text-muted-foreground text-xs font-semibold">
+                  — General Assets —
+                </SelectItem>
+                {ASSET_CATEGORIES.filter((c) => c.group === 'general').map(
+                  (cat) => (
+                    <SelectItem key={cat.key} value={cat.key}>
+                      {cat.label}
+                    </SelectItem>
+                  )
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Name */}
           <div>
             <Label htmlFor="asset-name">Name</Label>
@@ -284,6 +357,20 @@ export function CreateAssetDialog({
               )}
             </div>
           </div>
+
+          {/* Policy warnings */}
+          {usefulLifeWarning && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200" data-testid="useful-life-warning">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>{usefulLifeWarning}</span>
+            </div>
+          )}
+          {capitalizationWarning && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200" data-testid="capitalization-warning">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>{capitalizationWarning}</span>
+            </div>
+          )}
 
           {/* GL Accounts */}
           <div className="space-y-3">

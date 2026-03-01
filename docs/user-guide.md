@@ -85,14 +85,11 @@ Review these entries in **Transactions** by filtering for the current month and 
 
 The board receives financial reports quarterly.
 
-1. Navigate to **Reports**
-2. Generate these reports for the quarter:
-   - **Balance Sheet** — asset/liability/net asset snapshot
-   - **Statement of Activities** — revenue and expenses (like a P&L)
-   - **Cash Flows** — cash movement summary
-   - **Cash Position** — current bank balances and projections
-3. Click **Export PDF** on each report for board-ready formatting
-4. Optionally filter by fund to show fund-specific financials
+1. Navigate to **Reports > Board Pack**
+2. Select the reporting period
+3. The board pack bundles Balance Sheet, Statement of Activities, Cash Flows, and Cash Position into a single PDF
+4. Click **Export PDF** for board-ready formatting
+5. Individual reports are also available under Reports with fund filtering
 
 ### Review Budget Variance
 
@@ -104,8 +101,8 @@ The board receives financial reports quarterly.
 
 ### Update Cash Projection
 
-1. Navigate to **Reports > Cash Position**
-2. The 3-month projection shows expected inflows and outflows
+1. Navigate to **Budgets > Cash Projection**
+2. The projection shows expected inflows and outflows
 3. Update projected amounts based on known upcoming commitments
 4. Review the runway analysis for cash adequacy
 
@@ -125,11 +122,10 @@ Required for the Form 990 — allocates shared expenses across Program, Manageme
 
 ### 1099-NEC Preparation
 
-1. Navigate to **Vendors**
-2. Filter for vendors with total payments >= $600 (the 1099 threshold)
+1. Navigate to **Compliance > 1099 Prep**
+2. The system identifies vendors with total payments >= $600 (the 1099 threshold)
 3. Verify each vendor's W-9 status and tax ID
-4. Navigate to **Reports** and generate the **1099 Detail Report**
-5. Export for filing
+4. Export for filing
 
 ### W-2 Generation
 
@@ -138,6 +134,12 @@ Required for the Form 990 — allocates shared expenses across Program, Manageme
 3. Generate W-2 forms for all employees
 4. Review totals against payroll GL entries
 5. Export for filing
+
+### 990 Readiness Check
+
+1. Navigate to **Compliance > 990 Readiness**
+2. The system checks that all required data is complete for Form 990 preparation
+3. Address any flagged items before handing off to the CPA
 
 ### Compliance Calendar Review
 
@@ -163,12 +165,12 @@ Required for the Form 990 — allocates shared expenses across Program, Manageme
 4. The system creates the journal entry automatically (DR Cash, CR Revenue)
 5. For donations over $250, the system automatically sends a donor acknowledgment letter via email
 
-### Record a Grant Receipt
+### Record a Funding Source Receipt
 
-1. Navigate to **Revenue > Grants** and create the grant record if new (funder, award amount, conditions, fund)
-2. When cash arrives, click **Record Cash Receipt** on the grant detail page
+1. Navigate to **Revenue > Funding Sources** and create the funding source if new (funder, award amount, conditions, contract upload)
+2. When cash arrives, click **Record Cash Receipt** on the funding source detail page
 3. The system creates the journal entry (DR Cash, CR Deferred Revenue or Revenue depending on conditions)
-4. Track grant conditions and milestones on the grant detail page
+4. Track conditions, milestones, and extracted contract terms on the detail page
 
 ### Record Rent Payment
 
@@ -195,16 +197,17 @@ Required for the Form 990 — allocates shared expenses across Program, Manageme
 
 ## Understanding Funds
 
-The system tracks six funds:
+The system tracks five funds:
 
 | Fund | Restriction | Purpose |
 |------|------------|---------|
-| General | Unrestricted | Day-to-day operations |
-| AHP | Restricted | Affordable Housing Program grant |
-| CPA | Restricted | Community Preservation Act funds |
-| MassDev | Restricted | MassDevelopment grant |
-| HTC Equity | Restricted | Historic Tax Credit equity |
-| MassSave | Restricted | Energy efficiency program |
+| General Fund | Unrestricted | Day-to-day operations (system-locked) |
+| CPA Fund | Restricted | Community Preservation Act funds |
+| MassDev Fund | Restricted | MassDevelopment grant |
+| HTC Equity Fund | Restricted | Historic Tax Credit equity |
+| MassSave Fund | Restricted | Energy efficiency program |
+
+The AHP Line of Credit is not a separate fund — it's tracked via account 2500 (Loans Payable) with interest accrued to account 2520.
 
 Every transaction line is tagged with a fund. Reports can be filtered by fund or shown consolidated. Restricted funds require net asset releases when conditions are met.
 

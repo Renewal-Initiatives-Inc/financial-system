@@ -12,6 +12,7 @@ import { logAudit } from '@/lib/audit/logger'
 import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 import {
   calculateMonthlyAmortization,
+  generateAmortizationEntries,
   handleRefundTrueUp,
 } from '@/lib/assets/prepaid-amortization'
 
@@ -109,6 +110,16 @@ export async function createPrepaidSchedule(
 
   revalidatePath('/assets/prepaid')
   return { id: newSchedule.id }
+}
+
+export async function runPrepaidAmortization(
+  asOfDate: string,
+  userId: string
+): Promise<{ entriesCreated: number; totalAmount: number }> {
+  const result = await generateAmortizationEntries(asOfDate, userId)
+
+  revalidatePath('/assets/prepaid')
+  return result
 }
 
 export async function handlePrepaidRefund(

@@ -47,6 +47,9 @@ const ANNUAL_DEADLINES: AnnualDeadline[] = [
   { taskName: 'Public support trajectory review', month: 6, day: 30, category: 'tax', recurrence: 'annual' },
   // Grant reporting
   { taskName: 'Annual grant compliance review', month: 12, day: 31, category: 'grant', recurrence: 'annual' },
+  // Policy-system alignment: Financial Policies & Procedures Section 7 (Compliance)
+  { taskName: 'MA Secretary of State Annual Report', month: 11, day: 1, category: 'tax', recurrence: 'annual' },
+  { taskName: 'UBIT annual review', month: 12, day: 31, category: 'tax', recurrence: 'annual' },
 ]
 
 /**

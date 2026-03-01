@@ -31,10 +31,11 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { HelpTooltip } from '@/components/shared/help-tooltip'
-import { Plus } from 'lucide-react'
+import { AlertTriangle, Play, Plus } from 'lucide-react'
 import { toast } from 'sonner'
-import { createPrepaidSchedule } from '../prepaid-actions'
+import { createPrepaidSchedule, runPrepaidAmortization } from '../prepaid-actions'
 import type { PrepaidScheduleRow } from '../prepaid-actions'
+import { CAPITALIZATION_THRESHOLD } from '@/lib/assets/asset-categories'
 
 interface PrepaidClientProps {
   initialSchedules: PrepaidScheduleRow[]
@@ -164,10 +165,40 @@ export function PrepaidClient({
             Manage prepaid expense amortization schedules
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)} data-testid="create-prepaid-btn">
-          <Plus className="mr-2 h-4 w-4" />
-          Create Schedule
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              startTransition(async () => {
+                try {
+                  const today = new Date().toISOString().split('T')[0]
+                  const result = await runPrepaidAmortization(today, 'current-user')
+                  if (result.entriesCreated === 0) {
+                    toast.info('No amortization entries needed for this month')
+                  } else {
+                    toast.success(
+                      `Created ${result.entriesCreated} amortization ${result.entriesCreated === 1 ? 'entry' : 'entries'} totaling $${result.totalAmount.toFixed(2)}`
+                    )
+                  }
+                  router.refresh()
+                } catch (err) {
+                  toast.error(
+                    err instanceof Error ? err.message : 'Failed to run amortization'
+                  )
+                }
+              })
+            }}
+            disabled={isPending}
+            data-testid="run-amortization-btn"
+          >
+            <Play className="mr-2 h-4 w-4" />
+            {isPending ? 'Running...' : 'Run Amortization'}
+          </Button>
+          <Button onClick={() => setCreateOpen(true)} data-testid="create-prepaid-btn">
+            <Plus className="mr-2 h-4 w-4" />
+            Create Schedule
+          </Button>
+        </div>
       </div>
 
       {/* Filter */}
@@ -305,6 +336,15 @@ export function PrepaidClient({
               <p className="text-sm text-muted-foreground">
                 Monthly amortization: {formatCurrency(autoMonthly)}
               </p>
+            )}
+
+            {totalAmount && Number(totalAmount) > 0 && Number(totalAmount) < CAPITALIZATION_THRESHOLD && (
+              <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200" data-testid="prepaid-threshold-warning">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>
+                  Amount is below the ${CAPITALIZATION_THRESHOLD.toLocaleString()} de minimis safe harbor threshold. Consider expensing immediately instead of capitalizing as a prepaid.
+                </span>
+              </div>
             )}
 
             <div>
