@@ -12,13 +12,15 @@ import {
 } from '@/lib/validators'
 import { logAudit } from '@/lib/audit/logger'
 import { getUserId } from '@/lib/auth'
+import { encryptVendorTaxId } from '@/lib/encryption'
 import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 
 // --- Types ---
 
 export type VendorRow = typeof vendors.$inferSelect
 
-export type VendorDetail = VendorRow & {
+export type VendorDetail = Omit<VendorRow, 'taxId'> & {
+  taxId: null // never send encrypted/plaintext tax ID to client
   defaultAccountName: string | null
   defaultFundName: string | null
 }
@@ -51,11 +53,14 @@ export async function getVendors(filters?: {
     conditions.push(eq(vendors.isActive, filters.isActive))
   }
 
-  return db
+  const rows = await db
     .select()
     .from(vendors)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(vendors.name)
+
+  // Strip encrypted taxId — clients only need taxIdLastFour
+  return rows.map((v) => ({ ...v, taxId: null }))
 }
 
 export async function getVendorById(
@@ -88,6 +93,7 @@ export async function getVendorById(
 
   return {
     ...vendor,
+    taxId: null, // never expose encrypted tax ID to client
     defaultAccountName,
     defaultFundName,
   }
@@ -99,19 +105,26 @@ export async function createVendor(
   const userId = await getUserId()
   const validated = insertVendorSchema.parse(data)
 
+  // Encrypt tax ID if provided
+  const rawTaxId = validated.taxId ?? null
+  const encryptedTaxId = rawTaxId ? encryptVendorTaxId(rawTaxId) : null
+  const taxIdLastFour = rawTaxId ? rawTaxId.replace(/\D/g, '').slice(-4) : null
+
   const [newVendor] = await db.transaction(async (tx) => {
     const result = await tx
       .insert(vendors)
       .values({
         name: validated.name,
         address: validated.address ?? null,
-        taxId: validated.taxId ?? null,
+        taxId: encryptedTaxId,
+        taxIdLastFour,
         entityType: validated.entityType ?? null,
         is1099Eligible: validated.is1099Eligible ?? false,
         defaultAccountId: validated.defaultAccountId ?? null,
         defaultFundId: validated.defaultFundId ?? null,
         w9Status: validated.w9Status ?? 'NOT_REQUIRED',
         w9CollectedDate: validated.w9CollectedDate ?? null,
+        w9DocumentUrl: validated.w9DocumentUrl ?? null,
       })
       .returning()
 
@@ -156,7 +169,14 @@ export async function updateVendor(
         ...(validated.address !== undefined
           ? { address: validated.address }
           : {}),
-        ...(validated.taxId !== undefined ? { taxId: validated.taxId } : {}),
+        ...(validated.taxId !== undefined
+          ? {
+              taxId: validated.taxId ? encryptVendorTaxId(validated.taxId) : null,
+              taxIdLastFour: validated.taxId
+                ? validated.taxId.replace(/\D/g, '').slice(-4)
+                : null,
+            }
+          : {}),
         ...(validated.entityType !== undefined
           ? { entityType: validated.entityType }
           : {}),
@@ -174,6 +194,9 @@ export async function updateVendor(
           : {}),
         ...(validated.w9CollectedDate !== undefined
           ? { w9CollectedDate: validated.w9CollectedDate }
+          : {}),
+        ...(validated.w9DocumentUrl !== undefined
+          ? { w9DocumentUrl: validated.w9DocumentUrl }
           : {}),
         updatedAt: new Date(),
       })

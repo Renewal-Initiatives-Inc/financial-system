@@ -12,6 +12,7 @@ export const insertVendorSchema = z.object({
   defaultFundId: z.number().int().positive().nullable().optional(),
   w9Status: z.enum(w9Statuses).optional().default('NOT_REQUIRED'),
   w9CollectedDate: z.string().date().nullable().optional(),
+  w9DocumentUrl: z.string().url().nullable().optional(),
 })
 
 export const updateVendorSchema = z.object({
@@ -24,6 +25,7 @@ export const updateVendorSchema = z.object({
   defaultFundId: z.number().int().positive().nullable().optional(),
   w9Status: z.enum(w9Statuses).optional(),
   w9CollectedDate: z.string().date().nullable().optional(),
+  w9DocumentUrl: z.string().url().nullable().optional(),
   isActive: z.boolean().optional(),
 })
 

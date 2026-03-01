@@ -30,7 +30,10 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const blob = await put(`contracts/${Date.now()}-${file.name}`, file, {
+  const category = formData.get('category') as string | null
+  const prefix = category === 'w9' ? 'w9' : 'contracts'
+
+  const blob = await put(`${prefix}/${Date.now()}-${file.name}`, file, {
     access: 'public',
   })
 

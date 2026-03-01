@@ -5,9 +5,24 @@ import {
 } from '../actions'
 import { POListClient } from './po-list-client'
 
-export default async function PurchaseOrdersPage() {
+interface PurchaseOrdersPageProps {
+  searchParams: Promise<{ vendor?: string; status?: string; fund?: string }>
+}
+
+export default async function PurchaseOrdersPage({
+  searchParams,
+}: PurchaseOrdersPageProps) {
+  const params = await searchParams
+  const vendorId = params.vendor ? parseInt(params.vendor, 10) : undefined
+  const status = params.status || undefined
+  const fundId = params.fund ? parseInt(params.fund, 10) : undefined
+
   const [purchaseOrders, vendors, funds] = await Promise.all([
-    getPurchaseOrders(),
+    getPurchaseOrders({
+      vendorId: vendorId && !isNaN(vendorId) ? vendorId : undefined,
+      status,
+      fundId: fundId && !isNaN(fundId) ? fundId : undefined,
+    }),
     getActiveVendors(),
     getActiveFunds(),
   ])
@@ -17,6 +32,7 @@ export default async function PurchaseOrdersPage() {
       purchaseOrders={purchaseOrders}
       vendors={vendors}
       funds={funds}
+      initialVendorFilter={vendorId ? String(vendorId) : undefined}
     />
   )
 }

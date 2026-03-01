@@ -5,6 +5,7 @@ import {
   invoices,
   annualRateConfig,
 } from '@/lib/db/schema'
+import { decryptVendorTaxId } from '@/lib/encryption'
 
 export interface Vendor1099Row {
   vendorId: number
@@ -86,11 +87,22 @@ export async function getVendor1099Data(year: number): Promise<Vendor1099Data> {
 
     const totalPaid = parseFloat(paymentResult[0]?.total ?? '0')
 
+    // Decrypt tax ID for 1099 filing (only place decryption occurs)
+    let decryptedTaxId: string | null = null
+    if (vendor.taxId) {
+      try {
+        decryptedTaxId = decryptVendorTaxId(vendor.taxId)
+      } catch {
+        // Legacy plaintext value (pre-encryption migration) — use as-is
+        decryptedTaxId = vendor.taxId
+      }
+    }
+
     rows.push({
       vendorId: vendor.id,
       vendorName: vendor.name,
       address: vendor.address,
-      taxId: vendor.taxId,
+      taxId: decryptedTaxId,
       entityType: vendor.entityType,
       w9Status: vendor.w9Status,
       w9CollectedDate: vendor.w9CollectedDate,

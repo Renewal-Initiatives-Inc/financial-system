@@ -39,12 +39,14 @@ interface POListClientProps {
   purchaseOrders: PurchaseOrderRow[]
   vendors: { id: number; name: string }[]
   funds: { id: number; name: string }[]
+  initialVendorFilter?: string
 }
 
 export function POListClient({
   purchaseOrders,
   vendors,
   funds,
+  initialVendorFilter,
 }: POListClientProps) {
   const router = useRouter()
   const [sorting, setSorting] = useState<SortingState>([
@@ -112,7 +114,7 @@ export function POListClient({
           className="max-w-sm"
           data-testid="po-search-input"
         />
-        <Select onValueChange={handleVendorFilter} defaultValue="all">
+        <Select onValueChange={handleVendorFilter} defaultValue={initialVendorFilter ?? 'all'}>
           <SelectTrigger className="w-[180px]" data-testid="po-vendor-filter">
             <SelectValue placeholder="All Vendors" />
           </SelectTrigger>

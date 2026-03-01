@@ -19,7 +19,8 @@ export const vendors = pgTable(
     id: serial('id').primaryKey(),
     name: varchar('name', { length: 255 }).notNull(),
     address: text('address'),
-    taxId: text('tax_id'),
+    taxId: text('tax_id'), // stores AES-256-GCM encrypted value (or legacy plaintext pre-migration)
+    taxIdLastFour: varchar('tax_id_last_four', { length: 4 }),
     entityType: varchar('entity_type', { length: 50 }),
     is1099Eligible: boolean('is_1099_eligible').notNull().default(false),
     zitadelUserId: varchar('zitadel_user_id', { length: 255 }),
@@ -27,6 +28,7 @@ export const vendors = pgTable(
     defaultFundId: integer('default_fund_id').references(() => funds.id),
     w9Status: w9StatusEnum('w9_status').notNull().default('NOT_REQUIRED'),
     w9CollectedDate: date('w9_collected_date'),
+    w9DocumentUrl: text('w9_document_url'),
     isActive: boolean('is_active').notNull().default(true),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),

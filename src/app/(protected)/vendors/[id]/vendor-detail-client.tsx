@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Pencil, Save, X } from 'lucide-react'
+import { ArrowLeft, FileText, Pencil, Save, Upload, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -94,7 +94,7 @@ export function VendorDetailClient({
   const [isEditing, setIsEditing] = useState(false)
   const [name, setName] = useState(vendor.name)
   const [address, setAddress] = useState(vendor.address ?? '')
-  const [taxId, setTaxId] = useState(vendor.taxId ?? '')
+  const [taxId, setTaxId] = useState('')
   const [entityType, setEntityType] = useState(vendor.entityType ?? 'none')
   const [is1099Eligible, setIs1099Eligible] = useState(vendor.is1099Eligible)
   const [defaultAccountId, setDefaultAccountId] = useState(
@@ -108,6 +108,51 @@ export function VendorDetailClient({
     vendor.w9CollectedDate ?? ''
   )
   const [isConfirmDeactivateOpen, setIsConfirmDeactivateOpen] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
+
+  const handleW9Upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('category', 'w9')
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Upload failed')
+      }
+
+      const { url } = await res.json()
+
+      await updateVendor(
+        vendor.id,
+        {
+          w9DocumentUrl: url,
+          w9Status: 'COLLECTED',
+          w9CollectedDate: new Date().toISOString().split('T')[0],
+        },
+        'system'
+      )
+
+      toast.success('W-9 uploaded')
+      router.refresh()
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : 'Failed to upload W-9'
+      )
+    } finally {
+      setIsUploading(false)
+      e.target.value = ''
+    }
+  }
 
   const handleSave = () => {
     startTransition(async () => {
@@ -119,9 +164,7 @@ export function VendorDetailClient({
             ...(address !== (vendor.address ?? '')
               ? { address: address || null }
               : {}),
-            ...(taxId !== (vendor.taxId ?? '')
-              ? { taxId: taxId || null }
-              : {}),
+            ...(taxId ? { taxId } : {}),
             ...(entityType !== (vendor.entityType ?? 'none')
               ? { entityType: entityType !== 'none' ? entityType : null }
               : {}),
@@ -194,8 +237,8 @@ export function VendorDetailClient({
     })
   }
 
-  const maskedTaxId = vendor.taxId
-    ? `***-**-${vendor.taxId.slice(-4)}`
+  const maskedTaxId = vendor.taxIdLastFour
+    ? `***-**-${vendor.taxIdLastFour}`
     : '-'
 
   return (
@@ -284,6 +327,7 @@ export function VendorDetailClient({
                 <Input
                   value={taxId}
                   onChange={(e) => setTaxId(e.target.value)}
+                  placeholder={vendor.taxIdLastFour ? `Current: ***-**-${vendor.taxIdLastFour} (enter new to replace)` : 'Enter SSN or EIN'}
                   data-testid="edit-vendor-tax-id"
                 />
               ) : (
@@ -394,7 +438,7 @@ export function VendorDetailClient({
                   setIsEditing(false)
                   setName(vendor.name)
                   setAddress(vendor.address ?? '')
-                  setTaxId(vendor.taxId ?? '')
+                  setTaxId('')
                   setEntityType(vendor.entityType ?? '')
                   setIs1099Eligible(vendor.is1099Eligible)
                   setDefaultAccountId(
@@ -445,6 +489,59 @@ export function VendorDetailClient({
               </div>
             )}
           </div>
+          {vendor.w9DocumentUrl ? (
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-muted-foreground" />
+              <a
+                href={vendor.w9DocumentUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-blue-600 hover:underline"
+                data-testid="vendor-w9-doc-link"
+              >
+                View W-9 Document
+              </a>
+              <label className="cursor-pointer">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs"
+                  asChild
+                  disabled={isUploading}
+                >
+                  <span>Replace</span>
+                </Button>
+                <input
+                  type="file"
+                  accept=".pdf"
+                  className="hidden"
+                  onChange={handleW9Upload}
+                  data-testid="vendor-w9-replace-input"
+                />
+              </label>
+            </div>
+          ) : (
+            <label className="cursor-pointer inline-block">
+              <Button
+                variant="outline"
+                size="sm"
+                asChild
+                disabled={isUploading}
+              >
+                <span>
+                  <Upload className="mr-2 h-4 w-4" />
+                  {isUploading ? 'Uploading...' : 'Upload W-9 (PDF)'}
+                </span>
+              </Button>
+              <input
+                type="file"
+                accept=".pdf"
+                className="hidden"
+                onChange={handleW9Upload}
+                data-testid="vendor-w9-upload-input"
+              />
+            </label>
+          )}
           {isEditing && (
             <div className="grid grid-cols-2 gap-4">
               <div>

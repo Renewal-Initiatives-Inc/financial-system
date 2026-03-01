@@ -4,17 +4,17 @@ const ALGORITHM = 'aes-256-gcm'
 const IV_LENGTH = 12
 const AUTH_TAG_LENGTH = 16
 
-function getKey(): Buffer {
-  const hex = process.env.PLAID_ENCRYPTION_KEY
+function getKeyFromEnv(envVar: string): Buffer {
+  const hex = process.env[envVar]
   if (!hex) {
     throw new Error(
-      'PLAID_ENCRYPTION_KEY environment variable is required. Generate with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
+      `${envVar} environment variable is required. Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
     )
   }
   const key = Buffer.from(hex, 'hex')
   if (key.length !== 32) {
     throw new Error(
-      `PLAID_ENCRYPTION_KEY must be 32 bytes (64 hex chars), got ${key.length} bytes`
+      `${envVar} must be 32 bytes (64 hex chars), got ${key.length} bytes`
     )
   }
   return key
@@ -24,8 +24,8 @@ function getKey(): Buffer {
  * Encrypts plaintext using AES-256-GCM.
  * Returns format: iv:authTag:ciphertext (all base64).
  */
-export function encrypt(plaintext: string): string {
-  const key = getKey()
+export function encrypt(plaintext: string, keyEnvVar = 'PLAID_ENCRYPTION_KEY'): string {
+  const key = getKeyFromEnv(keyEnvVar)
   const iv = randomBytes(IV_LENGTH)
   const cipher = createCipheriv(ALGORITHM, key, iv)
 
@@ -40,8 +40,8 @@ export function encrypt(plaintext: string): string {
 /**
  * Decrypts a string previously encrypted with encrypt().
  */
-export function decrypt(encrypted: string): string {
-  const key = getKey()
+export function decrypt(encrypted: string, keyEnvVar = 'PLAID_ENCRYPTION_KEY'): string {
+  const key = getKeyFromEnv(keyEnvVar)
   const parts = encrypted.split(':')
 
   if (parts.length !== 3) {
@@ -59,4 +59,16 @@ export function decrypt(encrypted: string): string {
   decrypted += decipher.final('utf8')
 
   return decrypted
+}
+
+// --- Vendor tax ID helpers ---
+
+const VENDOR_KEY = 'VENDOR_ENCRYPTION_KEY'
+
+export function encryptVendorTaxId(plaintext: string): string {
+  return encrypt(plaintext, VENDOR_KEY)
+}
+
+export function decryptVendorTaxId(encrypted: string): string {
+  return decrypt(encrypted, VENDOR_KEY)
 }
