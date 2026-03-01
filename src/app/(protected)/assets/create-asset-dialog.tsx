@@ -16,7 +16,9 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
@@ -201,26 +203,26 @@ export function CreateAssetDialog({
                 <SelectValue placeholder="Select category..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="" disabled className="text-muted-foreground text-xs font-semibold">
-                  — 75 Oliver Street Components —
-                </SelectItem>
-                {ASSET_CATEGORIES.filter((c) => c.group === 'building_component').map(
-                  (cat) => (
-                    <SelectItem key={cat.key} value={cat.key}>
-                      {cat.label}
-                    </SelectItem>
-                  )
-                )}
-                <SelectItem value="" disabled className="text-muted-foreground text-xs font-semibold">
-                  — General Assets —
-                </SelectItem>
-                {ASSET_CATEGORIES.filter((c) => c.group === 'general').map(
-                  (cat) => (
-                    <SelectItem key={cat.key} value={cat.key}>
-                      {cat.label}
-                    </SelectItem>
-                  )
-                )}
+                <SelectGroup>
+                  <SelectLabel>75 Oliver Street Components</SelectLabel>
+                  {ASSET_CATEGORIES.filter((c) => c.group === 'building_component').map(
+                    (cat) => (
+                      <SelectItem key={cat.key} value={cat.key}>
+                        {cat.label}
+                      </SelectItem>
+                    )
+                  )}
+                </SelectGroup>
+                <SelectGroup>
+                  <SelectLabel>General Assets</SelectLabel>
+                  {ASSET_CATEGORIES.filter((c) => c.group === 'general').map(
+                    (cat) => (
+                      <SelectItem key={cat.key} value={cat.key}>
+                        {cat.label}
+                      </SelectItem>
+                    )
+                  )}
+                </SelectGroup>
               </SelectContent>
             </Select>
           </div>
