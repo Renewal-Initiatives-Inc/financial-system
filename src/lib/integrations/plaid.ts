@@ -180,6 +180,15 @@ export async function getAccounts(
   }))
 }
 
+/**
+ * Revoke a Plaid Item, invalidating its access token on the Plaid side.
+ * Called when the last bank account on an item is deactivated.
+ */
+export async function removeItem(accessToken: string): Promise<void> {
+  const client = getClient()
+  await client.itemRemove({ access_token: accessToken })
+}
+
 // --- Internal mapping ---
 
 function mapPlaidTransaction(txn: PlaidTransaction): PlaidTransactionRecord {

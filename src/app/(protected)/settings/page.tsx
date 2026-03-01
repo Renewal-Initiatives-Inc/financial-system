@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowRight, Database } from 'lucide-react'
+import { ArrowRight, Clock, Database } from 'lucide-react'
 import {
   Card,
   CardDescription,
@@ -29,6 +29,21 @@ export default function SettingsPage() {
               <CardDescription>
                 View and manage records from renewal-timesheets and
                 expense-reports.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
+
+        <Link href="/settings/data-retention" data-testid="settings-data-retention-link">
+          <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <Clock className="text-muted-foreground h-5 w-5" />
+                <ArrowRight className="text-muted-foreground h-4 w-4" />
+              </div>
+              <CardTitle className="text-base">Data Retention</CardTitle>
+              <CardDescription>
+                Review record age by category for annual retention compliance.
               </CardDescription>
             </CardHeader>
           </Card>

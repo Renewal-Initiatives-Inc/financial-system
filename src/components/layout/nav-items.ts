@@ -12,7 +12,7 @@ import {
   PieChart,
   ShieldCheck,
   Building2,
-
+  Clock,
   Heart,
   Landmark,
   Settings,
@@ -49,4 +49,5 @@ export const navItems: NavItem[] = [
   { label: 'Prepaid Expenses', href: '/assets/prepaid', icon: Landmark, indent: true },
   { label: 'Settings', href: '/settings', icon: Settings },
   { label: 'Annual Rates', href: '/settings/rates', icon: Settings, indent: true },
+  { label: 'Data Retention', href: '/settings/data-retention', icon: Clock, indent: true },
 ]

@@ -187,6 +187,42 @@ neonctl branches create --name <new-branch> --parent baseline-import-YYYY-MM-DD 
 
 ---
 
+## Annual Data Retention Review
+
+**When:** During the annual Information Security Policy review (February, per policy §14).
+
+**Where:** Settings > Data Retention (`/settings/data-retention`)
+
+### Procedure
+
+1. Navigate to the Data Retention dashboard
+2. Review each category for records approaching the 7-year retention threshold
+3. For categories showing "Review needed" or "Approaching":
+   - Confirm whether the oldest records have passed their retention period
+   - For financial records and bank transactions older than 7 years: document that retention has been reviewed and no action is needed (data is retained for reference), or initiate archival/deletion if required
+   - For employee PII past the employment + tax filing period: coordinate deletion with payroll closeout
+4. Document the review completion date and any actions taken in the annual policy review record
+
+### Retention Periods (from Information Security Policy §6.3)
+
+| Data Category | Retention Period | Trigger |
+|--------------|-----------------|---------|
+| Financial records (GL transactions) | 7 years | IRS requirement for 501(c)(3) |
+| Audit logs | Indefinite | Append-only, never deleted |
+| Bank transaction data | Account duration + 7 years | Connection removal |
+| Employee PII | Employment duration + tax filing periods | Separation |
+| Plaid access tokens | Revoked on account deactivation | Account removal |
+
+### Plaid Token Revocation
+
+When a bank account is deactivated via Bank Settings, the system automatically:
+- Checks if other active accounts share the same Plaid item
+- If this is the last account on the item: revokes the token via Plaid API
+- If sibling accounts remain: skips revocation to avoid disrupting active connections
+- Logs the revocation result (success/failure) in the audit trail
+
+---
+
 ## Escalation Path
 
 1. **First response:** Jeff investigates using this runbook

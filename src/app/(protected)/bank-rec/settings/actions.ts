@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { eq } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { bankAccounts, bankTransactions, accounts } from '@/lib/db/schema'
 import { insertBankAccountSchema } from '@/lib/validators'
@@ -12,6 +12,7 @@ import {
   syncTransactions,
   createLinkToken,
   createUpdateLinkToken,
+  removeItem,
 } from '@/lib/integrations/plaid'
 import { sendPlaidSyncFailureEmail } from '@/lib/integrations/plaid-sync-notification'
 import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
@@ -164,6 +165,45 @@ export async function deactivateBankAccount(
   id: number,
   userId: string
 ): Promise<void> {
+  // Fetch the account so we can check for siblings on the same Plaid item
+  const [account] = await db
+    .select()
+    .from(bankAccounts)
+    .where(eq(bankAccounts.id, id))
+
+  if (!account) throw new Error('Bank account not found')
+
+  // Check if other active accounts share this Plaid item
+  const siblings = await db
+    .select({ id: bankAccounts.id })
+    .from(bankAccounts)
+    .where(
+      and(
+        eq(bankAccounts.plaidItemId, account.plaidItemId),
+        eq(bankAccounts.isActive, true),
+        sql`${bankAccounts.id} != ${id}`
+      )
+    )
+
+  let plaidRevoked = false
+
+  // If this is the last active account on the item, revoke the Plaid token
+  if (siblings.length === 0) {
+    try {
+      const accessToken = decrypt(account.plaidAccessToken)
+      await removeItem(accessToken)
+      plaidRevoked = true
+    } catch (err) {
+      // Best-effort: log failure but proceed with deactivation.
+      // The encrypted token is useless after Plaid-side revocation;
+      // if revocation failed, the token remains but the account is inactive.
+      console.error(
+        '[deactivateBankAccount] Plaid item revocation failed:',
+        err instanceof Error ? err.message : String(err)
+      )
+    }
+  }
+
   await db.transaction(async (tx) => {
     await tx
       .update(bankAccounts)
@@ -175,7 +215,11 @@ export async function deactivateBankAccount(
       action: 'deactivated',
       entityType: 'bank_account',
       entityId: id,
-      afterState: { isActive: false },
+      afterState: {
+        isActive: false,
+        plaidRevoked,
+        siblingAccountsRemaining: siblings.length,
+      },
     })
   })
 
