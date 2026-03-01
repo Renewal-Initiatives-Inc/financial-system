@@ -26,9 +26,7 @@ export default auth((req) => {
     request: { headers: requestHeaders },
   })
 
-  // Report-only mode: logs violations in browser console without blocking.
-  // Switch to 'Content-Security-Policy' after verifying no false positives.
-  response.headers.set('Content-Security-Policy-Report-Only', csp)
+  response.headers.set('Content-Security-Policy', csp)
 
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
