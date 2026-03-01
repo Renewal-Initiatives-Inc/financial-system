@@ -164,7 +164,7 @@ export async function getAlertsData(): Promise<AlertsData> {
     items.push({
       label: 'Unmatched bank transactions',
       count: unmatchedCount,
-      href: '/bank-reconciliation',
+      href: '/bank-rec',
       urgency: 'warning',
     })
   }

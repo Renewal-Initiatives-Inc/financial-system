@@ -133,7 +133,7 @@ The System Administrator reviews data retention compliance during the annual pol
 
 - Server-side input validation using Zod schemas on all data entry points
 - SQL injection prevention via parameterized queries (Drizzle ORM)
-- CSRF protection via NextAuth.js signed tokens
+- CSRF protection via Next.js Server Actions with automatic origin verification. Server-side mutations are invoked through React Server Actions, which validate the request `Origin` header against the application's host, rejecting cross-origin form submissions. Authentication state is maintained via encrypted, HTTP-only session cookies that are not accessible to client-side scripts.
 - XSS prevention via React's default output encoding and Content Security Policy headers
 - Middleware-enforced authentication on all routes except public authentication endpoints
 - Cron job endpoints protected by secret-based authentication
