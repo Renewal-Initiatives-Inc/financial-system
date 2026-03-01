@@ -69,7 +69,7 @@ export function CreateAssetDialog({
     (a) => a.subType === 'Fixed Asset'
   )
   const contraAssetAccounts = accountOptions.filter(
-    (a) => a.subType === 'Contra'
+    (a) => a.subType === 'Contra' && a.code.startsWith('18')
   )
   const expenseAccounts = accountOptions.filter(
     (a) =>
@@ -189,7 +189,7 @@ export function CreateAssetDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create Fixed Asset</DialogTitle>
         </DialogHeader>
