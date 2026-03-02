@@ -8,9 +8,9 @@ export default auth((req) => {
     // Accepted risk: 'unsafe-inline' required for Next.js inline scripts and Tailwind CSS.
     // Nonce-based CSP requires root layout propagation; TODO for future hardening.
     `style-src 'self' 'unsafe-inline'`,
-    `img-src 'self' blob: data:`,
+    `img-src 'self' blob: data: https://*.public.blob.vercel-storage.com`,
     `font-src 'self'`,
-    `connect-src 'self' https://*.plaid.com https://*.zitadel.cloud`,
+    `connect-src 'self' https://*.plaid.com https://*.zitadel.cloud https://*.public.blob.vercel-storage.com`,
     `frame-src https://cdn.plaid.com`,
     `worker-src 'self' blob:`,
     `object-src 'none'`,
