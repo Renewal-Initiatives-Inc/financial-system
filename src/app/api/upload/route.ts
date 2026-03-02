@@ -3,6 +3,12 @@ import { put } from '@vercel/blob'
 import { auth } from '@/lib/auth'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
+const ALLOWED_CATEGORIES = ['w9', 'contracts'] as const
+type Category = (typeof ALLOWED_CATEGORIES)[number]
+
+function sanitizeFilename(name: string): string {
+  return name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 255)
+}
 
 export async function POST(request: NextRequest) {
   const session = await auth()
@@ -31,10 +37,16 @@ export async function POST(request: NextRequest) {
   }
 
   const category = formData.get('category') as string | null
-  const prefix = category === 'w9' ? 'w9' : 'contracts'
+  const validCategory: Category = ALLOWED_CATEGORIES.includes(category as Category)
+    ? (category as Category)
+    : 'contracts'
 
-  const blob = await put(`${prefix}/${Date.now()}-${file.name}`, file, {
+  const safeName = sanitizeFilename(file.name)
+
+  // addRandomSuffix makes URLs non-guessable; download proxy prevents direct exposure
+  const blob = await put(`${validCategory}/${Date.now()}-${safeName}`, file, {
     access: 'public',
+    addRandomSuffix: true,
   })
 
   return NextResponse.json({ url: blob.url })

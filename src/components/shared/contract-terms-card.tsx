@@ -126,7 +126,7 @@ export function ContractTermsCard({
         {contractPdfUrl && (
           <div className="mb-4">
             <a
-              href={contractPdfUrl}
+              href={`/api/download?url=${encodeURIComponent(contractPdfUrl)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"
