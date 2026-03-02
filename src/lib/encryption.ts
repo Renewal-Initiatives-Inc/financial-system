@@ -17,6 +17,13 @@ function getKeyFromEnv(envVar: string): Buffer {
       `${envVar} must be 32 bytes (64 hex chars), got ${key.length} bytes`
     )
   }
+  // Entropy check: reject trivially weak keys (all zeros, repeated bytes, etc.)
+  const uniqueBytes = new Set(key).size
+  if (uniqueBytes < 4) {
+    throw new Error(
+      `${envVar} has insufficient entropy (${uniqueBytes} unique byte values). Generate a proper key with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+    )
+  }
   return key
 }
 

@@ -1,6 +1,6 @@
 # Security Audit Remediation — All Repositories Plan
 
-**Status:** Ready to Execute
+**Status:** Complete — All 45 findings resolved
 **Last Updated:** 2026-03-01
 **Author:** Jeff + Claude
 **Traces to:** [docs/security-fixes.md](security-fixes.md), [docs/information-security-policy.md](information-security-policy.md)
@@ -212,16 +212,16 @@ Schema changes anticipated per repo:
 
 | Task | ID | Repo | Status | Notes |
 |------|----|------|--------|-------|
-| Sliding-window rate limiter | REM-21 | zitadel-mcp | 🔲 | 10 writes/min, 60 reads/min |
-| Remove or restrict `zitadel_list_orgs` | REM-22 | zitadel-mcp | 🔲 | |
-| Reduce OAuth token scope | REM-23 | zitadel-mcp | 🔲 | |
-| Singleton DB connection pool | REM-24 | zitadel-mcp | 🔲 | |
-| Generic error messages | REM-40 | zitadel-mcp | 🔲 | |
-| Document token storage assumption | REM-41 | zitadel-mcp | 🔲 | |
-| Import key as `CryptoKey` once | REM-42 | zitadel-mcp | 🔲 | |
-| Fix log redaction | REM-43 | zitadel-mcp | 🔲 | |
-| Add `.max()` to string inputs | REM-44 | zitadel-mcp | 🔲 | |
-| Validate `PORTAL_DATABASE_URL` | REM-45 | zitadel-mcp | 🔲 | |
+| Sliding-window rate limiter | REM-21 | zitadel-mcp | ✅ | `rate-limiter.ts`: 60 reads/min, 10 writes/min; separate buckets by `_meta.readOnly` |
+| Remove `zitadel_list_orgs` | REM-22 | zitadel-mcp | ✅ | Removed tool + handler; uses Admin API (/admin/v1/) — violates least-privilege |
+| Reduce OAuth token scope | REM-23 | zitadel-mcp | ✅ | Scope is already minimal (`openid urn:zitadel:iam:org:project:id:zitadel:aud`); documented that permissions come from service account role, not scope; Admin API tool removed |
+| Singleton DB connection pool | REM-24 | zitadel-mcp | ✅ | Module-level singleton with `max: 3`, `idle_timeout: 60`, `connect_timeout: 10`; cleanup on SIGINT/SIGTERM |
+| Generic error messages | REM-40 | zitadel-mcp | ✅ | `client.ts`: returns generic HTTP status messages; `index.ts` catch block: "An error occurred — check server logs"; full details logged internally only |
+| Document token storage assumption | REM-41 | zitadel-mcp | ✅ | Documented in `client.ts` header: stdio transport keeps tokens in-process; notes for HTTP/SSE transport migration |
+| Import key as `CryptoKey` once | REM-42 | zitadel-mcp | ✅ | `getCryptoKey()` method caches `KeyLike` after first import; eliminates per-JWT overhead |
+| Fix log redaction | REM-43 | zitadel-mcp | ✅ | Added `name`, `displayName`, `description`, `query`, `slug` to REDACTED_FIELDS; removed PII from handler-level `logger.info()` calls across 5 tool files |
+| Add `.max()` to string inputs | REM-44 | zitadel-mcp | ✅ | All string inputs capped: names/emails ≤200-320, descriptions ≤500-1000, URLs ≤2000, slugs ≤100, arrays ≤20-50 items |
+| Validate `PORTAL_DATABASE_URL` | REM-45 | zitadel-mcp | ✅ | Config schema: regex `^postgres(ql)?:\/\/.+` validates connection string format |
 
 ### Phase 7: Remaining Medium Items
 
@@ -229,18 +229,18 @@ Schema changes anticipated per repo:
 
 | Task | ID | Repo | Status | Notes |
 |------|----|------|--------|-------|
-| Document `style-src 'unsafe-inline'` as accepted risk | REM-25 | financial-system | 🔲 | Or add nonce-based styles |
-| Encryption key entropy check | REM-26 | financial-system | 🔲 | Min 4 unique byte values |
-| Generic error messages in API routes | REM-27 | financial-system | 🔲 | `extract-contract`, `copilot` routes |
-| CSRF: decouple from `NODE_ENV` | REM-29 | timesheet | 🔲 | Use `DISABLE_CSRF` flag |
-| Fix error leak in preview deployments | REM-30 | timesheet | 🔲 | `NODE_ENV=production` on Vercel preview |
-| DB SSL enforcement | REM-31 | timesheet | 🔲 | `ssl: { rejectUnauthorized: true }` |
-| Pin AI tool call params to route context | REM-32 | proposal-rodeo | 🔲 | Prevent prompt injection scope escape |
-| Generic error messages | REM-34 | proposal-rodeo | 🔲 | Chat + health endpoints |
-| Add `ANTHROPIC_API_KEY` to `.env.example` | REM-35 | proposal-rodeo | 🔲 | |
-| DB SSL runtime check | REM-36 | proposal-rodeo | 🔲 | |
-| Health endpoint: hide DB status | REM-37 | proposal-rodeo | 🔲 | Return `healthy`/`unhealthy` only |
-| Remove `error.stack` display | REM-39 | app-portal | 🔲 | `admin/audit-log/error.tsx:31-40` |
+| Document `style-src 'unsafe-inline'` as accepted risk | REM-25 | financial-system | ✅ | Comment in middleware.ts: required for Tailwind CSS runtime styles |
+| Encryption key entropy check | REM-26 | financial-system | ✅ | `getKeyFromEnv()` rejects keys with <4 unique byte values |
+| Generic error messages in API routes | REM-27 | financial-system | ✅ | `extract-contract` + `copilot` routes now return generic messages; details logged server-side |
+| CSRF: decouple from `NODE_ENV` | REM-29 | timesheet | ✅ | `DISABLE_CSRF` env var replaces `NODE_ENV === 'test'`; `DISABLE_SECURE_COOKIES` for cookie `secure` flag |
+| Fix error leak in preview deployments | REM-30 | timesheet | ✅ | Error handler always returns generic message; removed stack trace + details from response |
+| DB SSL enforcement | REM-31 | timesheet | ✅ | Pool path: `ssl: { rejectUnauthorized: true }` for non-localhost connections |
+| Pin AI tool call params to route context | REM-32 | proposal-rodeo | ✅ | `proposalId`, `sectionId`, `currentSectionId` pinned to route params before tool execution |
+| Generic error messages | REM-34 | proposal-rodeo | ✅ | Chat stream + health endpoint return generic errors; details logged server-side |
+| Add `ANTHROPIC_API_KEY` to `.env.example` | REM-35 | proposal-rodeo | ✅ | Added with console.anthropic.com link |
+| DB SSL runtime check | REM-36 | proposal-rodeo | ✅ | `createDb()` rejects non-localhost URLs without `sslmode=require` |
+| Health endpoint: hide DB status | REM-37 | proposal-rodeo | ✅ | Returns only `status` + `timestamp`; no `database` or `error` fields |
+| Remove `error.stack` display | REM-39 | app-portal | ✅ | Generic message + `error.digest` reference only; stack trace removed from UI |
 
 ### Cross-Cutting: Already Resolved
 
@@ -273,15 +273,15 @@ Track overall progress per repo. Update as phases complete.
 
 | Repo | Critical | High | Medium | Done | Remaining |
 |------|----------|------|--------|------|-----------|
-| financial-system | 1 | 2 | 3 | 3 + 3 prior | 3 |
-| timesheet | 0 | 5 | 4 | 7 | 2 |
-| proposal-rodeo | 1* | 5 | 6 | 7† | 4 |
+| financial-system | 1 | 2 | 3 | 6 + 3 prior | 0 |
+| timesheet | 0 | 5 | 4 | 9 | 0 |
+| proposal-rodeo | 1* | 5 | 6 | 11† | 0 |
 | expense-reports | 0 | 3 | 1 | 4 | 0 |
-| app-portal | 0 | 0 | 1 | 0 | 1 |
-| zitadel-mcp | 2 | 4 | 6 | 2 | 10 |
-| **Total** | **4** | **14** | **16** | **23 + 3 prior** | **20** |
+| app-portal | 0 | 0 | 1 | 1 | 0 |
+| zitadel-mcp | 2 | 4 | 6 | 12 | 0 |
+| **Total** | **4** | **14** | **16** | **43 + 3 prior** | **0** |
 
-*PR-C1 disregarded; PR-C2/C3 remain. †Includes PR-M2 (REM-33) resolved by REM-03 cross-cutting fix.
+*PR-C1 disregarded. †Includes PR-M2 (REM-33) resolved by REM-03 cross-cutting fix.
 
 ---
 
@@ -374,4 +374,46 @@ Track overall progress per repo. Update as phases complete.
 
 **Next Steps:**
 - [ ] Commit changes in each repo (proposal-rodeo, expense-reports, timesheet)
-- [ ] Begin Phase 6: Zitadel MCP Hardening
+- [x] Begin Phase 6: Zitadel MCP Hardening
+
+### Session 5: 2026-03-01 (Phase 6 — Zitadel MCP Hardening)
+
+**Completed:**
+- [x] **REM-21** (zitadel-mcp): Created `rate-limiter.ts` with sliding-window algorithm; 60 reads/min + 10 writes/min; separate buckets based on `_meta.readOnly`
+- [x] **REM-22** (zitadel-mcp): Removed `zitadel_list_orgs` tool + handler (used Admin API `/admin/v1/orgs/_search` — violates least-privilege)
+- [x] **REM-23** (zitadel-mcp): Documented that scope is already minimal; permissions controlled by service account role, not scope; Admin API tool removed
+- [x] **REM-24** (zitadel-mcp): Replaced per-call `getPortalDb()` with module-level singleton connection pool (`max: 3`, `idle_timeout: 60s`); cleanup on SIGINT/SIGTERM
+- [x] **REM-40** (zitadel-mcp): Generic error messages in `client.ts` (status-based responses) and `index.ts` catch block; full details logged internally only
+- [x] **REM-41** (zitadel-mcp): Documented stdio transport token assumption in `client.ts` header; noted requirements for HTTP/SSE migration
+- [x] **REM-42** (zitadel-mcp): Private key imported once via `getCryptoKey()` method; `KeyLike` cached for server lifetime
+- [x] **REM-43** (zitadel-mcp): Added `name`, `displayName`, `description`, `query`, `slug` to REDACTED_FIELDS; removed PII from `logger.info()` calls in users.ts, portal.ts, applications.ts, service-accounts.ts, projects.ts
+- [x] **REM-44** (zitadel-mcp): Added `.max()` to all string inputs across 6 tool files: names ≤200, emails ≤320, descriptions ≤500-1000, URLs ≤2000, slugs ≤100, arrays ≤20-50 items
+- [x] **REM-45** (zitadel-mcp): Added regex validation for `PORTAL_DATABASE_URL` (`^postgres(ql)?://...`)
+
+**Also fixed:** 7 pre-existing test failures in `handlers.test.ts` (stale assertions from Phase 1 REM-01/REM-02 changes); updated `tools-registry.test.ts` count (25→27); all 231 tests now pass.
+
+**Next Steps:**
+- [ ] Commit changes in zitadel-mcp repo
+- [x] Begin Phase 7: Remaining Medium Items
+
+### Session 6: 2026-03-01 (Phase 7 — Remaining Medium Items)
+
+**Completed:**
+- [x] **REM-25** (financial-system): Documented `style-src 'unsafe-inline'` as accepted risk in middleware.ts comment — required for Tailwind CSS runtime styles
+- [x] **REM-26** (financial-system): Added entropy validation to `getKeyFromEnv()` — rejects keys with <4 unique byte values
+- [x] **REM-27** (financial-system): `extract-contract` + `copilot` routes now return generic error messages; internal details logged server-side only
+- [x] **REM-29** (timesheet): CSRF decoupled from `NODE_ENV` — uses `DISABLE_CSRF` env var instead of `NODE_ENV === 'test'`; cookie `secure` flag uses `DISABLE_SECURE_COOKIES`; test config updated
+- [x] **REM-30** (timesheet): Error handler always returns generic message regardless of environment; removed stack trace + details exposure
+- [x] **REM-31** (timesheet): Pool path enforces `ssl: { rejectUnauthorized: true }` for non-localhost connections
+- [x] **REM-32** (proposal-rodeo): AI tool call parameters (`proposalId`, `sectionId`, `currentSectionId`) pinned to route context before execution — prevents prompt injection scope escape
+- [x] **REM-34** (proposal-rodeo): Chat stream error handler + health endpoint return generic errors; internal details logged server-side only
+- [x] **REM-35** (proposal-rodeo): Added `ANTHROPIC_API_KEY` to `.env.example`
+- [x] **REM-36** (proposal-rodeo): `createDb()` rejects non-localhost `DATABASE_URL` without `sslmode=require`
+- [x] **REM-37** (proposal-rodeo): Health endpoint returns only `status` + `timestamp`; removed `database` and `error` fields
+- [x] **REM-39** (app-portal): Removed `error.stack` display from `audit-log/error.tsx`; shows generic message + `error.digest` reference only
+
+**All 45 security audit findings are now resolved (43 fixed + 2 disregarded by policy).**
+
+**Next Steps:**
+- [ ] Commit changes in each repo (financial-system, timesheet, proposal-rodeo, app-portal)
+- [ ] Deploy and verify per Phase 7 verification plan

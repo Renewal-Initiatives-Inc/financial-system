@@ -182,7 +182,7 @@ export async function POST(request: Request): Promise<Response> {
         console.error('Copilot API error:', error)
         send({
           type: 'error',
-          message: error instanceof Error ? error.message : 'An error occurred',
+          message: 'An error occurred while generating the response.',
         })
       } finally {
         controller.close()

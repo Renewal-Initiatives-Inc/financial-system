@@ -7,6 +7,9 @@ export default auth((req) => {
   const csp = [
     `default-src 'self'`,
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-inline' https://cdn.plaid.com`,
+    // Accepted risk: 'unsafe-inline' required for Tailwind CSS runtime styles.
+    // Nonce-based styles would require changes to Tailwind's injection model.
+    // Mitigated by: strict script-src (nonce + strict-dynamic), no user-controlled CSS.
     `style-src 'self' 'unsafe-inline'`,
     `img-src 'self' blob: data:`,
     `font-src 'self'`,
