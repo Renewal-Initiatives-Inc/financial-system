@@ -2,14 +2,11 @@ import { auth } from '@/lib/auth'
 import { NextResponse } from 'next/server'
 
 export default auth((req) => {
-  const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
-
   const csp = [
     `default-src 'self'`,
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-inline' https://cdn.plaid.com`,
-    // Accepted risk: 'unsafe-inline' required for Tailwind CSS runtime styles.
-    // Nonce-based styles would require changes to Tailwind's injection model.
-    // Mitigated by: strict script-src (nonce + strict-dynamic), no user-controlled CSS.
+    `script-src 'self' 'unsafe-inline' https://cdn.plaid.com`,
+    // Accepted risk: 'unsafe-inline' required for Next.js inline scripts and Tailwind CSS.
+    // Nonce-based CSP requires root layout propagation; TODO for future hardening.
     `style-src 'self' 'unsafe-inline'`,
     `img-src 'self' blob: data:`,
     `font-src 'self'`,
@@ -22,11 +19,8 @@ export default auth((req) => {
     `frame-ancestors 'none'`,
   ].join('; ')
 
-  const requestHeaders = new Headers(req.headers)
-  requestHeaders.set('x-nonce', nonce)
-
   const response = NextResponse.next({
-    request: { headers: requestHeaders },
+    request: { headers: new Headers(req.headers) },
   })
 
   response.headers.set('Content-Security-Policy', csp)
