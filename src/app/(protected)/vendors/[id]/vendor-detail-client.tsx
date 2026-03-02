@@ -493,7 +493,7 @@ export function VendorDetailClient({
             <div className="flex items-center gap-2">
               <FileText className="h-4 w-4 text-muted-foreground" />
               <a
-                href={vendor.w9DocumentUrl}
+                href={`/api/download?url=${encodeURIComponent(vendor.w9DocumentUrl)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-sm text-blue-600 hover:underline"
