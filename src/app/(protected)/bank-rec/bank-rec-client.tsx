@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useCallback } from 'react'
+import { useState, useEffect, useTransition, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { RefreshCw, Settings, CheckCircle2, Split, PlusCircle } from 'lucide-react'
@@ -120,11 +120,11 @@ export function BankRecClient({
   }
 
   // Load data on first render if we have accounts
-  const [hasLoaded, setHasLoaded] = useState(false)
-  if (!hasLoaded && selectedAccountId) {
-    setHasLoaded(true)
-    loadAccountData(selectedAccountId)
-  }
+  useEffect(() => {
+    if (selectedAccountId) {
+      loadAccountData(selectedAccountId)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleBankTxnSelect = async (txn: BankTransactionRow) => {
     if (txn.isPending || txn.isMatched) return

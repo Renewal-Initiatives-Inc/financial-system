@@ -674,44 +674,54 @@ export async function createFundingSource(
   const validated = insertFundingSourceSchema.parse(data)
 
   // Create the fund (a funding source IS a fund)
-  const [newFund] = await db.transaction(async (tx) => {
-    const result = await tx
-      .insert(funds)
-      .values({
-        name: validated.name,
-        fundingCategory: validated.fundingCategory,
-        restrictionType: validated.restrictionType,
-        description: validated.description ?? null,
-        funderId: validated.funderId,
-        amount: validated.amount ?? null,
-        type: validated.type ?? null,
-        conditions: validated.conditions ?? null,
-        startDate: validated.startDate ?? null,
-        endDate: validated.endDate ?? null,
-        isUnusualGrant: validated.isUnusualGrant ?? false,
-        matchRequirementPercent: validated.matchRequirementPercent ?? null,
-        retainagePercent: validated.retainagePercent ?? null,
-        reportingFrequency: validated.reportingFrequency ?? null,
-        interestRate: validated.interestRate ?? null,
-        contractPdfUrl: validated.contractPdfUrl ?? null,
-        extractedMilestones: validated.extractedMilestones ?? null,
-        extractedTerms: validated.extractedTerms ?? null,
-        extractedCovenants: validated.extractedCovenants ?? null,
-        revenueClassification: validated.revenueClassification ?? null,
-        classificationRationale: validated.classificationRationale ?? null,
+  let newFund: typeof funds.$inferSelect
+  try {
+    const [result] = await db.transaction(async (tx) => {
+      const rows = await tx
+        .insert(funds)
+        .values({
+          name: validated.name,
+          fundingCategory: validated.fundingCategory,
+          restrictionType: validated.restrictionType,
+          description: validated.description ?? null,
+          funderId: validated.funderId,
+          amount: validated.amount ?? null,
+          type: validated.type ?? null,
+          conditions: validated.conditions ?? null,
+          startDate: validated.startDate ?? null,
+          endDate: validated.endDate ?? null,
+          isUnusualGrant: validated.isUnusualGrant ?? false,
+          matchRequirementPercent: validated.matchRequirementPercent ?? null,
+          retainagePercent: validated.retainagePercent ?? null,
+          reportingFrequency: validated.reportingFrequency ?? null,
+          interestRate: validated.interestRate ?? null,
+          contractPdfUrl: validated.contractPdfUrl ?? null,
+          extractedMilestones: validated.extractedMilestones ?? null,
+          extractedTerms: validated.extractedTerms ?? null,
+          extractedCovenants: validated.extractedCovenants ?? null,
+          revenueClassification: validated.revenueClassification ?? null,
+          classificationRationale: validated.classificationRationale ?? null,
+        })
+        .returning()
+
+      await logAudit(tx as unknown as NeonDatabase<any>, {
+        userId,
+        action: 'created',
+        entityType: 'fund',
+        entityId: rows[0].id,
+        afterState: rows[0] as unknown as Record<string, unknown>,
       })
-      .returning()
 
-    await logAudit(tx as unknown as NeonDatabase<any>, {
-      userId,
-      action: 'created',
-      entityType: 'fund',
-      entityId: result[0].id,
-      afterState: result[0] as unknown as Record<string, unknown>,
+      return rows
     })
-
-    return result
-  })
+    newFund = result
+  } catch (err: unknown) {
+    // Handle duplicate name constraint
+    if (err instanceof Error && 'code' in err && (err as { code: string }).code === '23505') {
+      throw new Error(`A funding source named "${validated.name}" already exists.`)
+    }
+    throw err
+  }
 
   // Create GL entry based on funding category
   let transactionId = 0
@@ -752,7 +762,12 @@ export async function createFundingSource(
   }
 
   // Generate compliance deadlines from extracted milestones/covenants
-  await generateFundingSourceDeadlines(newFund.id)
+  // Non-critical — don't fail creation if deadline generation errors
+  try {
+    await generateFundingSourceDeadlines(newFund.id)
+  } catch (err) {
+    console.error('Failed to generate funding source deadlines:', err)
+  }
 
   revalidatePath('/revenue')
   revalidatePath('/revenue/funding-sources')

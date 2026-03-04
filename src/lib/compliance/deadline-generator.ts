@@ -296,7 +296,7 @@ export async function generateFundingSourceDeadlines(
   if (fund.extractedMilestones && Array.isArray(fund.extractedMilestones)) {
     const milestones = fund.extractedMilestones as ExtractedMilestone[]
     for (const milestone of milestones) {
-      if (!milestone.date) continue
+      if (!milestone.date || !/^\d{4}-\d{2}-\d{2}$/.test(milestone.date)) continue
       const taskName = `Milestone — ${fund.name}: ${milestone.name}`
       const inserted = await insertIfNotExists(
         taskName,
@@ -315,6 +315,9 @@ export async function generateFundingSourceDeadlines(
     const covenants = fund.extractedCovenants as ExtractedCovenant[]
     for (const covenant of covenants) {
       if (!covenant.deadline) continue
+      // Only use deadline if it's a valid YYYY-MM-DD date — AI extraction
+      // often produces descriptive text like "Ongoing throughout loan term"
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(covenant.deadline)) continue
       const taskName = `Covenant — ${fund.name}: ${covenant.description.slice(0, 80)}`
       const inserted = await insertIfNotExists(
         taskName,
