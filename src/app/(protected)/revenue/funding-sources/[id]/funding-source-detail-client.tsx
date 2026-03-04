@@ -314,7 +314,7 @@ export function FundingSourceDetailClient({ source, transactions, arInvoices, ra
         await recordLoanRateChange(
           {
             fundId: source.id,
-            rate: newRate,
+            rate: (parseFloat(newRate) / 100).toFixed(4),
             effectiveDate: rateEffectiveDate,
             reason: rateReason,
           },
@@ -1145,18 +1145,17 @@ export function FundingSourceDetailClient({ source, transactions, arInvoices, ra
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
-              <Label>New Rate (as decimal, e.g. 0.0525 = 5.25%)</Label>
+              <Label>New Rate (%)</Label>
               <Input
+                type="number"
+                step="0.0001"
+                min="0"
+                max="100"
                 value={newRate}
                 onChange={(e) => setNewRate(e.target.value)}
-                placeholder="0.0525"
+                placeholder="e.g., 4.75"
                 data-testid="rate-change-rate"
               />
-              {newRate && !isNaN(parseFloat(newRate)) && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  = {(parseFloat(newRate) * 100).toFixed(2)}%
-                </p>
-              )}
             </div>
             <div>
               <Label>Effective Date</Label>

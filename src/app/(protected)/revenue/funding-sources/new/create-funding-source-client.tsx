@@ -134,7 +134,9 @@ export function CreateFundingSourceClient({ vendors }: Props) {
             matchRequirementPercent: isGrant ? matchRequirementPercent || null : null,
             retainagePercent: isGrant ? retainagePercent || null : null,
             reportingFrequency: reportingFrequency || null,
-            interestRate: isLoan ? interestRate || null : null,
+            interestRate: isLoan && interestRate
+              ? (parseFloat(interestRate) / 100).toFixed(4)
+              : null,
             contractPdfUrl: contractData.contractPdfUrl,
             extractedMilestones: milestones,
             extractedTerms: terms,
