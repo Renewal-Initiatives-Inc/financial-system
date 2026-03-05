@@ -27,6 +27,7 @@ import { formatCurrency, formatDate } from '@/lib/reports/types'
 import { ChevronDown, ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight } from 'lucide-react'
 
 type FundRow = { id: number; name: string; restrictionType: string; isActive: boolean }
+type AccountSelectorRow = { id: number; code: string; name: string }
 
 const SOURCE_TYPES = [
   'MANUAL',
@@ -124,15 +125,19 @@ function TransactionRow({ row }: { row: TransactionHistoryRow }) {
 interface TransactionHistoryClientProps {
   initialData: TransactionHistoryData
   funds: FundRow[]
+  accounts: AccountSelectorRow[]
   defaultStartDate: string
   defaultEndDate: string
+  initialAccountId?: number | null
 }
 
 export function TransactionHistoryClient({
   initialData,
   funds,
+  accounts,
   defaultStartDate,
   defaultEndDate,
+  initialAccountId,
 }: TransactionHistoryClientProps) {
   const [data, setData] = useState(initialData)
   const [isPending, startTransition] = useTransition()
@@ -140,6 +145,7 @@ export function TransactionHistoryClient({
   const [startDate, setStartDate] = useState(defaultStartDate)
   const [endDate, setEndDate] = useState(defaultEndDate)
   const [sourceType, setSourceType] = useState('')
+  const [accountId, setAccountId] = useState<number | null>(initialAccountId ?? null)
   const [fundId, setFundId] = useState<number | null>(null)
   const [memoSearch, setMemoSearch] = useState('')
 
@@ -150,6 +156,7 @@ export function TransactionHistoryClient({
           startDate,
           endDate,
           sourceType: sourceType || undefined,
+          accountId: accountId ?? undefined,
           fundId: fundId ?? undefined,
           memoSearch: memoSearch || undefined,
           page,
@@ -157,7 +164,7 @@ export function TransactionHistoryClient({
         setData(result)
       })
     },
-    [startDate, endDate, sourceType, fundId, memoSearch]
+    [startDate, endDate, sourceType, accountId, fundId, memoSearch]
   )
 
   const handleApply = useCallback(() => fetchPage(1), [fetchPage])
@@ -214,6 +221,25 @@ export function TransactionHistoryClient({
               {SOURCE_TYPES.map((s) => (
                 <SelectItem key={s} value={s}>
                   {s.replace(/_/g, ' ')}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Account</Label>
+          <Select
+            value={accountId ? String(accountId) : 'all'}
+            onValueChange={(v) => setAccountId(v === 'all' ? null : Number(v))}
+          >
+            <SelectTrigger className="w-52 h-8 text-sm" data-testid="transaction-history-account-select">
+              <SelectValue placeholder="All accounts" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All accounts</SelectItem>
+              {accounts.map((a) => (
+                <SelectItem key={a.id} value={String(a.id)}>
+                  {a.code} — {a.name}
                 </SelectItem>
               ))}
             </SelectContent>

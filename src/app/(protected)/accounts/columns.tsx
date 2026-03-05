@@ -4,7 +4,8 @@ import { ColumnDef } from '@tanstack/react-table'
 import { Lock } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { DataTableColumnHeader } from '@/components/shared/data-table-column-header'
-import type { AccountRow } from './actions'
+import { formatCurrency } from '@/lib/reports/types'
+import type { AccountRowWithBalance } from './actions'
 
 const typeColors: Record<string, string> = {
   ASSET: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
@@ -22,7 +23,7 @@ const typeLabels: Record<string, string> = {
   EXPENSE: 'Expense',
 }
 
-export const accountColumns: ColumnDef<AccountRow, unknown>[] = [
+export const accountColumns: ColumnDef<AccountRowWithBalance, unknown>[] = [
   {
     accessorKey: 'code',
     header: ({ column }) => (
@@ -66,13 +67,18 @@ export const accountColumns: ColumnDef<AccountRow, unknown>[] = [
     },
   },
   {
-    accessorKey: 'normalBalance',
-    header: 'Normal Balance',
+    accessorKey: 'balance',
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Balance" />
+    ),
     cell: ({ row }) => {
-      const nb = row.getValue('normalBalance') as string
-      return <span className="text-sm">{nb === 'DEBIT' ? 'Debit' : 'Credit'}</span>
+      const balance = row.getValue('balance') as number
+      return (
+        <span className={`text-sm tabular-nums font-medium ${balance < 0 ? 'text-red-600' : ''}`}>
+          {formatCurrency(balance)}
+        </span>
+      )
     },
-    enableSorting: false,
   },
   {
     accessorKey: 'isActive',

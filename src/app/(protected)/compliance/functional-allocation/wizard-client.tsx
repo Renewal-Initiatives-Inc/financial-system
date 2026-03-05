@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, Fragment } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -141,12 +141,12 @@ export function WizardClient({
                 <div className="font-semibold text-sm">{benchmark.riFundraising}%</div>
 
                 {benchmark.peers.map((p) => (
-                  <>
-                    <div key={p.name} className="text-sm text-muted-foreground">{p.name}</div>
+                  <Fragment key={p.name}>
+                    <div className="text-sm text-muted-foreground">{p.name}</div>
                     <div className="text-sm">{p.program}%</div>
                     <div className="text-sm">{p.admin}%</div>
                     <div className="text-sm">{p.fundraising}%</div>
-                  </>
+                  </Fragment>
                 ))}
               </div>
 

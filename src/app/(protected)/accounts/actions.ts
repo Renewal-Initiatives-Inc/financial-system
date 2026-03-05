@@ -1,10 +1,11 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { eq, sql, ilike, and, isNull, count } from 'drizzle-orm'
+import { eq, sql, ilike, and, isNull, count, desc, gte } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { accounts, transactionLines, transactions } from '@/lib/db/schema'
 import { insertAccountSchema, updateAccountSchema, type InsertAccount, type UpdateAccount } from '@/lib/validators'
+import { getYTDRange } from '@/lib/reports/types'
 import { logAudit } from '@/lib/audit/logger'
 import { deactivateAccount } from '@/lib/gl/deactivation'
 import { SystemLockedError } from '@/lib/gl/errors'
@@ -23,6 +24,24 @@ export type AccountDetail = AccountRow & {
 
 export type AccountNode = AccountRow & {
   children: AccountNode[]
+}
+
+export type AccountRowWithBalance = AccountRow & { balance: number }
+
+export type AccountRegisterLine = {
+  transactionId: number
+  date: string
+  memo: string
+  lineMemo: string | null
+  debit: number
+  credit: number
+  runningBalance: number
+  sourceType: string
+}
+
+export type AccountBalanceDetail = {
+  balance: number
+  recentLines: AccountRegisterLine[]
 }
 
 // --- Server Actions ---
@@ -263,4 +282,123 @@ export async function getAccountHierarchy(): Promise<AccountNode[]> {
   }
 
   return roots
+}
+
+// --- Balance Queries ---
+
+export async function getAccountBalances(): Promise<Record<number, number>> {
+  const { startDate } = getYTDRange()
+
+  const rows = await db
+    .select({
+      accountId: transactionLines.accountId,
+      normalBalance: accounts.normalBalance,
+      debitTotal: sql<string>`COALESCE(SUM(${transactionLines.debit}), '0')`,
+      creditTotal: sql<string>`COALESCE(SUM(${transactionLines.credit}), '0')`,
+    })
+    .from(transactionLines)
+    .innerJoin(transactions, eq(transactionLines.transactionId, transactions.id))
+    .innerJoin(accounts, eq(transactionLines.accountId, accounts.id))
+    .where(
+      and(
+        eq(transactions.isVoided, false),
+        sql`(${accounts.type} IN ('ASSET', 'LIABILITY', 'NET_ASSET') OR ${transactions.date} >= ${startDate})`
+      )
+    )
+    .groupBy(transactionLines.accountId, accounts.normalBalance)
+
+  const balanceMap: Record<number, number> = {}
+  for (const row of rows) {
+    const debits = parseFloat(row.debitTotal)
+    const credits = parseFloat(row.creditTotal)
+    balanceMap[row.accountId] =
+      row.normalBalance === 'DEBIT' ? debits - credits : credits - debits
+  }
+  return balanceMap
+}
+
+export async function getAccountBalanceDetail(
+  accountId: number,
+  limit: number = 20
+): Promise<AccountBalanceDetail | null> {
+  const [account] = await db
+    .select()
+    .from(accounts)
+    .where(eq(accounts.id, accountId))
+
+  if (!account) return null
+
+  const isPnL = account.type === 'REVENUE' || account.type === 'EXPENSE'
+  const { startDate } = getYTDRange()
+
+  const baseConditions = [
+    eq(transactionLines.accountId, accountId),
+    eq(transactions.isVoided, false),
+  ]
+  if (isPnL) {
+    baseConditions.push(gte(transactions.date, startDate))
+  }
+
+  // Get balance
+  const [totals] = await db
+    .select({
+      debitTotal: sql<string>`COALESCE(SUM(${transactionLines.debit}), '0')`,
+      creditTotal: sql<string>`COALESCE(SUM(${transactionLines.credit}), '0')`,
+    })
+    .from(transactionLines)
+    .innerJoin(transactions, eq(transactionLines.transactionId, transactions.id))
+    .where(and(...baseConditions))
+
+  const debits = parseFloat(totals?.debitTotal || '0')
+  const credits = parseFloat(totals?.creditTotal || '0')
+  const balance =
+    account.normalBalance === 'DEBIT' ? debits - credits : credits - debits
+
+  // Get recent transaction lines
+  const recentRows = await db
+    .select({
+      transactionId: transactions.id,
+      date: transactions.date,
+      memo: transactions.memo,
+      lineMemo: transactionLines.memo,
+      debit: transactionLines.debit,
+      credit: transactionLines.credit,
+      sourceType: transactions.sourceType,
+    })
+    .from(transactionLines)
+    .innerJoin(transactions, eq(transactionLines.transactionId, transactions.id))
+    .where(and(...baseConditions))
+    .orderBy(desc(transactions.date), desc(transactions.id))
+    .limit(limit)
+
+  // Build lines with running balance
+  const lines: AccountRegisterLine[] = recentRows.map((r) => ({
+    transactionId: r.transactionId,
+    date: r.date,
+    memo: r.memo,
+    lineMemo: r.lineMemo,
+    debit: parseFloat(r.debit || '0'),
+    credit: parseFloat(r.credit || '0'),
+    runningBalance: 0,
+    sourceType: r.sourceType,
+  }))
+
+  // Compute running balance: work oldest-first, derive opening balance
+  const reversed = [...lines].reverse()
+  const visibleNetChange = reversed.reduce((sum, l) => {
+    return sum + (account.normalBalance === 'DEBIT' ? l.debit - l.credit : l.credit - l.debit)
+  }, 0)
+  let running = balance - visibleNetChange
+
+  for (const line of reversed) {
+    const change =
+      account.normalBalance === 'DEBIT' ? line.debit - line.credit : line.credit - line.debit
+    running += change
+    line.runningBalance = Math.round(running * 100) / 100
+  }
+
+  return {
+    balance,
+    recentLines: reversed.reverse(),
+  }
 }

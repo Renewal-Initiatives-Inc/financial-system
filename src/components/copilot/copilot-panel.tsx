@@ -61,7 +61,7 @@ export function CopilotPanel({
 
   return (
     <div
-      className="bg-background border-l flex h-full w-[400px] flex-col shadow-lg"
+      className="bg-background border-l flex flex-col shadow-lg fixed top-0 right-0 z-40 h-svh w-[400px]"
       data-testid="copilot-panel"
     >
       {/* Header */}

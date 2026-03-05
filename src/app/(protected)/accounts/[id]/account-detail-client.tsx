@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Lock, Pencil, Save, X } from 'lucide-react'
+import { ArrowLeft, ExternalLink, Lock, Pencil, Save, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -18,9 +18,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { HelpTooltip } from '@/components/shared/help-tooltip'
+import { formatCurrency, formatDate } from '@/lib/reports/types'
 import { updateAccount, toggleAccountActive } from '../actions'
-import type { AccountDetail } from '../actions'
+import type { AccountDetail, AccountBalanceDetail } from '../actions'
 import { toast } from 'sonner'
 
 const typeLabels: Record<string, string> = {
@@ -33,9 +42,10 @@ const typeLabels: Record<string, string> = {
 
 interface AccountDetailClientProps {
   account: AccountDetail
+  balanceDetail: AccountBalanceDetail | null
 }
 
-export function AccountDetailClient({ account }: AccountDetailClientProps) {
+export function AccountDetailClient({ account, balanceDetail }: AccountDetailClientProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [isEditing, setIsEditing] = useState(false)
@@ -233,6 +243,73 @@ export function AccountDetailClient({ account }: AccountDetailClientProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Balance & Activity Card */}
+      {balanceDetail && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>
+              {['REVENUE', 'EXPENSE'].includes(account.type) ? 'YTD Balance & Activity' : 'Balance & Activity'}
+            </CardTitle>
+            <Link
+              href={`/reports/transaction-history?accountId=${account.id}`}
+              className="text-sm text-primary hover:underline flex items-center gap-1"
+            >
+              View All in Transaction History
+              <ExternalLink className="h-3 w-3" />
+            </Link>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label className="text-muted-foreground text-xs">
+                {['REVENUE', 'EXPENSE'].includes(account.type) ? 'YTD Balance' : 'Balance'}
+              </Label>
+              <p className={`text-2xl font-semibold tabular-nums ${balanceDetail.balance < 0 ? 'text-red-600' : ''}`}>
+                {formatCurrency(balanceDetail.balance)}
+              </p>
+            </div>
+
+            {balanceDetail.recentLines.length > 0 ? (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Memo</TableHead>
+                      <TableHead className="text-right">Debit</TableHead>
+                      <TableHead className="text-right">Credit</TableHead>
+                      <TableHead className="text-right">Balance</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {balanceDetail.recentLines.map((line, i) => (
+                      <TableRow key={`${line.transactionId}-${i}`}>
+                        <TableCell className="text-sm tabular-nums whitespace-nowrap">
+                          {formatDate(line.date)}
+                        </TableCell>
+                        <TableCell className="text-sm max-w-xs truncate">
+                          {line.lineMemo || line.memo}
+                        </TableCell>
+                        <TableCell className="text-right text-sm tabular-nums">
+                          {line.debit > 0 ? formatCurrency(line.debit) : ''}
+                        </TableCell>
+                        <TableCell className="text-right text-sm tabular-nums">
+                          {line.credit > 0 ? formatCurrency(line.credit) : ''}
+                        </TableCell>
+                        <TableCell className={`text-right text-sm tabular-nums font-medium ${line.runningBalance < 0 ? 'text-red-600' : ''}`}>
+                          {formatCurrency(line.runningBalance)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No transactions recorded.</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Active Status Card */}
       <Card>

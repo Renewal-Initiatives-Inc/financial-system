@@ -21,13 +21,23 @@ function fmt(value: number): string {
   }).format(value)
 }
 
+const MONTH_SHORT = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+] as const
+
+/**
+ * Format an ISO date string (YYYY-MM-DD) without using the Date constructor.
+ * Parsing via `new Date("2025-06-15")` interprets the value as midnight UTC,
+ * which can shift to the previous day in behind-UTC timezones, causing an
+ * SSR hydration mismatch when the server and client are in different zones.
+ */
 function fmtDate(value: string | null): string {
   if (!value) return '-'
-  return new Date(value).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
+  const [yearStr, monthStr, dayStr] = value.split('-')
+  const month = MONTH_SHORT[parseInt(monthStr, 10) - 1]
+  const day = parseInt(dayStr, 10)
+  return `${month} ${day}, ${yearStr}`
 }
 
 function fmtRate(value: number | null): string {

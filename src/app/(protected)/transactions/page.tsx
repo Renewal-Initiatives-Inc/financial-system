@@ -2,7 +2,7 @@ import { getTransactions } from './actions'
 import { TransactionsClient } from './transactions-client'
 
 export default async function TransactionsPage() {
-  const { rows, total } = await getTransactions()
+  const { rows } = await getTransactions({ pageSize: 0 })
 
-  return <TransactionsClient initialRows={rows} initialTotal={total} />
+  return <TransactionsClient initialRows={rows} />
 }
