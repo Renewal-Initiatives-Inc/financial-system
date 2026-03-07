@@ -123,7 +123,7 @@ No schema changes. DB migrations 0019-0024 already exist — just need to be app
 | Fix `/payroll/runs` — 404 error | ✅ | Created redirect page to /payroll |
 | Fix report PDF export console error | ✅ | console.error → toast.error in export-buttons.tsx |
 | Fix global SSR hydration mismatch (Suspense vs children in layout) | ✅ | Added explicit `<Suspense>` in protected layout |
-| Tag `/bank-rec/settings` Plaid buttons as expected dev failures | 🔲 | RC2 — skip or annotate |
+| Tag `/bank-rec/settings` Plaid buttons as expected dev failures | ✅ | RC2 — already in API_KEY_ROUTES skip set |
 
 ### Phase 4: Run Full Scan & Validate (10 min)
 

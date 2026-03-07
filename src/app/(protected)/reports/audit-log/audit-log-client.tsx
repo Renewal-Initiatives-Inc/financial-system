@@ -21,12 +21,18 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ReportShell } from '@/components/reports/report-shell'
-import {
-  getAuditLogData,
-  AUDIT_ACTIONS,
-  AUDIT_ENTITY_TYPES,
-} from '@/lib/reports/audit-log'
 import type { AuditLogData } from '@/lib/reports/audit-log'
+import { getAuditLogData } from '../actions'
+
+const AUDIT_ACTIONS = [
+  'created', 'updated', 'voided', 'reversed',
+  'deactivated', 'signed_off', 'imported', 'posted',
+] as const
+
+const AUDIT_ENTITY_TYPES = [
+  'TRANSACTION', 'ACCOUNT', 'FUND', 'VENDOR', 'TENANT',
+  'BUDGET', 'RECONCILIATION', 'PAYROLL_RUN', 'DONOR', 'GRANT', 'FIXED_ASSET',
+] as const
 import { formatDateTime } from '@/lib/reports/types'
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
 

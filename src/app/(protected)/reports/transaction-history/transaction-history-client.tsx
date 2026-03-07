@@ -21,8 +21,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ReportShell } from '@/components/reports/report-shell'
-import { getTransactionHistoryData } from '@/lib/reports/transaction-history'
 import type { TransactionHistoryData, TransactionHistoryRow } from '@/lib/reports/transaction-history'
+import { getTransactionHistoryData } from '../actions'
 import { formatCurrency, formatDate } from '@/lib/reports/types'
 import { ChevronDown, ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight } from 'lucide-react'
 

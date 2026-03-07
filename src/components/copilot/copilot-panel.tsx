@@ -26,12 +26,16 @@ export function CopilotPanel({
   onClearChat,
 }: CopilotPanelProps) {
   const [input, setInput] = useState('')
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom (use scrollTo on container to avoid scrollIntoView
+  // propagating scroll to ancestor elements with overflow:hidden)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const container = messagesContainerRef.current
+    if (container) {
+      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
+    }
   }, [messages])
 
   // Focus input when panel opens
@@ -99,7 +103,7 @@ export function CopilotPanel({
       </div>
 
       {/* Messages */}
-      <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+      <div ref={messagesContainerRef} className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
         {messages.length === 0 && (
           <div className="text-muted-foreground flex flex-col items-center justify-center pt-12 text-center text-sm">
             <MessageSquarePlus className="mb-3 h-8 w-8 opacity-50" />
@@ -115,7 +119,6 @@ export function CopilotPanel({
             <span className="text-muted-foreground text-sm">Thinking...</span>
           </div>
         )}
-        <div ref={messagesEndRef} />
       </div>
 
       {/* Error */}

@@ -23,8 +23,8 @@ import {
 } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ReportShell } from '@/components/reports/report-shell'
-import { getLateEntriesData } from '@/lib/reports/late-entries'
 import type { LateEntriesData } from '@/lib/reports/late-entries'
+import { getLateEntriesData } from '../actions'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/reports/types'
 
 interface LateEntriesClientProps {
