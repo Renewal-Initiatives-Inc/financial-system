@@ -5,7 +5,7 @@ import { ReportShell } from '@/components/reports/report-shell'
 import { ReportFilterBar } from '@/components/reports/report-filter-bar'
 import { ReportTable, type ReportRow } from '@/components/reports/report-table'
 import type { ActivitiesData, ActivitiesSection } from '@/lib/reports/activities'
-import { getActivitiesData } from '@/lib/reports/activities'
+import { getActivitiesData } from '../actions'
 import type { PeriodType } from '@/lib/reports/types'
 
 interface FundRow {

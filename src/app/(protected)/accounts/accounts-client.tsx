@@ -18,10 +18,10 @@ import { accountColumns } from './columns'
 import { CreateAccountDialog } from './create-account-dialog'
 import { AccountTree } from './account-tree'
 import { CopilotContextSetter } from '@/components/copilot/copilot-context-setter'
-import type { AccountRow } from './actions'
+import type { AccountRowWithBalance } from './actions'
 
 interface AccountsClientProps {
-  initialAccounts: AccountRow[]
+  initialAccounts: AccountRowWithBalance[]
 }
 
 export function AccountsClient({ initialAccounts }: AccountsClientProps) {

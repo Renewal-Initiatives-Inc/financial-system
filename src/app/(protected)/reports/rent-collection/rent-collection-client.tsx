@@ -16,8 +16,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ReportShell } from '@/components/reports/report-shell'
-import { getRentCollectionData } from '@/lib/reports/rent-collection'
 import type { RentCollectionData } from '@/lib/reports/rent-collection'
+import { getRentCollectionData } from '../actions'
 
 // ---------------------------------------------------------------------------
 // Formatters

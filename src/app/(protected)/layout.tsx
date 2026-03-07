@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { AppSidebar } from '@/components/layout/app-sidebar'
@@ -16,7 +17,9 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
       <SidebarInset className="max-h-svh overflow-hidden">
         <AppTopBar user={session.user} />
         <CopilotWrapper userId={session.user.id}>
-          <main className="flex-1 px-4 py-6 md:px-6">{children}</main>
+          <div className="flex-1 overflow-auto px-4 py-6 md:px-6">
+            <Suspense>{children}</Suspense>
+          </div>
         </CopilotWrapper>
       </SidebarInset>
     </SidebarProvider>

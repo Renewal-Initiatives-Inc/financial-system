@@ -22,8 +22,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ReportShell } from '@/components/reports/report-shell'
-import { getCapitalBudgetData } from '@/lib/reports/capital-budget'
 import type { CapitalBudgetData, CapitalBudgetRow } from '@/lib/reports/capital-budget'
+import { getCapitalBudgetData } from '../actions'
 import { formatCurrency, formatPercent } from '@/lib/reports/types'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ReportShell } from '@/components/reports/report-shell'
+import { Fragment } from 'react'
 import {
   Table,
   TableBody,
@@ -160,10 +161,9 @@ export function FundDrawdownClient({ data }: FundDrawdownClientProps) {
               </TableRow>
             ) : (
               data.rows.map((row) => (
-                <>
+                <Fragment key={row.fundId}>
                   {/* Main row */}
                   <TableRow
-                    key={row.fundId}
                     className="cursor-pointer hover:bg-muted/50"
                     onClick={() => toggleExpand(row.fundId)}
                     data-testid={`fund-row-${row.fundId}`}
@@ -329,7 +329,7 @@ export function FundDrawdownClient({ data }: FundDrawdownClientProps) {
                       </TableCell>
                     </TableRow>
                   )}
-                </>
+                </Fragment>
               ))
             )}
           </TableBody>

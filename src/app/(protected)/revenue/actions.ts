@@ -738,27 +738,17 @@ export async function createFundingSource(
       userId
     )
     transactionId = result.transactionId
-  } else if (validated.fundingCategory === 'LOAN' && validated.amount) {
-    // Loan proceeds: DR Cash, CR Loan Payable
-    const amount = parseFloat(validated.amount)
-    const result = await recordLoanProceedsLogic(
-      newFund.id,
-      amount,
-      validated.startDate ?? new Date().toISOString().split('T')[0],
-      userId
-    )
-    transactionId = result.transactionId
+  }
 
-    // Seed initial rate history entry
-    if (validated.interestRate) {
-      await db.insert(fundingSourceRateHistory).values({
-        fundId: newFund.id,
-        rate: validated.interestRate,
-        effectiveDate: validated.startDate ?? new Date().toISOString().split('T')[0],
-        reason: 'Initial rate from loan setup',
-        createdBy: userId,
-      })
-    }
+  // Seed initial rate history for loans (no GL entry — user records draws via detail page)
+  if (validated.fundingCategory === 'LOAN' && validated.interestRate) {
+    await db.insert(fundingSourceRateHistory).values({
+      fundId: newFund.id,
+      rate: validated.interestRate,
+      effectiveDate: validated.startDate ?? new Date().toISOString().split('T')[0],
+      reason: 'Initial rate from loan setup',
+      createdBy: userId,
+    })
   }
 
   // Generate compliance deadlines from extracted milestones/covenants

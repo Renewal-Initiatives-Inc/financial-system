@@ -23,8 +23,8 @@ import {
 } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ReportShell } from '@/components/reports/report-shell'
-import { getDonorGivingHistoryData } from '@/lib/reports/donor-giving-history'
 import type { DonorGivingHistoryData, DonorSummaryRow } from '@/lib/reports/donor-giving-history'
+import { getDonorGivingHistoryData } from '../actions'
 import { formatCurrency, formatDate } from '@/lib/reports/types'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 

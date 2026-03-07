@@ -9,7 +9,7 @@ import type {
   BalanceSheetData,
   BalanceSheetSection,
 } from '@/lib/reports/balance-sheet'
-import { getBalanceSheetData } from '@/lib/reports/balance-sheet'
+import { getBalanceSheetData } from '../actions'
 
 // ---------------------------------------------------------------------------
 // Props

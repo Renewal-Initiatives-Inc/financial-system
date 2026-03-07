@@ -7,12 +7,12 @@ import { ReportFilterBar } from '@/components/reports/report-filter-bar'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatDate } from '@/lib/reports/types'
-import {
-  getFunctionalExpensesData,
-  type FunctionalExpensesData,
-  type FunctionalExpenseFormat,
-  type FunctionalExpenseRow,
+import type {
+  FunctionalExpensesData,
+  FunctionalExpenseFormat,
+  FunctionalExpenseRow,
 } from '@/lib/reports/functional-expenses'
+import { getFunctionalExpensesData } from '../actions'
 
 // ---------------------------------------------------------------------------
 // Props

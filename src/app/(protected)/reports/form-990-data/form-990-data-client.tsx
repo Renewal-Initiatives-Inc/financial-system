@@ -27,8 +27,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { ReportShell } from '@/components/reports/report-shell'
-import { getForm990Data } from '@/lib/reports/form-990-data'
 import type { Form990Data, Form990RevenueSourceRow } from '@/lib/reports/form-990-data'
+import { getForm990Data } from '../actions'
 import { formatCurrency } from '@/lib/reports/types'
 
 interface Form990DataClientProps {

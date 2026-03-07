@@ -161,8 +161,8 @@ export async function getTransactions(
 
   const total = totalResult?.value ?? 0
 
-  // Get paginated rows with line aggregates
-  const rows = await db
+  // Get rows with line aggregates
+  const baseQuery = db
     .select({
       id: transactions.id,
       date: transactions.date,
@@ -185,8 +185,14 @@ export async function getTransactions(
     .where(whereClause)
     .groupBy(transactions.id)
     .orderBy(desc(transactions.date), desc(transactions.id))
-    .limit(pageSize)
-    .offset((page - 1) * pageSize)
+    .$dynamic()
+
+  // pageSize=0 means fetch all (client-side pagination)
+  if (pageSize > 0) {
+    baseQuery.limit(pageSize).offset((page - 1) * pageSize)
+  }
+
+  const rows = await baseQuery
 
   return { rows, total }
 }

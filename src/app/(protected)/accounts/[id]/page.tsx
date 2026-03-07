@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { getAccountById } from '../actions'
+import { getAccountById, getAccountBalanceDetail } from '../actions'
 import { AccountDetailClient } from './account-detail-client'
 
 interface AccountDetailPageProps {
@@ -12,8 +12,12 @@ export default async function AccountDetailPage({ params }: AccountDetailPagePro
 
   if (isNaN(accountId)) notFound()
 
-  const account = await getAccountById(accountId)
+  const [account, balanceDetail] = await Promise.all([
+    getAccountById(accountId),
+    getAccountBalanceDetail(accountId),
+  ])
+
   if (!account) notFound()
 
-  return <AccountDetailClient account={account} />
+  return <AccountDetailClient account={account} balanceDetail={balanceDetail} />
 }

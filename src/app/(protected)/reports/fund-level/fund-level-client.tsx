@@ -11,7 +11,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatDate } from '@/lib/reports/types'
-import { getFundLevelData, type FundLevelData } from '@/lib/reports/fund-level'
+import type { FundLevelData } from '@/lib/reports/fund-level'
+import { getFundLevelData } from '../actions'
 import type {
   BalanceSheetData,
   BalanceSheetSection,

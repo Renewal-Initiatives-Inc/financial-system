@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Download, FileText, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { generateCSV, triggerDownload } from '@/lib/reports/csv/export-csv'
 
@@ -34,8 +35,7 @@ export function ExportButtons({
       a.click()
       URL.revokeObjectURL(url)
     } catch {
-      // PDF export is optional — silently degrade
-      console.error('PDF export failed')
+      toast.error('PDF export failed. Try downloading as CSV instead.')
     } finally {
       setIsPdfLoading(false)
     }
