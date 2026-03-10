@@ -2,13 +2,50 @@
 
 import { useState, useEffect } from 'react'
 import { WorkflowPipeline } from '@/components/compliance/workflow'
-import { getDeadlineWithWorkflow, advanceWorkflowState } from './workflow-actions'
-import type { WorkflowStateData, WorkflowStateChange } from '@/lib/compliance/workflow-types'
+import {
+  getDeadlineWithWorkflow,
+  advanceWorkflowState,
+  getWorkflowClientConfig,
+} from './workflow-actions'
+import type {
+  WorkflowStateData,
+  WorkflowStateChange,
+  WorkflowConfig,
+} from '@/lib/compliance/workflow-types'
+import type { WorkflowClientConfig } from './workflow-actions'
 
 interface WorkflowPipelineHostProps {
   deadlineId: number
   workflowType: string | null
   userId: string
+}
+
+function buildRuntimeConfig(clientConfig: WorkflowClientConfig): WorkflowConfig {
+  return {
+    workflowType: clientConfig.workflowType,
+    displayName: clientConfig.displayName,
+    cluster: clientConfig.cluster,
+    requiresWarningDialog: clientConfig.requiresWarningDialog,
+    simplified: clientConfig.simplified,
+    steps: {
+      checklist: {
+        autoChecks: [], // Auto-checks run server-side only
+        manualChecks: clientConfig.manualChecks,
+      },
+      scan: {
+        reportSlugs: [],
+        aiPromptTemplate: clientConfig.workflowType,
+        citations: clientConfig.citations,
+      },
+      draft: {
+        artifactType: clientConfig.artifactType,
+        generatorFn: clientConfig.workflowType,
+      },
+      delivery: {
+        blobPrefix: clientConfig.blobPrefix,
+      },
+    },
+  }
 }
 
 export function WorkflowPipelineHost({
@@ -17,6 +54,7 @@ export function WorkflowPipelineHost({
   userId,
 }: WorkflowPipelineHostProps) {
   const [stateData, setStateData] = useState<WorkflowStateData | null>(null)
+  const [runtimeConfig, setRuntimeConfig] = useState<WorkflowConfig | null>(null)
   const [scanContent, setScanContent] = useState<string | null>(null)
   const [isScanLoading, setIsScanLoading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -25,18 +63,23 @@ export function WorkflowPipelineHost({
   useEffect(() => {
     let cancelled = false
     async function load() {
-      const row = await getDeadlineWithWorkflow(deadlineId)
-      if (!cancelled && row) {
-        setStateData({
-          deadlineId: row.id,
-          currentState: row.workflowState,
-        })
+      const [row, clientConfig] = await Promise.all([
+        getDeadlineWithWorkflow(deadlineId),
+        workflowType ? getWorkflowClientConfig(workflowType) : Promise.resolve(null),
+      ])
+      if (!cancelled) {
+        if (row) {
+          setStateData({ deadlineId: row.id, currentState: row.workflowState })
+        }
+        if (clientConfig) {
+          setRuntimeConfig(buildRuntimeConfig(clientConfig))
+        }
+        setIsLoading(false)
       }
-      if (!cancelled) setIsLoading(false)
     }
     load()
     return () => { cancelled = true }
-  }, [deadlineId])
+  }, [deadlineId, workflowType])
 
   async function handleStateChange(change: WorkflowStateChange) {
     setIsSubmitting(true)
@@ -82,23 +125,23 @@ export function WorkflowPipelineHost({
     return <p className="text-sm text-muted-foreground">Loading workflow...</p>
   }
 
-  // Minimal stub config — real configs wired in Phase 2
-  const stubConfig = {
+  // Fall back to a minimal config if registry lookup failed
+  const config: WorkflowConfig = runtimeConfig ?? {
     workflowType,
     displayName: workflowType.replace(/_/g, ' '),
-    cluster: 'A' as const,
+    cluster: 'A',
     requiresWarningDialog: false,
     steps: {
       checklist: { autoChecks: [], manualChecks: [] },
       scan: { reportSlugs: [], aiPromptTemplate: '', citations: [] },
-      draft: { artifactType: 'pdf' as const, generatorFn: '' },
+      draft: { artifactType: 'pdf', generatorFn: '' },
       delivery: { blobPrefix: 'compliance-artifacts/' },
     },
   }
 
   return (
     <WorkflowPipeline
-      config={stubConfig}
+      config={config}
       stateData={stateData}
       scanContent={scanContent}
       isScanLoading={isScanLoading}

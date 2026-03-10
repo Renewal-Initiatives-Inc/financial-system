@@ -11,7 +11,42 @@ import { revalidatePath } from 'next/cache'
 import type {
   WorkflowStep,
   WorkflowStateChange,
+  ManualCheck,
+  Citation,
 } from '@/lib/compliance/workflow-types'
+import { getWorkflowConfig } from '@/lib/compliance/workflow-registry'
+
+// Serializable subset of WorkflowConfig — safe to return from a server action
+export interface WorkflowClientConfig {
+  workflowType: string
+  displayName: string
+  cluster: 'A' | 'B' | 'C' | 'D' | 'E'
+  requiresWarningDialog: boolean
+  simplified: boolean
+  manualChecks: ManualCheck[]
+  citations: Citation[]
+  artifactType: 'pdf' | 'docx' | 'csv'
+  blobPrefix: string
+}
+
+export async function getWorkflowClientConfig(
+  workflowType: string,
+  slug?: string
+): Promise<WorkflowClientConfig | null> {
+  const config = getWorkflowConfig(workflowType, slug)
+  if (!config) return null
+  return {
+    workflowType: config.workflowType,
+    displayName: config.displayName,
+    cluster: config.cluster,
+    requiresWarningDialog: config.requiresWarningDialog,
+    simplified: config.simplified ?? false,
+    manualChecks: config.steps.checklist.manualChecks,
+    citations: config.steps.scan.citations,
+    artifactType: config.steps.draft.artifactType,
+    blobPrefix: config.steps.delivery.blobPrefix,
+  }
+}
 
 export async function getWorkflowState(deadlineId: number) {
   const [row] = await db
