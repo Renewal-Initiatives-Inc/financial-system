@@ -28,6 +28,8 @@ export * from './purchase-orders'
 export * from './invoices'
 export * from './security-deposit-interest'
 export * from './compliance-deadlines'
+export * from './compliance-workflow-logs'
+export * from './compliance-artifacts'
 export * from './security-deposit-receipts'
 export * from './bank-accounts'
 export * from './bank-transactions'
@@ -64,6 +66,8 @@ import { stagingRecords } from './staging-records'
 import { payrollRuns, payrollEntries } from './payroll'
 import { securityDepositInterestPayments } from './security-deposit-interest'
 import { complianceDeadlines } from './compliance-deadlines'
+import { complianceWorkflowLogs } from './compliance-workflow-logs'
+import { complianceArtifacts } from './compliance-artifacts'
 import { securityDepositReceipts } from './security-deposit-receipts'
 import { bankAccounts } from './bank-accounts'
 import { bankTransactions } from './bank-transactions'
@@ -435,7 +439,7 @@ export const securityDepositInterestPaymentsRelations = relations(
 
 export const complianceDeadlinesRelations = relations(
   complianceDeadlines,
-  ({ one }) => ({
+  ({ one, many }) => ({
     tenant: one(tenants, {
       fields: [complianceDeadlines.tenantId],
       references: [tenants.id],
@@ -443,6 +447,34 @@ export const complianceDeadlinesRelations = relations(
     fund: one(funds, {
       fields: [complianceDeadlines.fundId],
       references: [funds.id],
+    }),
+    parent: one(complianceDeadlines, {
+      fields: [complianceDeadlines.parentDeadlineId],
+      references: [complianceDeadlines.id],
+      relationName: 'reminderChain',
+    }),
+    reminders: many(complianceDeadlines, { relationName: 'reminderChain' }),
+    workflowLogs: many(complianceWorkflowLogs),
+    artifacts: many(complianceArtifacts),
+  })
+)
+
+export const complianceWorkflowLogsRelations = relations(
+  complianceWorkflowLogs,
+  ({ one }) => ({
+    deadline: one(complianceDeadlines, {
+      fields: [complianceWorkflowLogs.deadlineId],
+      references: [complianceDeadlines.id],
+    }),
+  })
+)
+
+export const complianceArtifactsRelations = relations(
+  complianceArtifacts,
+  ({ one }) => ({
+    deadline: one(complianceDeadlines, {
+      fields: [complianceArtifacts.deadlineId],
+      references: [complianceDeadlines.id],
     }),
   })
 )

@@ -12,6 +12,8 @@ import {
   complianceDeadlineCategoryEnum,
   complianceDeadlineRecurrenceEnum,
   complianceDeadlineStatusEnum,
+  workflowStateEnum,
+  workflowTypeEnum,
 } from './enums'
 
 export const complianceDeadlines = pgTable('compliance_deadlines', {
@@ -27,4 +29,16 @@ export const complianceDeadlines = pgTable('compliance_deadlines', {
   fundId: integer('fund_id'),
   notes: text('notes'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
+  // Workflow state tracking
+  workflowState: workflowStateEnum('workflow_state').notNull().default('not_started'),
+  workflowType: workflowTypeEnum('workflow_type'),
+  isReminder: boolean('is_reminder').notNull().default(false),
+  parentDeadlineId: integer('parent_deadline_id'),
+  googleEventId: varchar('google_event_id', { length: 255 }),
+  googleReminderEventId: varchar('google_reminder_event_id', { length: 255 }),
+  // Rich metadata for detail cards
+  legalCitation: text('legal_citation'),
+  referenceUrl: text('reference_url'),
+  recommendedActions: text('recommended_actions'),
+  authoritySource: varchar('authority_source', { length: 100 }),
 })

@@ -182,3 +182,34 @@ export const importReviewStatusEnum = pgEnum('import_review_status', [
   'approved',
   'skipped',
 ])
+
+export const workflowStateEnum = pgEnum('workflow_state', [
+  'not_started',
+  'checklist',
+  'scan',
+  'draft',
+  'delivered',
+])
+
+export const workflowStepEnum = pgEnum('workflow_step', [
+  'checklist',
+  'scan',
+  'draft',
+  'delivery',
+])
+
+export const workflowTypeEnum = pgEnum('workflow_type', [
+  'tax_form_990',
+  'tax_form_pc',
+  'tax_w2',
+  'tax_1099_nec',
+  'tax_941',
+  'tax_m941',
+  'annual_review',
+  'annual_attestation',
+  'budget_cycle',
+  'grant_report',
+  'grant_closeout',
+  'grant_milestone',
+  'tenant_deposit',
+])

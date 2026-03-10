@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   Select,
   SelectContent,
@@ -8,21 +8,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Button } from '@/components/ui/button'
 import { DataTable } from '@/components/shared/data-table'
 import { complianceColumns } from './columns'
-import { markDeadlineComplete, type ComplianceDeadlineRow } from './actions'
+import { type ComplianceDeadlineRow } from './actions'
+import { CopilotPanel, useCopilot } from '@/components/copilot'
+import { WorkflowPipelineHost } from './workflow-pipeline-host'
 
 interface ComplianceCalendarClientProps {
   initialDeadlines: ComplianceDeadlineRow[]
+  userId: string
 }
 
 export function ComplianceCalendarClient({
   initialDeadlines,
+  userId,
 }: ComplianceCalendarClientProps) {
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [selected, setSelected] = useState<number | null>(null)
+  const [selectedDeadline, setSelectedDeadline] = useState<ComplianceDeadlineRow | null>(null)
+  const [copilotOpen, setCopilotOpen] = useState(false)
 
   const filtered = initialDeadlines.filter((d) => {
     if (categoryFilter !== 'all' && d.category !== categoryFilter) return false
@@ -30,10 +34,39 @@ export function ComplianceCalendarClient({
     return true
   })
 
-  async function handleComplete() {
-    if (selected == null) return
-    await markDeadlineComplete(selected, 'current-user')
-    setSelected(null)
+  const copilotContext = useMemo(
+    () => ({
+      pageId: 'compliance',
+      pageDescription: 'Compliance Calendar — upcoming compliance deadlines and workflow management',
+      data: selectedDeadline
+        ? {
+            selectedDeadline: {
+              taskName: selectedDeadline.taskName,
+              dueDate: selectedDeadline.dueDate,
+              category: selectedDeadline.category,
+              status: selectedDeadline.status,
+              workflowType: selectedDeadline.workflowType,
+              legalCitation: selectedDeadline.legalCitation,
+            },
+          }
+        : {},
+      tools: [],
+      knowledge: [
+        'This page shows compliance deadlines for a nonprofit organization.',
+        'Workflows guide users through checklist, AI scan, draft review, and delivery steps.',
+      ],
+    }),
+    [selectedDeadline]
+  )
+
+  const { messages, isStreaming, error, sendMessage, clearChat } = useCopilot({
+    context: copilotContext,
+    userId,
+  })
+
+  function handleRowClick(row: ComplianceDeadlineRow) {
+    setSelectedDeadline(row)
+    setCopilotOpen(true)
   }
 
   return (
@@ -42,14 +75,6 @@ export function ComplianceCalendarClient({
         <h1 className="text-2xl font-semibold tracking-tight">
           Compliance Calendar
         </h1>
-        {selected != null && (
-          <Button
-            onClick={handleComplete}
-            data-testid="compliance-mark-complete-btn"
-          >
-            Mark Complete
-          </Button>
-        )}
       </div>
 
       <div className="flex items-center gap-4">
@@ -88,12 +113,35 @@ export function ComplianceCalendarClient({
       <DataTable
         columns={complianceColumns}
         data={filtered}
-        onRowClick={(row) =>
-          setSelected(row.id === selected ? null : row.id)
-        }
+        onRowClick={handleRowClick}
         initialSorting={[{ id: 'dueDate', desc: false }]}
         emptyMessage="No compliance deadlines found."
         testIdPrefix="compliance"
+      />
+
+      <CopilotPanel
+        open={copilotOpen}
+        onClose={() => {
+          setCopilotOpen(false)
+          setSelectedDeadline(null)
+        }}
+        messages={messages}
+        isStreaming={isStreaming}
+        error={error}
+        onSendMessage={sendMessage}
+        onClearChat={clearChat}
+        workflowContent={
+          selectedDeadline
+            ? (
+              <WorkflowPipelineHost
+                deadlineId={selectedDeadline.id}
+                workflowType={selectedDeadline.workflowType ?? null}
+                userId={userId}
+              />
+            )
+            : undefined
+        }
+        defaultTab={selectedDeadline?.workflowType ? 'workflow' : 'chat'}
       />
     </div>
   )
