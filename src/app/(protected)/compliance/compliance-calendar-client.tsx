@@ -8,6 +8,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
+import { List, CalendarDays } from 'lucide-react'
 import { DataTable } from '@/components/shared/data-table'
 import { complianceColumns } from './columns'
 import { type ComplianceDeadlineRow } from './actions'
@@ -17,16 +19,19 @@ import { WorkflowPipelineHost } from './workflow-pipeline-host'
 interface ComplianceCalendarClientProps {
   initialDeadlines: ComplianceDeadlineRow[]
   userId: string
+  googleCalendarId: string | null
 }
 
 export function ComplianceCalendarClient({
   initialDeadlines,
   userId,
+  googleCalendarId,
 }: ComplianceCalendarClientProps) {
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [selectedDeadline, setSelectedDeadline] = useState<ComplianceDeadlineRow | null>(null)
   const [copilotOpen, setCopilotOpen] = useState(false)
+  const [view, setView] = useState<'list' | 'calendar'>('list')
 
   const filtered = initialDeadlines.filter((d) => {
     if (categoryFilter !== 'all' && d.category !== categoryFilter) return false
@@ -69,55 +74,91 @@ export function ComplianceCalendarClient({
     setCopilotOpen(true)
   }
 
+  const googleCalendarEmbedUrl = googleCalendarId
+    ? `https://calendar.google.com/calendar/embed?src=${encodeURIComponent(googleCalendarId)}&ctz=America%2FNew_York&mode=MONTH&showTitle=0&showNav=1&showPrint=0&showTabs=0&showCalendars=0`
+    : null
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">
           Compliance Calendar
         </h1>
+        {googleCalendarEmbedUrl && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant={view === 'list' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setView('list')}
+              data-testid="compliance-view-toggle-list"
+            >
+              <List className="h-4 w-4 mr-1" />
+              List View
+            </Button>
+            <Button
+              variant={view === 'calendar' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setView('calendar')}
+              data-testid="compliance-view-toggle-calendar"
+            >
+              <CalendarDays className="h-4 w-4 mr-1" />
+              Calendar View
+            </Button>
+          </div>
+        )}
       </div>
 
-      <div className="flex items-center gap-4">
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger
-            className="w-[180px]"
-            data-testid="compliance-category-filter"
-          >
-            <SelectValue placeholder="All Categories" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            <SelectItem value="tax">Tax</SelectItem>
-            <SelectItem value="tenant">Tenant</SelectItem>
-            <SelectItem value="grant">Grant</SelectItem>
-            <SelectItem value="budget">Budget</SelectItem>
-          </SelectContent>
-        </Select>
+      {view === 'calendar' && googleCalendarEmbedUrl ? (
+        <iframe
+          src={googleCalendarEmbedUrl}
+          className="w-full h-[600px] rounded-md border"
+          title="Compliance Calendar"
+        />
+      ) : (
+        <>
+          <div className="flex items-center gap-4">
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger
+                className="w-[180px]"
+                data-testid="compliance-category-filter"
+              >
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="tax">Tax</SelectItem>
+                <SelectItem value="tenant">Tenant</SelectItem>
+                <SelectItem value="grant">Grant</SelectItem>
+                <SelectItem value="budget">Budget</SelectItem>
+              </SelectContent>
+            </Select>
 
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger
-            className="w-[180px]"
-            data-testid="compliance-status-filter"
-          >
-            <SelectValue placeholder="All Statuses" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="upcoming">Upcoming</SelectItem>
-            <SelectItem value="reminded">Reminded</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger
+                className="w-[180px]"
+                data-testid="compliance-status-filter"
+              >
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="upcoming">Upcoming</SelectItem>
+                <SelectItem value="reminded">Reminded</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-      <DataTable
-        columns={complianceColumns}
-        data={filtered}
-        onRowClick={handleRowClick}
-        initialSorting={[{ id: 'dueDate', desc: false }]}
-        emptyMessage="No compliance deadlines found."
-        testIdPrefix="compliance"
-      />
+          <DataTable
+            columns={complianceColumns}
+            data={filtered}
+            onRowClick={handleRowClick}
+            initialSorting={[{ id: 'dueDate', desc: false }]}
+            emptyMessage="No compliance deadlines found."
+            testIdPrefix="compliance"
+          />
+        </>
+      )}
 
       <CopilotPanel
         open={copilotOpen}

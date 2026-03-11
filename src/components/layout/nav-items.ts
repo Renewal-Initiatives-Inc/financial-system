@@ -40,6 +40,7 @@ export const navItems: NavItem[] = [
   { label: 'Reports', href: '/reports', icon: FileText },
   { label: 'Budgets', href: '/budgets', icon: PieChart },
   { label: 'Compliance', href: '/compliance', icon: ShieldCheck },
+  { label: 'Compliance Admin', href: '/compliance/admin', icon: ShieldCheck, indent: true },
   { label: 'Vendors', href: '/vendors', icon: Building2 },
 
   { label: 'Donors', href: '/donors', icon: Heart },
