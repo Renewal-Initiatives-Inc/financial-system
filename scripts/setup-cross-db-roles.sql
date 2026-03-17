@@ -24,6 +24,9 @@ GRANT USAGE ON SCHEMA public TO timesheets_role, expense_reports_role;
 -- 3. Grant SELECT on reference tables (for fund/account lookups)
 GRANT SELECT ON accounts, funds, vendors TO timesheets_role, expense_reports_role;
 
+-- 3b. Grant SELECT on annual_rate_config (for mileage rate reads in expense-reports)
+GRANT SELECT ON annual_rate_config TO expense_reports_role;
+
 -- 4. Grant INSERT + SELECT on staging_records (no UPDATE, no DELETE)
 GRANT INSERT, SELECT ON staging_records TO timesheets_role, expense_reports_role;
 
