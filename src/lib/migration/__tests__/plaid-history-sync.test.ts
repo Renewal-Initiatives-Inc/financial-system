@@ -44,8 +44,8 @@ describe('syncBankHistory', () => {
 
     // Should have called syncTransactions twice (two pages)
     expect(syncMock).toHaveBeenCalledTimes(2)
-    expect(syncMock).toHaveBeenCalledWith('test-access-token', null) // first call with null cursor
-    expect(syncMock).toHaveBeenCalledWith('test-access-token', 'cursor-page-2') // second call with cursor
+    expect(syncMock).toHaveBeenCalledWith('test-access-token', null, undefined) // first call with null cursor
+    expect(syncMock).toHaveBeenCalledWith('test-access-token', 'cursor-page-2', undefined) // second call with cursor
 
     expect(result.transactionsSynced).toBe(3)
     expect(result.cursorSaved).toBe('cursor-final')

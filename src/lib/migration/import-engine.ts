@@ -37,7 +37,8 @@ export interface ImportResult {
  */
 export async function importFY25Transactions(
   parsedTransactions: QboParsedTransaction[],
-  db: { select: Function; from: Function; transaction?: Function },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: { select: (...args: any[]) => any; transaction?: (...args: any[]) => Promise<any> },
   options: ImportOptions
 ): Promise<ImportResult> {
   const errors: ImportError[] = []
@@ -163,7 +164,8 @@ export function buildGlTransaction(
  * Must be called within a database transaction for atomicity.
  */
 export async function deleteExistingImports(
-  db: { execute: Function }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: { execute: (...args: any[]) => Promise<{ rows: any[] }> }
 ): Promise<number> {
   const { sql } = await import('drizzle-orm')
   const { transactions, transactionLines } = await import('@/lib/db/schema')
@@ -196,7 +198,8 @@ export async function deleteExistingImports(
  * Check if any FY25_IMPORT transactions already exist.
  */
 export async function hasExistingImports(
-  db: { execute: Function }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: { execute: (...args: any[]) => Promise<{ rows: any[] }> }
 ): Promise<{ exists: boolean; count: number }> {
   const { sql } = await import('drizzle-orm')
   const { transactions } = await import('@/lib/db/schema')

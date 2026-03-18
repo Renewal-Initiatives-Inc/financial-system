@@ -100,7 +100,7 @@ const COLUMN_MAP: Record<string, keyof QboRow> = {
  */
 export function stripQboMetadataRows(csvContent: string): string {
   // Strip BOM
-  let content = csvContent.replace(/^\uFEFF/, '')
+  const content = csvContent.replace(/^\uFEFF/, '')
 
   const lines = content.split(/\r?\n/)
   const knownHeaders = new Set(Object.keys(COLUMN_MAP))

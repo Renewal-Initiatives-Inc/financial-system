@@ -129,12 +129,7 @@ export function FundingSourceDetailClient({ source, transactions, arInvoices, ra
   const hasCategory = !!source.fundingCategory
 
   // Close-out approach warnings
-  const daysUntilEnd = source.endDate
-    ? Math.ceil(
-        (new Date(source.endDate + 'T00:00:00').getTime() - Date.now()) /
-          (1000 * 60 * 60 * 24)
-      )
-    : null
+  const daysUntilEnd = getDaysUntilEnd(source.endDate)
 
   const closeOutWarning =
     daysUntilEnd !== null && daysUntilEnd >= 0 && daysUntilEnd <= 90
@@ -1230,5 +1225,13 @@ export function FundingSourceDetailClient({ source, transactions, arInvoices, ra
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+function getDaysUntilEnd(endDate: string | null | undefined): number | null {
+  if (!endDate) return null
+  return Math.ceil(
+    (new Date(endDate + 'T00:00:00').getTime() - Date.now()) /
+      (1000 * 60 * 60 * 24)
   )
 }

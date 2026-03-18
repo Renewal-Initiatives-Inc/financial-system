@@ -187,7 +187,8 @@ export type FundLookup = Map<string, number> // fund name → DB id
  * Build a lookup map from account code → account ID from the database.
  */
 export async function buildAccountLookup(
-  db: { select: Function; from: Function }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: { select: (...args: any[]) => any }
 ): Promise<AccountLookup> {
   const { accounts } = await import('@/lib/db/schema')
   const rows = await db.select({ id: accounts.id, code: accounts.code }).from(accounts)
@@ -202,7 +203,8 @@ export async function buildAccountLookup(
  * Build a lookup map from fund name → fund ID from the database.
  */
 export async function buildFundLookup(
-  db: { select: Function; from: Function }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: { select: (...args: any[]) => any }
 ): Promise<FundLookup> {
   const { funds } = await import('@/lib/db/schema')
   const rows = await db.select({ id: funds.id, name: funds.name }).from(funds)
