@@ -18,7 +18,8 @@ import {
   applyMatchingRules,
   getBatchReviewCandidates,
   getExceptions,
-  runAutoMatch,
+  classifyBankTransactions,
+  reclassifyUnmatched,
   type BatchReviewItem,
   type ExceptionItem,
   type AutoMatchResult,
@@ -173,6 +174,12 @@ export async function confirmMatch(
   sessionId: number | null,
   userId: string
 ): Promise<void> {
+  // Get bank account ID for reclassification
+  const [txn] = await db
+    .select({ bankAccountId: bankTransactions.bankAccountId })
+    .from(bankTransactions)
+    .where(eq(bankTransactions.id, bankTransactionId))
+
   await createMatch({
     bankTransactionId,
     glTransactionLineId,
@@ -180,6 +187,12 @@ export async function confirmMatch(
     reconciliationSessionId: sessionId ?? undefined,
     userId,
   })
+
+  // Reclassify unmatched after consuming a GL line (fire and forget)
+  if (txn) {
+    reclassifyUnmatched(txn.bankAccountId).catch(console.error)
+  }
+
   revalidatePath('/bank-rec')
 }
 
@@ -200,9 +213,16 @@ export async function splitAndMatch(
 
 export async function rejectMatch(
   matchId: number,
-  userId: string
+  userId: string,
+  bankAccountId?: number
 ): Promise<void> {
   await removeMatch(matchId, userId)
+
+  // Reclassify unmatched after freeing a GL line (fire and forget)
+  if (bankAccountId) {
+    reclassifyUnmatched(bankAccountId).catch(console.error)
+  }
+
   revalidatePath('/bank-rec')
 }
 
@@ -418,27 +438,8 @@ export async function triggerManualSync(
       .set({ plaidCursor: cursor })
       .where(eq(bankAccounts.id, account.id))
 
-    // Run rule matching on newly added unmatched transactions
-    const unmatchedTxns = await db
-      .select({ id: bankTransactions.id })
-      .from(bankTransactions)
-      .where(
-        and(
-          eq(bankTransactions.bankAccountId, bankAccountId),
-          eq(bankTransactions.isPending, false)
-        )
-      )
-
-    const matchedIds = await db
-      .select({ bankTxnId: bankMatches.bankTransactionId })
-      .from(bankMatches)
-
-    const matchedSet = new Set(matchedIds.map((m) => m.bankTxnId))
-    for (const txn of unmatchedTxns) {
-      if (!matchedSet.has(txn.id)) {
-        await applyMatchingRules(txn.id)
-      }
-    }
+    // Classify all unclassified transactions (composite scoring + tier assignment)
+    await classifyBankTransactions(bankAccountId)
 
     revalidatePath('/bank-rec')
     return { added: totalAdded, modified: totalModified }
@@ -463,18 +464,11 @@ export type DailyCloseSummary = {
   outstandingDeposits: number
 }
 
-export type { BatchReviewItem, ExceptionItem }
-
 export async function getDailyCloseSummary(
-  bankAccountId: number
+  bankAccountId: number,
+  precomputed?: { pendingReview: number; exceptions: number }
 ): Promise<DailyCloseSummary> {
-  // Get tier counts by running classification
-  const [reviewItems, exceptionItems] = await Promise.all([
-    getBatchReviewCandidates(bankAccountId),
-    getExceptions(bankAccountId),
-  ])
-
-  // Count today's auto-matched transactions
+  // Count auto-matched transactions
   const matchedBankIds = await db
     .select({ bankTxnId: bankMatches.bankTransactionId, matchType: bankMatches.matchType })
     .from(bankMatches)
@@ -487,8 +481,8 @@ export async function getDailyCloseSummary(
 
   return {
     autoMatched: autoMatchedCount,
-    pendingReview: reviewItems.length,
-    exceptions: exceptionItems.length,
+    pendingReview: precomputed?.pendingReview ?? 0,
+    exceptions: precomputed?.exceptions ?? 0,
     variance: balance?.variance ?? 0,
     isReconciled: balance?.isReconciled ?? false,
     glBalance: balance?.glBalance ?? 0,
@@ -517,6 +511,7 @@ export async function bulkApproveMatches(
 ): Promise<{ approved: number; failed: number }> {
   let approved = 0
   let failed = 0
+  const bankAccountIds = new Set<number>()
 
   for (const item of items) {
     try {
@@ -536,10 +531,22 @@ export async function bulkApproveMatches(
           .where(eq(matchingRules.id, item.ruleId))
       }
 
+      // Collect bank account IDs for reclassification
+      const [txn] = await db
+        .select({ bankAccountId: bankTransactions.bankAccountId })
+        .from(bankTransactions)
+        .where(eq(bankTransactions.id, item.bankTransactionId))
+      if (txn) bankAccountIds.add(txn.bankAccountId)
+
       approved++
     } catch {
       failed++
     }
+  }
+
+  // Reclassify unmatched for all affected accounts (fire and forget)
+  for (const accountId of bankAccountIds) {
+    reclassifyUnmatched(accountId).catch(console.error)
   }
 
   revalidatePath('/bank-rec')

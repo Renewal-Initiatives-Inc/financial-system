@@ -339,7 +339,7 @@ Before writing your chunk spec:
 **D-042, D-043: Payroll Processing Deferred to V2**
 - **Status:** ✅ Decided (2026-02-11)
 - **Impacts:** Chunk 8
-- **What Chunk 8 needs:** ~~renewal-timesheets API integration deferred to v2. internal-app-registry-auth payroll data enhancements deferred to v2. No Gusto integration in v1.~~ **UPDATED by D-068:** renewal-timesheets API integration and internal-app-registry-auth payroll data restored to v1 scope. No Gusto integration (building in-house).
+- **What Chunk 8 needs:** ~~renewal-timesheets API integration deferred to v2. app-portal payroll data enhancements deferred to v2. No Gusto integration in v1.~~ **UPDATED by D-068:** renewal-timesheets API integration and app-portal payroll data restored to v1 scope. No Gusto integration (building in-house).
 
 **D-044: No Approval Workflows in Financial-System**
 - **Status:** ✅ Decided (2026-02-11)
@@ -869,7 +869,7 @@ Chunk 8 is the integration hub connecting financial-system to the existing app e
   - Default to "Unrestricted Fund" when no pattern exists
   - Send fund attribution in approved timesheet API payload
 - **Integration mechanism (D-118):** Database-mediated. renewal-timesheets INSERTs approved timesheet summaries into financial-system staging table. SELECTs reference tables for fund/GL dropdowns. SELECTs staging table for payment status.
-- **Compensation model (D-119, D-120):** People API (internal-app-registry-auth) stores compensation_type (PER_TASK or SALARIED), annual_salary, expected_annual_hours (default 2080, editable), exempt_status (EXEMPT or NON_EXEMPT). For salaried employees, People API calculates hourly rate (salary ÷ expected hours) and passes the pre-calculated rate to timesheets. Timesheets uses compensation type to choose rate source (task code rates for PER_TASK, People API rate for SALARIED) and exempt status to determine overtime applicability.
+- **Compensation model (D-119, D-120):** People API (app-portal) stores compensation_type (PER_TASK or SALARIED), annual_salary, expected_annual_hours (default 2080, editable), exempt_status (EXEMPT or NON_EXEMPT). For salaried employees, People API calculates hourly rate (salary ÷ expected hours) and passes the pre-calculated rate to timesheets. Timesheets uses compensation type to choose rate source (task code rates for PER_TASK, People API rate for SALARIED) and exempt status to determine overtime applicability.
 - **Staging contract (D-121):** Approval triggers INSERT. One staging row per fund per approved timesheet. Each row includes: employee ID, timesheet reference, pay period, fund ID, regular hours, overtime hours, regular earnings, overtime earnings, total earnings. Entry-level detail stays in timesheets DB.
 - **Open questions (resolved):**
   - ✅ Per-approval INSERT (D-121)

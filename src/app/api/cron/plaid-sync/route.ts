@@ -5,6 +5,7 @@ import { bankAccounts, bankTransactions } from '@/lib/db/schema'
 import { syncTransactions } from '@/lib/integrations/plaid'
 import { sendPlaidSyncFailureEmail } from '@/lib/integrations/plaid-sync-notification'
 import { decrypt } from '@/lib/encryption'
+import { classifyBankTransactions } from '@/lib/bank-rec/matcher'
 import { runDailyClose } from '@/lib/bank-rec/daily-close'
 import { sendDailyCloseEmail } from '@/lib/notifications/daily-close'
 
@@ -103,11 +104,14 @@ export async function GET(req: Request) {
         hasMore = result.hasMore
       }
 
-      // Update cursor after successful sync
+      // Update cursor and sync timestamp after successful sync
       await db
         .update(bankAccounts)
-        .set({ plaidCursor: cursor })
+        .set({ plaidCursor: cursor, lastSyncedAt: new Date() })
         .where(eq(bankAccounts.id, account.id))
+
+      // Classify newly synced transactions (writes tiers to bank_transactions rows)
+      await classifyBankTransactions(account.id)
 
       accountsSynced++
     } catch (err) {

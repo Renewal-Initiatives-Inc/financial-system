@@ -1,15 +1,14 @@
 /**
  * Daily close orchestrator (Phase 23a Task 4).
  *
- * Runs auto-match across all active bank accounts and aggregates results.
+ * Reads pre-computed tier counts from bank_transactions rows
+ * (classification happens at sync time via classifyBankTransactions).
  */
 
-import { eq } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { bankAccounts } from '@/lib/db/schema'
-import { applyMatchingRules } from './matcher'
-import { runAutoMatch } from './matcher'
-import type { AutoMatchResult } from './matcher'
+import { bankAccounts, bankTransactions, bankMatches } from '@/lib/db/schema'
+import { classifyBankTransactions } from './matcher'
 
 export interface DailyCloseResult {
   accountResults: {
@@ -29,8 +28,8 @@ export interface DailyCloseResult {
 }
 
 /**
- * Run daily close: auto-match across all active bank accounts.
- * Called after Plaid sync completes (or independently if sync fails).
+ * Run daily close: classify any remaining unclassified transactions,
+ * then read stored tier counts from DB.
  */
 export async function runDailyClose(): Promise<DailyCloseResult> {
   const activeAccounts = await db
@@ -46,30 +45,64 @@ export async function runDailyClose(): Promise<DailyCloseResult> {
 
   for (const account of activeAccounts) {
     try {
-      const matchResult = await runAutoMatch(account.id)
+      // Classify any remaining unclassified transactions
+      const classResult = await classifyBankTransactions(account.id)
+
+      // Read stored tier counts from DB
+      const tierCounts = await db
+        .select({
+          tier: bankTransactions.matchTier,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(bankTransactions)
+        .where(
+          and(
+            eq(bankTransactions.bankAccountId, account.id),
+            eq(bankTransactions.isPending, false)
+          )
+        )
+        .groupBy(bankTransactions.matchTier)
+
+      const tierMap = new Map(tierCounts.map((r) => [r.tier, r.count]))
+
+      // Count auto-matches from bank_matches table
+      const autoMatched = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(bankMatches)
+        .innerJoin(bankTransactions, eq(bankMatches.bankTransactionId, bankTransactions.id))
+        .where(
+          and(
+            eq(bankTransactions.bankAccountId, account.id),
+            eq(bankMatches.matchType, 'auto')
+          )
+        )
+        .then((rows) => rows[0]?.count ?? 0)
+
+      const pendingReview = tierMap.get(2) ?? 0
+      const exceptions = tierMap.get(3) ?? 0
 
       result.accountResults.push({
         bankAccountId: account.id,
         bankAccountName: account.name,
-        autoMatched: matchResult.autoMatched,
-        pendingReview: matchResult.pendingReview,
-        exceptions: matchResult.exceptions,
-        errors: matchResult.errors,
+        autoMatched,
+        pendingReview,
+        exceptions,
+        errors: classResult.errors,
       })
 
-      result.totals.autoMatched += matchResult.autoMatched
-      result.totals.pendingReview += matchResult.pendingReview
-      result.totals.exceptions += matchResult.exceptions
+      result.totals.autoMatched += autoMatched
+      result.totals.pendingReview += pendingReview
+      result.totals.exceptions += exceptions
 
-      if (matchResult.errors.length > 0) {
+      if (classResult.errors.length > 0) {
         result.errors.push(
-          ...matchResult.errors.map((e) => `${account.name}: ${e}`)
+          ...classResult.errors.map((e) => `${account.name}: ${e}`)
         )
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       result.errors.push(`${account.name}: ${message}`)
-      console.error(`Daily close auto-match failed for ${account.name}:`, message)
+      console.error(`Daily close failed for ${account.name}:`, message)
     }
   }
 

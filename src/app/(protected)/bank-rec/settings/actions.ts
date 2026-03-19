@@ -48,25 +48,27 @@ export async function getBankAccounts(): Promise<BankAccountRow[]> {
       glAccountId: bankAccounts.glAccountId,
       glAccountName: accounts.name,
       isActive: bankAccounts.isActive,
+      lastSyncedAt: bankAccounts.lastSyncedAt,
       createdAt: bankAccounts.createdAt,
     })
     .from(bankAccounts)
     .innerJoin(accounts, eq(bankAccounts.glAccountId, accounts.id))
     .orderBy(bankAccounts.name)
 
-  // Get last sync date and transaction count per account
+  // Get transaction count per account
   const result: BankAccountRow[] = []
   for (const row of rows) {
-    const txns = await db
-      .select({ date: bankTransactions.date })
+    const [countRow] = await db
+      .select({ count: sql<number>`count(*)::int` })
       .from(bankTransactions)
       .where(eq(bankTransactions.bankAccountId, row.id))
-      .orderBy(bankTransactions.createdAt)
 
     result.push({
       ...row,
-      lastSyncDate: txns.length > 0 ? txns[txns.length - 1].date : null,
-      transactionCount: txns.length,
+      lastSyncDate: row.lastSyncedAt
+        ? row.lastSyncedAt.toISOString().split('T')[0]
+        : null,
+      transactionCount: countRow?.count ?? 0,
     })
   }
 
@@ -305,7 +307,7 @@ export async function triggerManualSync(
 
     await db
       .update(bankAccounts)
-      .set({ plaidCursor: cursor })
+      .set({ plaidCursor: cursor, lastSyncedAt: new Date() })
       .where(eq(bankAccounts.id, account.id))
 
     revalidatePath('/bank-rec/settings')

@@ -93,7 +93,18 @@ export function BatchReviewTable({
   }
 
   if (items.length === 0) {
-    return null
+    return (
+      <Card data-testid="bank-rec-batch-review">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Pending Review (0)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground py-4 text-center">
+            No AI-suggested matches pending review.
+          </p>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (

@@ -7,11 +7,15 @@ import {
   numeric,
   pgTable,
   serial,
+  smallint,
+  text,
   timestamp,
   uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core'
 import { bankAccounts } from './bank-accounts'
+import { transactionLines } from './transaction-lines'
+import { matchingRules } from './matching-rules'
 
 export const bankTransactions = pgTable(
   'bank_transactions',
@@ -30,6 +34,19 @@ export const bankTransactions = pgTable(
     isPending: boolean('is_pending').notNull().default(false),
     paymentChannel: varchar('payment_channel', { length: 50 }),
     rawData: jsonb('raw_data'),
+    // Pre-computed match classification (written at sync time)
+    matchTier: smallint('match_tier'), // 1=auto, 2=review, 3=exception, null=unclassified
+    suggestedGlLineId: integer('suggested_gl_line_id').references(
+      () => transactionLines.id
+    ),
+    suggestedConfidence: numeric('suggested_confidence', {
+      precision: 5,
+      scale: 2,
+    }),
+    suggestedReason: text('suggested_reason'),
+    suggestedRuleId: integer('suggested_rule_id').references(
+      () => matchingRules.id
+    ),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
@@ -38,6 +55,10 @@ export const bankTransactions = pgTable(
     index('bank_transactions_account_date_idx').on(
       table.bankAccountId,
       table.date
+    ),
+    index('bank_transactions_account_tier_idx').on(
+      table.bankAccountId,
+      table.matchTier
     ),
   ]
 )

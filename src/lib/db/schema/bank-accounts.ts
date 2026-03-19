@@ -25,6 +25,7 @@ export const bankAccounts = pgTable(
       .notNull()
       .references(() => accounts.id),
     isActive: boolean('is_active').notNull().default(true),
+    lastSyncedAt: timestamp('last_synced_at'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (table) => [
