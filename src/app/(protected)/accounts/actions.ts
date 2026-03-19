@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { eq, sql, ilike, and, isNull, count, desc, gte } from 'drizzle-orm'
+import { eq, sql, ilike, and, count, desc, gte } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { accounts, transactionLines, transactions } from '@/lib/db/schema'
 import { insertAccountSchema, updateAccountSchema, type InsertAccount, type UpdateAccount } from '@/lib/validators'

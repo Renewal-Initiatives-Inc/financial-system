@@ -27,7 +27,6 @@ import { HelpTooltip } from '@/components/shared/help-tooltip'
 import {
   ContractTermsCard,
   parseMilestones,
-  type MilestoneItem,
 } from '@/components/shared/contract-terms-card'
 import { updatePurchaseOrderStatus, markPaymentInProcess, dismissComplianceWarning } from '../../actions'
 import type { PurchaseOrderDetail } from '../../actions'

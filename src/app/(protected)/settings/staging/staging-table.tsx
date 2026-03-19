@@ -15,7 +15,6 @@ import { toast } from 'sonner'
 import { stagingColumns } from './columns'
 import { triggerStagingProcessor } from './actions'
 import type { StagingRecordWithRelations } from '@/lib/staging/queries'
-import type { StagingSourceApp, StagingStatus } from '@/lib/validators/staging-records'
 
 interface StagingTableProps {
   initialRecords: StagingRecordWithRelations[]

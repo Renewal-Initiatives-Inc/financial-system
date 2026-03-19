@@ -39,6 +39,9 @@ export * from './reconciliation-sessions'
 export * from './functional-allocations'
 export * from './import-review'
 export * from './funding-source-rate-history'
+export * from './recurring-expectations'
+export * from './app-settings'
+export * from './weekly-cash-projection-lines'
 
 // Re-import for relations definitions
 import { accounts } from './accounts'
@@ -77,6 +80,8 @@ import { reconciliationSessions } from './reconciliation-sessions'
 import { functionalAllocations } from './functional-allocations'
 import { importReviewItems } from './import-review'
 import { fundingSourceRateHistory } from './funding-source-rate-history'
+import { recurringExpectations } from './recurring-expectations'
+import { weeklyCashProjectionLines } from './weekly-cash-projection-lines'
 
 // --- Relations ---
 
@@ -174,6 +179,7 @@ export const budgetLinesRelations = relations(budgetLines, ({ one }) => ({
 
 export const cashProjectionsRelations = relations(cashProjections, ({ many }) => ({
   lines: many(cashProjectionLines),
+  weeklyLines: many(weeklyCashProjectionLines),
 }))
 
 export const cashProjectionLinesRelations = relations(
@@ -182,6 +188,20 @@ export const cashProjectionLinesRelations = relations(
     projection: one(cashProjections, {
       fields: [cashProjectionLines.projectionId],
       references: [cashProjections.id],
+    }),
+  })
+)
+
+export const weeklyCashProjectionLinesRelations = relations(
+  weeklyCashProjectionLines,
+  ({ one }) => ({
+    projection: one(cashProjections, {
+      fields: [weeklyCashProjectionLines.projectionId],
+      references: [cashProjections.id],
+    }),
+    fund: one(funds, {
+      fields: [weeklyCashProjectionLines.fundId],
+      references: [funds.id],
     }),
   })
 )
@@ -565,6 +585,24 @@ export const importReviewItemsRelations = relations(
     glTransaction: one(transactions, {
       fields: [importReviewItems.glTransactionId],
       references: [transactions.id],
+    }),
+  })
+)
+
+export const recurringExpectationsRelations = relations(
+  recurringExpectations,
+  ({ one }) => ({
+    glAccount: one(accounts, {
+      fields: [recurringExpectations.glAccountId],
+      references: [accounts.id],
+    }),
+    fund: one(funds, {
+      fields: [recurringExpectations.fundId],
+      references: [funds.id],
+    }),
+    bankAccount: one(bankAccounts, {
+      fields: [recurringExpectations.bankAccountId],
+      references: [bankAccounts.id],
     }),
   })
 )

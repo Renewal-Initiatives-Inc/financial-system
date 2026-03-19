@@ -20,7 +20,7 @@
 
 import { neon } from '@neondatabase/serverless'
 import { drizzle } from 'drizzle-orm/neon-http'
-import { eq, and, sql } from 'drizzle-orm'
+import { sql } from 'drizzle-orm'
 
 const TEST_PREFIX = 'VERIFY-CROSS-DB'
 const cleanup = process.argv.includes('--cleanup')

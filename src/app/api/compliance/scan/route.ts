@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { auth } from '@/lib/auth'
-import { eq, and, gte, lte, isNotNull, sql } from 'drizzle-orm'
+import { eq, and, gte, lte, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import {
   complianceDeadlines,
@@ -10,7 +10,6 @@ import {
   payrollEntries,
   vendors,
   funds,
-  accounts,
 } from '@/lib/db/schema'
 import type { Citation } from '@/lib/compliance/workflow-types'
 

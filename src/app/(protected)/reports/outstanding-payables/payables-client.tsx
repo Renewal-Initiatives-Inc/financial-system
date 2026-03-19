@@ -15,7 +15,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ReportShell } from '@/components/reports/report-shell'
 import type {
   OutstandingPayablesData,
-  PayableRow,
   AgingBucket,
 } from '@/lib/reports/outstanding-payables'
 

@@ -55,6 +55,17 @@ export const projectionLineTypeEnum = pgEnum('projection_line_type', [
   'OUTFLOW',
 ])
 
+export const projectionTypeEnum = pgEnum('projection_type', [
+  'MONTHLY',
+  'WEEKLY',
+])
+
+export const confidenceLevelEnum = pgEnum('confidence_level', [
+  'HIGH',
+  'MODERATE',
+  'LOW',
+])
+
 export const w9StatusEnum = pgEnum('w9_status', [
   'COLLECTED',
   'PENDING',

@@ -25,7 +25,6 @@ import { formatCurrency } from '@/lib/reports/types'
 import {
   getEmployerPayrollCostData,
   type EmployerPayrollCostData,
-  type EmployerCostMonth,
 } from '@/lib/reports/employer-payroll-cost'
 import { cn } from '@/lib/utils'
 

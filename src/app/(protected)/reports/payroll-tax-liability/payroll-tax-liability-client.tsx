@@ -110,8 +110,8 @@ const exportColumns = [
 
 export function PayrollTaxLiabilityClient({
   initialData,
-  defaultStartDate,
-  defaultEndDate,
+  defaultStartDate: _defaultStartDate,
+  defaultEndDate: _defaultEndDate,
 }: PayrollTaxLiabilityClientProps) {
   const [data, setData] = useState<PayrollTaxLiabilityData>(initialData)
   const [periodMode, setPeriodMode] = useState<PeriodMode>('quarterly')
@@ -140,7 +140,7 @@ export function PayrollTaxLiabilityClient({
 
   const exportData = buildExportData(data)
 
-  const periodLabel =
+  const _periodLabel =
     periodMode === 'quarterly'
       ? `${QUARTER_LABELS[quarter]} ${year}`
       : `${MONTH_LABELS[month]} ${year}`

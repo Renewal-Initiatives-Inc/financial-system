@@ -37,7 +37,7 @@ export function UserMenu({ user }: UserMenuProps) {
       <DropdownMenuTrigger data-testid="user-menu-trigger" className="focus:outline-none">
         <Avatar className="h-8 w-8">
           <AvatarImage src={user.image} alt={user.name} />
-          <AvatarFallback className="text-xs">{getInitials(user.name)}</AvatarFallback>
+          <AvatarFallback className="text-xs font-bold text-white" style={{ backgroundColor: '#2c5530' }}>{getInitials(user.name)}</AvatarFallback>
         </Avatar>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">

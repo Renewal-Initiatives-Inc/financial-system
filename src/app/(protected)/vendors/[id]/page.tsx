@@ -7,7 +7,6 @@ import {
 } from '../actions'
 import {
   getVendorPurchaseOrders,
-  getVendorPaymentSummary,
 } from '../../expenses/actions'
 import { VendorDetailClient } from './vendor-detail-client'
 

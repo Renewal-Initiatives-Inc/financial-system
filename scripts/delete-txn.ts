@@ -13,7 +13,7 @@ config({ path: '.env.local' })
 
 import { Pool } from '@neondatabase/serverless'
 import { drizzle } from 'drizzle-orm/neon-serverless'
-import { eq, or, and, sql } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 import * as schema from '../src/lib/db/schema'
 
 const TARGET_TXN_ID = parseInt(process.argv[2] || '1', 10)

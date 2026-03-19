@@ -7,7 +7,6 @@ import {
   transactionLines,
   accounts,
 } from '@/lib/db/schema'
-import { createTransaction } from '@/lib/gl/engine'
 import { logAudit } from '@/lib/audit/logger'
 import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 import type { CipConversionInput } from '@/lib/validators'

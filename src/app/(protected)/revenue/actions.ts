@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { generateFundingSourceDeadlines } from '@/lib/compliance/deadline-generator'
-import { eq, and, desc, ilike, sql, isNotNull, count, or } from 'drizzle-orm'
+import { eq, and, desc, ilike, sql, count, or } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import {
   transactions,

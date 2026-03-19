@@ -1,7 +1,7 @@
 'use client'
 
 import { cn } from '@/lib/utils'
-import { formatCurrency, formatPercent } from '@/lib/reports/types'
+import { formatCurrency } from '@/lib/reports/types'
 import { VarianceIndicator } from '@/components/budgets/variance-indicator'
 import { calculateVariance } from '@/lib/budget/variance'
 

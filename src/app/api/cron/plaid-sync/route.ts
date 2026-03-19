@@ -5,6 +5,8 @@ import { bankAccounts, bankTransactions } from '@/lib/db/schema'
 import { syncTransactions } from '@/lib/integrations/plaid'
 import { sendPlaidSyncFailureEmail } from '@/lib/integrations/plaid-sync-notification'
 import { decrypt } from '@/lib/encryption'
+import { runDailyClose } from '@/lib/bank-rec/daily-close'
+import { sendDailyCloseEmail } from '@/lib/notifications/daily-close'
 
 /**
  * Plaid daily sync cron job (REC-P0-002, INT-P0-013).
@@ -117,11 +119,36 @@ export async function GET(req: Request) {
     }
   }
 
+  // Phase 23a: Run daily close (auto-match + notification) after sync
+  let dailyCloseResult = null
+  try {
+    dailyCloseResult = await runDailyClose()
+
+    // Send daily close notification (skip if no new transactions were synced)
+    if (transactionsAdded > 0 || transactionsModified > 0) {
+      try {
+        await sendDailyCloseEmail(dailyCloseResult)
+      } catch (notifyErr) {
+        console.error('Daily close notification failed:', notifyErr)
+      }
+    }
+  } catch (dailyCloseErr) {
+    console.error('Daily close auto-match failed:', dailyCloseErr)
+    // Don't fail the entire cron — sync data is already committed
+  }
+
   return NextResponse.json({
     success: errors.length === 0,
     accountsSynced,
     transactionsAdded,
     transactionsModified,
     errors,
+    dailyClose: dailyCloseResult
+      ? {
+          autoMatched: dailyCloseResult.totals.autoMatched,
+          pendingReview: dailyCloseResult.totals.pendingReview,
+          exceptions: dailyCloseResult.totals.exceptions,
+        }
+      : null,
   })
 }

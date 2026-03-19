@@ -9,10 +9,6 @@ import {
   bankMatches,
   matchingRules,
   reconciliationSessions,
-  transactionLines,
-  transactions,
-  accounts,
-  funds,
 } from '@/lib/db/schema'
 import {
   findMatchCandidates,
@@ -20,6 +16,12 @@ import {
   createSplitMatches,
   removeMatch,
   applyMatchingRules,
+  getBatchReviewCandidates,
+  getExceptions,
+  runAutoMatch,
+  type BatchReviewItem,
+  type ExceptionItem,
+  type AutoMatchResult,
 } from '@/lib/bank-rec/matcher'
 import { getUnmatchedGlEntries, type GlEntryRow } from '@/lib/bank-rec/gl-only-categories'
 import {
@@ -345,7 +347,7 @@ export async function signOffReconciliation(
 
 export async function triggerManualSync(
   bankAccountId: number,
-  userId: string
+  _userId: string
 ): Promise<{ added: number; modified: number }> {
   const [account] = await db
     .select()
@@ -445,6 +447,149 @@ export async function triggerManualSync(
     await sendPlaidSyncFailureEmail(message, account.name)
     throw new Error(`Sync failed: ${message}`)
   }
+}
+
+// --- Phase 23b: Dashboard server actions ---
+
+export type DailyCloseSummary = {
+  autoMatched: number
+  pendingReview: number
+  exceptions: number
+  variance: number
+  isReconciled: boolean
+  glBalance: number
+  bankBalance: number
+  outstandingChecks: number
+  outstandingDeposits: number
+}
+
+export type { BatchReviewItem, ExceptionItem }
+
+export async function getDailyCloseSummary(
+  bankAccountId: number
+): Promise<DailyCloseSummary> {
+  // Get tier counts by running classification
+  const [reviewItems, exceptionItems] = await Promise.all([
+    getBatchReviewCandidates(bankAccountId),
+    getExceptions(bankAccountId),
+  ])
+
+  // Count today's auto-matched transactions
+  const matchedBankIds = await db
+    .select({ bankTxnId: bankMatches.bankTransactionId, matchType: bankMatches.matchType })
+    .from(bankMatches)
+
+  const autoMatchedCount = matchedBankIds.filter((m) => m.matchType === 'auto').length
+
+  // Get reconciliation balance if session exists
+  const session = await getReconciliationSession(bankAccountId)
+  const balance = session.balance
+
+  return {
+    autoMatched: autoMatchedCount,
+    pendingReview: reviewItems.length,
+    exceptions: exceptionItems.length,
+    variance: balance?.variance ?? 0,
+    isReconciled: balance?.isReconciled ?? false,
+    glBalance: balance?.glBalance ?? 0,
+    bankBalance: balance?.bankBalance ?? 0,
+    outstandingChecks: balance?.outstandingChecks ?? 0,
+    outstandingDeposits: balance?.outstandingDeposits ?? 0,
+  }
+}
+
+export async function getBatchReviewItems(
+  bankAccountId: number
+): Promise<BatchReviewItem[]> {
+  return getBatchReviewCandidates(bankAccountId)
+}
+
+export async function getExceptionItems(
+  bankAccountId: number
+): Promise<ExceptionItem[]> {
+  return getExceptions(bankAccountId)
+}
+
+export async function bulkApproveMatches(
+  items: { bankTransactionId: number; glTransactionLineId: number; ruleId?: number }[],
+  sessionId: number | null,
+  userId: string
+): Promise<{ approved: number; failed: number }> {
+  let approved = 0
+  let failed = 0
+
+  for (const item of items) {
+    try {
+      await createMatch({
+        bankTransactionId: item.bankTransactionId,
+        glTransactionLineId: item.glTransactionLineId,
+        matchType: 'manual',
+        reconciliationSessionId: sessionId ?? undefined,
+        userId,
+      })
+
+      // Increment rule hit count if applicable
+      if (item.ruleId) {
+        await db
+          .update(matchingRules)
+          .set({ hitCount: sql`${matchingRules.hitCount} + 1` })
+          .where(eq(matchingRules.id, item.ruleId))
+      }
+
+      approved++
+    } catch {
+      failed++
+    }
+  }
+
+  revalidatePath('/bank-rec')
+  return { approved, failed }
+}
+
+export async function getRecentAutoMatches(
+  bankAccountId: number
+): Promise<BankTransactionRow[]> {
+  const autoMatches = await db
+    .select({
+      bankTxnId: bankMatches.bankTransactionId,
+      matchId: bankMatches.id,
+      matchType: bankMatches.matchType,
+      confirmedAt: bankMatches.confirmedAt,
+    })
+    .from(bankMatches)
+    .where(eq(bankMatches.matchType, 'auto'))
+
+  const autoMatchedIds = new Set(autoMatches.map((m) => m.bankTxnId))
+
+  const txns = await db
+    .select()
+    .from(bankTransactions)
+    .where(
+      and(
+        eq(bankTransactions.bankAccountId, bankAccountId),
+        eq(bankTransactions.isPending, false)
+      )
+    )
+    .orderBy(bankTransactions.date)
+
+  return txns
+    .filter((t) => autoMatchedIds.has(t.id))
+    .map((t) => {
+      const match = autoMatches.find((m) => m.bankTxnId === t.id)
+      return {
+        id: t.id,
+        bankAccountId: t.bankAccountId,
+        plaidTransactionId: t.plaidTransactionId,
+        amount: t.amount,
+        date: t.date,
+        merchantName: t.merchantName,
+        category: t.category,
+        isPending: t.isPending,
+        isMatched: true,
+        matchId: match?.matchId ?? null,
+        matchType: 'auto',
+      }
+    })
 }
 
 export async function getRampCrossCheck(

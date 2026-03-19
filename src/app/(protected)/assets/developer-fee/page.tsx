@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { accounts, transactionLines, transactions } from '@/lib/db/schema'
+import { transactionLines, transactions } from '@/lib/db/schema'
 import { and, eq, sql } from 'drizzle-orm'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { HelpTooltip } from '@/components/shared/help-tooltip'

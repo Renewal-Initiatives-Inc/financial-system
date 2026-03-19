@@ -3,12 +3,19 @@
 import { useState, useEffect, useTransition, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { RefreshCw, Settings, CheckCircle2, Split, PlusCircle } from 'lucide-react'
+import {
+  RefreshCw,
+  Settings,
+  CheckCircle2,
+  Split,
+  PlusCircle,
+  ChevronDown,
+  ChevronRight,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Dialog,
   DialogContent,
@@ -25,17 +32,24 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
 import { HelpTooltip } from '@/components/shared/help-tooltip'
 import { BankAccountSelector } from './components/bank-account-selector'
-import { ReconciliationSummaryPanel } from './components/reconciliation-summary'
-import { MatchSuggestionPanel } from './components/match-suggestion-panel'
+import { SummaryCards } from './components/summary-cards'
+import { BatchReviewTable } from './components/batch-review-table'
+import { ReconciliationBalanceBar } from './components/reconciliation-balance-bar'
+import { OutstandingItemsPanel } from './components/outstanding-items-panel'
 import { ConfirmMatchDialog } from './components/confirm-match-dialog'
 import { SplitTransactionDialog } from './components/split-transaction-dialog'
 import { InlineGlEntryDialog } from './components/inline-gl-entry-dialog'
 import { SignOffDialog } from './components/sign-off-dialog'
-import { OutstandingItemsPanel } from './components/outstanding-items-panel'
 import { RampCrossCheck } from './components/ramp-cross-check'
 import { PendingTransactions } from './components/pending-transactions'
+import { MatchSuggestionPanel } from './components/match-suggestion-panel'
 import {
   getBankTransactions,
   getMatchableGlEntries,
@@ -43,16 +57,20 @@ import {
   getReconciliationSession,
   startReconciliationSession,
   triggerManualSync,
+  getDailyCloseSummary,
+  getBatchReviewItems,
+  getExceptionItems,
+  getRecentAutoMatches,
 } from './actions'
 import { toast } from 'sonner'
 import type {
   BankAccountOption,
   BankTransactionRow,
   SessionData,
+  DailyCloseSummary,
 } from './actions'
 import type { GlEntryRow } from '@/lib/bank-rec/gl-only-categories'
-import type { MatchCandidate } from '@/lib/bank-rec/matcher'
-import type { ReconciliationSummary, ReconciliationBalance } from '@/lib/bank-rec/reconciliation'
+import type { MatchCandidate, BatchReviewItem, ExceptionItem } from '@/lib/bank-rec/matcher'
 
 interface BankRecClientProps {
   bankAccounts: BankAccountOption[]
@@ -80,8 +98,15 @@ export function BankRecClient({
     balance: null,
   })
 
-  // Match suggestion state
-  const [selectedBankTxn, setSelectedBankTxn] =
+  // Dashboard state
+  const [dashSummary, setDashSummary] = useState<DailyCloseSummary | null>(null)
+  const [reviewItems, setReviewItems] = useState<BatchReviewItem[]>([])
+  const [exceptionItems, setExceptionItems] = useState<ExceptionItem[]>([])
+  const [autoMatchedTxns, setAutoMatchedTxns] = useState<BankTransactionRow[]>([])
+  const [autoMatchedOpen, setAutoMatchedOpen] = useState(false)
+
+  // Exception match state
+  const [selectedExceptionTxn, setSelectedExceptionTxn] =
     useState<BankTransactionRow | null>(null)
   const [matchCandidates, setMatchCandidates] = useState<MatchCandidate[]>([])
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)
@@ -96,42 +121,62 @@ export function BankRecClient({
   const [statementDate, setStatementDate] = useState('')
   const [statementBalance, setStatementBalance] = useState('')
 
-  // Load data for selected account
+  // Load all data for selected account
   const loadAccountData = useCallback(
     async (accountId: string) => {
       const id = parseInt(accountId, 10)
-      const [txns, entries, session] = await Promise.all([
-        getBankTransactions(id),
-        getMatchableGlEntries(id),
-        getReconciliationSession(id),
-      ])
+      const [txns, entries, session, summary, review, exceptions, autoMatches] =
+        await Promise.all([
+          getBankTransactions(id),
+          getMatchableGlEntries(id),
+          getReconciliationSession(id),
+          getDailyCloseSummary(id),
+          getBatchReviewItems(id),
+          getExceptionItems(id),
+          getRecentAutoMatches(id),
+        ])
       setBankTxns(txns)
       setGlEntries(entries)
       setSessionData(session)
+      setDashSummary(summary)
+      setReviewItems(review)
+      setExceptionItems(exceptions)
+      setAutoMatchedTxns(autoMatches)
     },
     []
   )
 
   const handleAccountChange = (value: string) => {
     setSelectedAccountId(value)
-    setSelectedBankTxn(null)
+    setSelectedExceptionTxn(null)
     setMatchCandidates([])
     startTransition(() => loadAccountData(value))
   }
 
-  // Load data on first render if we have accounts
   useEffect(() => {
     if (selectedAccountId) {
       loadAccountData(selectedAccountId)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleBankTxnSelect = async (txn: BankTransactionRow) => {
-    if (txn.isPending || txn.isMatched) return
-    setSelectedBankTxn(txn)
+  const handleExceptionSelect = async (txn: ExceptionItem) => {
+    const bankTxn: BankTransactionRow = {
+      id: txn.bankTransaction.id,
+      bankAccountId: txn.bankTransaction.bankAccountId,
+      plaidTransactionId: txn.bankTransaction.plaidTransactionId,
+      amount: txn.bankTransaction.amount,
+      date: txn.bankTransaction.date,
+      merchantName: txn.bankTransaction.merchantName,
+      category: txn.bankTransaction.category,
+      isPending: txn.bankTransaction.isPending,
+      isMatched: false,
+      matchId: null,
+      matchType: null,
+    }
+    setSelectedExceptionTxn(bankTxn)
     setLoadingSuggestions(true)
     try {
-      const suggestions = await getMatchSuggestions(txn.id)
+      const suggestions = await getMatchSuggestions(txn.bankTransaction.id)
       setMatchCandidates(suggestions)
     } catch {
       setMatchCandidates([])
@@ -184,12 +229,9 @@ export function BankRecClient({
     })
   }
 
-  const unmatchedBank = bankTxns.filter((t) => !t.isMatched && !t.isPending)
-  const matchedBank = bankTxns.filter((t) => t.isMatched)
-  const pendingBank = bankTxns.filter((t) => t.isPending)
-  const unmatchedGl = glEntries.filter((e) => !e.isMatched && !e.isGlOnly)
-  const matchedGl = glEntries.filter((e) => e.isMatched)
-  const glOnly = glEntries.filter((e) => e.isGlOnly)
+  const handleRefresh = () => {
+    startTransition(() => loadAccountData(selectedAccountId))
+  }
 
   const formatCurrency = (amount: string) => {
     const num = parseFloat(amount)
@@ -234,11 +276,7 @@ export function BankRecClient({
           <HelpTooltip term="bank-reconciliation" />
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            asChild
-          >
+          <Button variant="outline" size="sm" asChild>
             <Link href="/bank-rec/settings" data-testid="bank-rec-settings-link">
               <Settings className="mr-1 h-3 w-3" />
               Settings
@@ -287,277 +325,86 @@ export function BankRecClient({
         )}
       </div>
 
-      {/* Reconciliation summary */}
-      <ReconciliationSummaryPanel
-        summary={sessionData.summary}
+      {/* Summary cards */}
+      <SummaryCards summary={dashSummary} />
+
+      {/* Reconciliation balance bar (sticky) */}
+      <ReconciliationBalanceBar
         balance={sessionData.balance}
+        onSignOff={() => setSignOffDialogOpen(true)}
+        hasSession={!!sessionData.session}
       />
 
-      {/* Two-panel layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Left panel — Bank Transactions */}
-        <Card>
+      {/* Batch review table (Tier 2) */}
+      <BatchReviewTable
+        items={reviewItems}
+        sessionId={sessionData.session?.id ?? null}
+        onRefresh={handleRefresh}
+      />
+
+      {/* Exceptions (Tier 3) */}
+      {exceptionItems.length > 0 && (
+        <Card data-testid="bank-rec-exceptions">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Bank Transactions</CardTitle>
+            <CardTitle className="text-base">
+              Exceptions ({exceptionItems.length})
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="unmatched">
-              <TabsList className="mb-3">
-                <TabsTrigger value="unmatched" data-testid="bank-tab-unmatched">
-                  Unmatched
-                  {unmatchedBank.length > 0 && (
-                    <Badge variant="secondary" className="ml-1">
-                      {unmatchedBank.length}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="matched" data-testid="bank-tab-matched">
-                  Matched
-                </TabsTrigger>
-                <TabsTrigger value="pending" data-testid="bank-tab-pending">
-                  Pending
-                  {pendingBank.length > 0 && (
-                    <Badge variant="secondary" className="ml-1">
-                      {pendingBank.length}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="unmatched">
-                {unmatchedBank.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4 text-center">
-                    All bank transactions are matched.
-                  </p>
-                ) : (
-                  <div className="max-h-[400px] overflow-y-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Amount</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {unmatchedBank.map((txn) => (
-                          <TableRow
-                            key={txn.id}
-                            className={`cursor-pointer hover:bg-muted/50 ${
-                              selectedBankTxn?.id === txn.id
-                                ? 'bg-muted'
-                                : ''
-                            }`}
-                            onClick={() => handleBankTxnSelect(txn)}
-                            data-testid={`bank-txn-row-${txn.id}`}
-                          >
-                            <TableCell className="text-sm">
-                              {txn.date}
-                            </TableCell>
-                            <TableCell className="text-sm truncate max-w-[150px]">
-                              {txn.merchantName ?? 'Unknown'}
-                            </TableCell>
-                            <TableCell
-                              className={`text-sm font-mono ${
-                                parseFloat(txn.amount) > 0
-                                  ? 'text-red-600 dark:text-red-400'
-                                  : 'text-green-600 dark:text-green-400'
-                              }`}
-                            >
-                              {parseFloat(txn.amount) > 0 ? '-' : '+'}
-                              {formatCurrency(txn.amount)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </TabsContent>
-
-              <TabsContent value="matched">
-                {matchedBank.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4 text-center">
-                    No matched transactions yet.
-                  </p>
-                ) : (
-                  <div className="max-h-[400px] overflow-y-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Amount</TableHead>
-                          <TableHead>Type</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {matchedBank.map((txn) => (
-                          <TableRow key={txn.id}>
-                            <TableCell className="text-sm">
-                              {txn.date}
-                            </TableCell>
-                            <TableCell className="text-sm truncate max-w-[120px]">
-                              {txn.merchantName ?? 'Unknown'}
-                            </TableCell>
-                            <TableCell className="text-sm font-mono">
-                              {formatCurrency(txn.amount)}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="text-xs">
-                                {txn.matchType}
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </TabsContent>
-
-              <TabsContent value="pending">
-                <PendingTransactions transactions={bankTxns} />
-              </TabsContent>
-            </Tabs>
+            <div className="max-h-[400px] overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Reason</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {exceptionItems.map((item) => (
+                    <TableRow
+                      key={item.bankTransaction.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleExceptionSelect(item)}
+                      data-testid={`bank-rec-exception-row-${item.bankTransaction.id}`}
+                    >
+                      <TableCell className="text-sm">
+                        {item.bankTransaction.date}
+                      </TableCell>
+                      <TableCell className="text-sm truncate max-w-[150px]">
+                        {item.bankTransaction.merchantName ?? 'Unknown'}
+                      </TableCell>
+                      <TableCell
+                        className={`text-sm font-mono ${
+                          parseFloat(item.bankTransaction.amount) > 0
+                            ? 'text-red-600 dark:text-red-400'
+                            : 'text-green-600 dark:text-green-400'
+                        }`}
+                      >
+                        {parseFloat(item.bankTransaction.amount) > 0 ? '-' : '+'}
+                        {formatCurrency(item.bankTransaction.amount)}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
+                        {item.reason}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
+      )}
 
-        {/* Right panel — GL Entries */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">GL Entries</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="outstanding">
-              <TabsList className="mb-3">
-                <TabsTrigger value="outstanding" data-testid="gl-tab-outstanding">
-                  Outstanding
-                  {unmatchedGl.length > 0 && (
-                    <Badge variant="secondary" className="ml-1">
-                      {unmatchedGl.length}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="matched" data-testid="gl-tab-matched">
-                  Matched
-                </TabsTrigger>
-                <TabsTrigger value="gl-only" data-testid="gl-tab-gl-only">
-                  GL-Only
-                  {glOnly.length > 0 && (
-                    <Badge variant="secondary" className="ml-1">
-                      {glOnly.length}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="outstanding">
-                <OutstandingItemsPanel items={glEntries} />
-              </TabsContent>
-
-              <TabsContent value="matched">
-                {matchedGl.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4 text-center">
-                    No matched GL entries yet.
-                  </p>
-                ) : (
-                  <div className="max-h-[400px] overflow-y-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Memo</TableHead>
-                          <TableHead>Debit</TableHead>
-                          <TableHead>Credit</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {matchedGl.map((entry) => (
-                          <TableRow key={entry.lineId}>
-                            <TableCell className="text-sm">
-                              {entry.date}
-                            </TableCell>
-                            <TableCell className="text-sm truncate max-w-[120px]">
-                              {entry.memo}
-                            </TableCell>
-                            <TableCell className="text-sm font-mono">
-                              {entry.debit
-                                ? `$${parseFloat(entry.debit).toFixed(2)}`
-                                : ''}
-                            </TableCell>
-                            <TableCell className="text-sm font-mono">
-                              {entry.credit
-                                ? `$${parseFloat(entry.credit).toFixed(2)}`
-                                : ''}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </TabsContent>
-
-              <TabsContent value="gl-only">
-                {glOnly.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4 text-center">
-                    No GL-only entries found.
-                  </p>
-                ) : (
-                  <div className="max-h-[400px] overflow-y-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Memo</TableHead>
-                          <TableHead>Amount</TableHead>
-                          <TableHead>Source</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {glOnly.map((entry) => (
-                          <TableRow
-                            key={entry.lineId}
-                            className="opacity-60"
-                          >
-                            <TableCell className="text-sm">
-                              {entry.date}
-                            </TableCell>
-                            <TableCell className="text-sm truncate max-w-[120px]">
-                              {entry.memo}
-                            </TableCell>
-                            <TableCell className="text-sm font-mono">
-                              ${Math.abs(entry.amount).toFixed(2)}
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant="outline"
-                                className="text-xs bg-gray-100 dark:bg-gray-800"
-                              >
-                                {entry.sourceType}
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Match suggestions panel */}
-      {selectedBankTxn && (
+      {/* Exception match suggestions */}
+      {selectedExceptionTxn && (
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base">
-                Match Suggestions for: {selectedBankTxn.merchantName ?? 'Unknown'} (
-                {formatCurrency(selectedBankTxn.amount)})
+                Match Suggestions for: {selectedExceptionTxn.merchantName ?? 'Unknown'} (
+                {formatCurrency(selectedExceptionTxn.amount)})
               </CardTitle>
               <div className="flex gap-2">
                 <Button
@@ -591,6 +438,77 @@ export function BankRecClient({
         </Card>
       )}
 
+      {/* Outstanding GL items */}
+      {glEntries.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Outstanding GL Items</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <OutstandingItemsPanel items={glEntries} />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Recently Auto-Matched (collapsible) */}
+      {autoMatchedTxns.length > 0 && (
+        <Collapsible open={autoMatchedOpen} onOpenChange={setAutoMatchedOpen}>
+          <Card data-testid="bank-rec-auto-matched-section">
+            <CardHeader className="pb-3">
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="w-full justify-between p-0 h-auto hover:bg-transparent">
+                  <CardTitle className="text-base">
+                    Recently Auto-Matched ({autoMatchedTxns.length})
+                  </CardTitle>
+                  {autoMatchedOpen ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                </Button>
+              </CollapsibleTrigger>
+            </CardHeader>
+            <CollapsibleContent>
+              <CardContent>
+                <div className="max-h-[300px] overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Type</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {autoMatchedTxns.map((txn) => (
+                        <TableRow key={txn.id}>
+                          <TableCell className="text-sm">{txn.date}</TableCell>
+                          <TableCell className="text-sm truncate max-w-[150px]">
+                            {txn.merchantName ?? 'Unknown'}
+                          </TableCell>
+                          <TableCell className="text-sm font-mono">
+                            {formatCurrency(txn.amount)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className="text-xs bg-green-50 dark:bg-green-900/20"
+                            >
+                              Auto
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+      )}
+
       {/* Ramp Cross-Check */}
       <RampCrossCheck />
 
@@ -600,9 +518,9 @@ export function BankRecClient({
         onClose={() => {
           setConfirmDialogOpen(false)
           setConfirmCandidate(null)
-          startTransition(() => loadAccountData(selectedAccountId))
+          handleRefresh()
         }}
-        bankTransaction={selectedBankTxn}
+        bankTransaction={selectedExceptionTxn}
         candidate={confirmCandidate}
         sessionId={sessionData.session?.id ?? null}
       />
@@ -611,9 +529,9 @@ export function BankRecClient({
         open={splitDialogOpen}
         onClose={() => {
           setSplitDialogOpen(false)
-          startTransition(() => loadAccountData(selectedAccountId))
+          handleRefresh()
         }}
-        bankTransaction={selectedBankTxn}
+        bankTransaction={selectedExceptionTxn}
         candidates={matchCandidates}
         sessionId={sessionData.session?.id ?? null}
       />
@@ -622,9 +540,9 @@ export function BankRecClient({
         open={inlineGlDialogOpen}
         onClose={() => {
           setInlineGlDialogOpen(false)
-          startTransition(() => loadAccountData(selectedAccountId))
+          handleRefresh()
         }}
-        bankTransaction={selectedBankTxn}
+        bankTransaction={selectedExceptionTxn}
         accountOptions={accountOptions}
         fundOptions={fundOptions}
         sessionId={sessionData.session?.id ?? null}
@@ -634,7 +552,7 @@ export function BankRecClient({
         open={signOffDialogOpen}
         onClose={() => {
           setSignOffDialogOpen(false)
-          startTransition(() => loadAccountData(selectedAccountId))
+          handleRefresh()
         }}
         sessionId={sessionData.session?.id ?? null}
         balance={sessionData.balance}

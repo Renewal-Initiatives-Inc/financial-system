@@ -1,4 +1,3 @@
-import { Suspense } from 'react'
 import { getBalanceSheetData } from '@/lib/reports/balance-sheet'
 import { getFundsForFilter } from '../actions'
 import { BalanceSheetClient } from './balance-sheet-client'

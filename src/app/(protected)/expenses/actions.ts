@@ -578,11 +578,11 @@ export async function getOutstandingPayables(): Promise<PayableItem[]> {
         )
       )
 
-    const reimbTotal = reimbLines.reduce(
+    const _reimbTotal = reimbLines.reduce(
       (sum, l) => sum + parseFloat(l.credit ?? '0'),
       0
     )
-    const reimbDebits = reimbLines.reduce(
+    const _reimbDebits = reimbLines.reduce(
       (sum, l) => sum + parseFloat(l.credit ?? '0'), // credits increase liability
       0
     )

@@ -14,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { FileText, Download, Loader2 } from 'lucide-react'
+import { FileText, Loader2 } from 'lucide-react'
 
 interface DraftStepProps {
   artifactType: 'pdf' | 'docx' | 'csv'

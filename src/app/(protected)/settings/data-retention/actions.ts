@@ -1,6 +1,6 @@
 'use server'
 
-import { count, min, max, sql } from 'drizzle-orm'
+import { count, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import {
   transactions,

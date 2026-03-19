@@ -2,8 +2,10 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
   DialogContent,
@@ -15,6 +17,7 @@ import { AccountSelector } from '@/components/shared/account-selector'
 import { FundSelector } from '@/components/shared/fund-selector'
 import { bulkCategorizeRampTransactions } from './actions'
 import { toast } from 'sonner'
+import type { AiSuggestion } from './actions'
 import type { AccountRow } from '@/app/(protected)/accounts/actions'
 
 interface BulkCategorizeDialogProps {
@@ -23,6 +26,7 @@ interface BulkCategorizeDialogProps {
   selectedIds: number[]
   accounts: AccountRow[]
   funds: { id: number; name: string; restrictionType: string; isActive: boolean }[]
+  aiSuggestions?: Record<number, AiSuggestion>
 }
 
 export function BulkCategorizeDialog({
@@ -31,12 +35,18 @@ export function BulkCategorizeDialog({
   selectedIds,
   accounts,
   funds,
+  aiSuggestions,
 }: BulkCategorizeDialogProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [glAccountId, setGlAccountId] = useState<number | null>(null)
   const [fundId, setFundId] = useState<number | null>(null)
   const [createRule, setCreateRule] = useState(false)
+
+  // Count how many selected items have AI suggestions
+  const aiSuggestedCount = aiSuggestions
+    ? selectedIds.filter((id) => aiSuggestions[id]).length
+    : 0
 
   const handleSubmit = () => {
     if (!glAccountId || !fundId || selectedIds.length === 0) return
@@ -87,6 +97,41 @@ export function BulkCategorizeDialog({
             All selected transactions will be assigned the same GL account and
             fund, then posted to the general ledger.
           </p>
+
+          {aiSuggestedCount > 0 && (
+            <div className="flex items-center gap-2 p-2 rounded border bg-purple-50/50 dark:bg-purple-900/10 text-sm">
+              <Sparkles className="h-4 w-4 text-purple-500" />
+              <span>
+                {aiSuggestedCount} of {selectedIds.length} have AI suggestions
+              </span>
+            </div>
+          )}
+
+          {/* Show per-item AI suggestions if available */}
+          {aiSuggestions && aiSuggestedCount > 0 && (
+            <div className="max-h-[150px] overflow-y-auto space-y-1">
+              {selectedIds
+                .filter((id) => aiSuggestions[id])
+                .map((id) => {
+                  const s = aiSuggestions[id]
+                  return (
+                    <div
+                      key={id}
+                      className="flex items-center gap-2 text-xs text-muted-foreground"
+                      data-testid={`bulk-ai-suggestion-${id}`}
+                    >
+                      <Sparkles className="h-3 w-3 text-purple-400" />
+                      <span>
+                        #{id}: {s.accountName}, {s.fundName}
+                      </span>
+                      <Badge variant="outline" className="text-xs">
+                        {s.confidence}
+                      </Badge>
+                    </div>
+                  )
+                })}
+            </div>
+          )}
 
           <div className="grid gap-2">
             <Label>GL Account</Label>

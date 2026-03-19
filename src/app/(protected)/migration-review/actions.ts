@@ -1,6 +1,6 @@
 'use server'
 
-import { eq, and, sql, desc, asc } from 'drizzle-orm'
+import { eq, and, sql, asc } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { importReviewItems, accounts, funds } from '@/lib/db/schema'

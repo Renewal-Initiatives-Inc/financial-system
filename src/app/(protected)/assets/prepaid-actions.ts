@@ -43,9 +43,9 @@ export async function getPrepaidSchedules(filters?: {
     .orderBy(prepaidSchedules.startDate)
 
   // Resolve names in bulk
-  const expenseAccountIds = [...new Set(schedules.map((s) => s.glExpenseAccountId))]
-  const prepaidAccountIds = [...new Set(schedules.map((s) => s.glPrepaidAccountId))]
-  const fundIds = [...new Set(schedules.map((s) => s.fundId))]
+  const _expenseAccountIds = [...new Set(schedules.map((s) => s.glExpenseAccountId))]
+  const _prepaidAccountIds = [...new Set(schedules.map((s) => s.glPrepaidAccountId))]
+  const _fundIds = [...new Set(schedules.map((s) => s.fundId))]
 
   const allAccountRows = await db
     .select({ id: accounts.id, name: accounts.name })

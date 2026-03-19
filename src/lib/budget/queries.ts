@@ -8,6 +8,7 @@ import {
   funds,
   cashProjections,
   cashProjectionLines,
+  weeklyCashProjectionLines,
   transactionLines,
   transactions,
 } from '@/lib/db/schema'
@@ -518,11 +519,134 @@ export async function getLatestCashProjection(fiscalYear: number) {
   const [projection] = await db
     .select()
     .from(cashProjections)
-    .where(eq(cashProjections.fiscalYear, fiscalYear))
+    .where(
+      and(
+        eq(cashProjections.fiscalYear, fiscalYear),
+        eq(cashProjections.projectionType, 'MONTHLY')
+      )
+    )
     .orderBy(cashProjections.createdAt)
     .limit(1)
 
   if (!projection) return null
 
   return getCashProjection(projection.id)
+}
+
+// --- Weekly Cash Projection CRUD ---
+
+export async function createWeeklyCashProjection(input: {
+  fiscalYear: number
+  asOfDate: string
+  createdBy: string
+}): Promise<CashProjectionRow> {
+  // Delete any existing weekly projection for this fiscal year
+  const existing = await db
+    .select({ id: cashProjections.id })
+    .from(cashProjections)
+    .where(
+      and(
+        eq(cashProjections.fiscalYear, input.fiscalYear),
+        eq(cashProjections.projectionType, 'WEEKLY')
+      )
+    )
+
+  if (existing.length > 0) {
+    for (const e of existing) {
+      await db
+        .delete(weeklyCashProjectionLines)
+        .where(eq(weeklyCashProjectionLines.projectionId, e.id))
+      await db.delete(cashProjections).where(eq(cashProjections.id, e.id))
+    }
+  }
+
+  const [projection] = await db
+    .insert(cashProjections)
+    .values({
+      fiscalYear: input.fiscalYear,
+      asOfDate: input.asOfDate,
+      projectionType: 'WEEKLY',
+      createdBy: input.createdBy,
+    })
+    .returning()
+
+  return projection
+}
+
+export async function saveWeeklyCashProjectionLines(
+  projectionId: number,
+  lines: {
+    weekNumber: number
+    weekStartDate: string
+    sourceLabel: string
+    autoAmount: number
+    overrideAmount?: number | null
+    overrideNote?: string | null
+    lineType: 'INFLOW' | 'OUTFLOW'
+    confidenceLevel: 'HIGH' | 'MODERATE' | 'LOW'
+    fundId: number | null
+    sortOrder: number
+  }[]
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(weeklyCashProjectionLines)
+      .where(eq(weeklyCashProjectionLines.projectionId, projectionId))
+
+    if (lines.length > 0) {
+      await tx.insert(weeklyCashProjectionLines).values(
+        lines.map((l) => ({
+          projectionId,
+          weekNumber: l.weekNumber,
+          weekStartDate: l.weekStartDate,
+          sourceLabel: l.sourceLabel,
+          autoAmount: l.autoAmount.toFixed(2),
+          overrideAmount:
+            l.overrideAmount != null ? l.overrideAmount.toFixed(2) : null,
+          overrideNote: l.overrideNote ?? null,
+          lineType: l.lineType,
+          confidenceLevel: l.confidenceLevel,
+          fundId: l.fundId,
+          sortOrder: l.sortOrder,
+        }))
+      )
+    }
+  })
+}
+
+export async function getWeeklyCashProjection(id: number) {
+  const [projection] = await db
+    .select()
+    .from(cashProjections)
+    .where(
+      and(eq(cashProjections.id, id), eq(cashProjections.projectionType, 'WEEKLY'))
+    )
+
+  if (!projection) return null
+
+  const lines = await db
+    .select()
+    .from(weeklyCashProjectionLines)
+    .where(eq(weeklyCashProjectionLines.projectionId, id))
+    .orderBy(weeklyCashProjectionLines.weekNumber, weeklyCashProjectionLines.sortOrder)
+
+  return { ...projection, weeklyLines: lines }
+}
+
+export async function getLatestWeeklyCashProjection(fiscalYear: number) {
+  const [projection] = await db
+    .select()
+    .from(cashProjections)
+    .where(
+      and(
+        eq(cashProjections.fiscalYear, fiscalYear),
+        eq(cashProjections.projectionType, 'WEEKLY')
+      )
+    )
+    .orderBy(cashProjections.createdAt)
+    .limit(1)
+
+  if (!projection) return null
+
+  return getWeeklyCashProjection(projection.id)
 }

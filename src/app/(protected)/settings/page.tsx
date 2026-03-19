@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowRight, Clock, Database } from 'lucide-react'
+import { ArrowRight, Clock, Database, DollarSign } from 'lucide-react'
 import {
   Card,
   CardDescription,
@@ -44,6 +44,22 @@ export default function SettingsPage() {
               <CardTitle className="text-base">Data Retention</CardTitle>
               <CardDescription>
                 Review record age by category for annual retention compliance.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
+
+        <Link href="/settings/cash-thresholds" data-testid="settings-cash-thresholds-link">
+          <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <DollarSign className="text-muted-foreground h-5 w-5" />
+                <ArrowRight className="text-muted-foreground h-4 w-4" />
+              </div>
+              <CardTitle className="text-base">Cash Forecast Thresholds</CardTitle>
+              <CardDescription>
+                Set warning and critical levels for unrestricted cash alerts in
+                the 13-week forecast.
               </CardDescription>
             </CardHeader>
           </Card>

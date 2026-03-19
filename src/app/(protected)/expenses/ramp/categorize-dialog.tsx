@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
   DialogContent,
@@ -16,7 +18,7 @@ import { FundSelector } from '@/components/shared/fund-selector'
 import { HelpTooltip } from '@/components/shared/help-tooltip'
 import { categorizeRampTransaction, findMatchingRule } from './actions'
 import { toast } from 'sonner'
-import type { RampTransactionRow } from './actions'
+import type { RampTransactionRow, AiSuggestion } from './actions'
 import type { AccountRow } from '@/app/(protected)/accounts/actions'
 
 interface CategorizeDialogProps {
@@ -25,6 +27,7 @@ interface CategorizeDialogProps {
   transaction: RampTransactionRow | null
   accounts: AccountRow[]
   funds: { id: number; name: string; restrictionType: string; isActive: boolean }[]
+  aiSuggestion?: AiSuggestion | null
 }
 
 function formatCurrency(amount: string | number): string {
@@ -40,6 +43,7 @@ export function CategorizeDialog({
   transaction,
   accounts,
   funds,
+  aiSuggestion,
 }: CategorizeDialogProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -47,9 +51,17 @@ export function CategorizeDialog({
   const [fundId, setFundId] = useState<number | null>(null)
   const [createRule, setCreateRule] = useState(false)
 
-  // Pre-fill from matching rule when transaction changes (TXN-P0-025)
+  // Pre-fill from AI suggestion or matching rule when transaction changes
   useEffect(() => {
     if (!transaction || !open) return
+
+    // If AI suggestion is available, prefer it
+    if (aiSuggestion) {
+      setGlAccountId(aiSuggestion.accountId)
+      setFundId(aiSuggestion.fundId)
+      setCreateRule(false)
+      return
+    }
 
     let cancelled = false
     findMatchingRule(transaction.merchantName).then((match) => {
@@ -67,7 +79,7 @@ export function CategorizeDialog({
     return () => {
       cancelled = true
     }
-  }, [transaction, open])
+  }, [transaction, open, aiSuggestion])
 
   const handleSubmit = () => {
     if (!transaction || !glAccountId || !fundId) return
@@ -136,6 +148,39 @@ export function CategorizeDialog({
             <div className="text-sm">
               <span className="text-muted-foreground">Description</span>
               <p>{transaction.description}</p>
+            </div>
+          )}
+
+          {/* AI Suggestion Banner */}
+          {aiSuggestion && (
+            <div
+              className="flex items-start gap-2 p-3 rounded-lg border bg-purple-50/50 dark:bg-purple-900/10"
+              data-testid="categorize-ai-suggestion"
+            >
+              <Sparkles className="h-4 w-4 text-purple-500 mt-0.5 shrink-0" />
+              <div className="text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">AI Suggestion</span>
+                  <Badge
+                    variant="outline"
+                    className={`text-xs ${
+                      aiSuggestion.confidence === 'high'
+                        ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
+                        : aiSuggestion.confidence === 'medium'
+                          ? 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400'
+                          : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+                    }`}
+                  >
+                    {aiSuggestion.confidence}
+                  </Badge>
+                </div>
+                <p className="text-muted-foreground mt-1">
+                  {aiSuggestion.accountName}, {aiSuggestion.fundName}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  &ldquo;{aiSuggestion.reasoning}&rdquo;
+                </p>
+              </div>
             </div>
           )}
 

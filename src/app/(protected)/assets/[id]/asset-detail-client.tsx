@@ -53,7 +53,7 @@ function formatUsefulLife(months: number): string {
 
 export function AssetDetailClient({
   asset,
-  accountOptions,
+  accountOptions: _accountOptions,
 }: AssetDetailClientProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()

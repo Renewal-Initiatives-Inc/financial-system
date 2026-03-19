@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { and, count, desc, eq, ilike, or } from 'drizzle-orm'
+import { and, count, desc, eq, ilike, or, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import {
   rampTransactions,
@@ -33,6 +33,10 @@ export type RampStats = {
   uncategorized: number
   categorized: number
   posted: number
+  autoCategorized: number
+  aiSuggested: number
+  manualRequired: number
+  postedToday: number
 }
 
 // --- Queries ---
@@ -95,14 +99,57 @@ export async function getRampStats(): Promise<RampStats> {
     .from(rampTransactions)
     .groupBy(rampTransactions.status, rampTransactions.isPending)
 
-  const stats: RampStats = { pending: 0, uncategorized: 0, categorized: 0, posted: 0 }
+  const stats: RampStats = {
+    pending: 0,
+    uncategorized: 0,
+    categorized: 0,
+    posted: 0,
+    autoCategorized: 0,
+    aiSuggested: 0,
+    manualRequired: 0,
+    postedToday: 0,
+  }
   for (const row of result) {
     if (row.isPending) {
       stats.pending += row.count
-    } else if (row.status in stats) {
-      stats[row.status as keyof Omit<RampStats, 'pending'>] = row.count
+    } else if (row.status === 'uncategorized') {
+      stats.uncategorized = row.count
+    } else if (row.status === 'categorized') {
+      stats.categorized = row.count
+    } else if (row.status === 'posted') {
+      stats.posted = row.count
     }
   }
+
+  // Count auto-categorized (have a categorizationRuleId)
+  const [autoResult] = await db
+    .select({ count: count() })
+    .from(rampTransactions)
+    .where(
+      and(
+        eq(rampTransactions.isPending, false),
+        sql`${rampTransactions.categorizationRuleId} IS NOT NULL`
+      )
+    )
+  stats.autoCategorized = autoResult?.count ?? 0
+
+  // AI suggested and manual required are computed client-side (from uncategorized transactions with/without AI suggestions)
+  // For now, manualRequired = uncategorized (refined after AI suggestions are fetched client-side)
+  stats.manualRequired = stats.uncategorized
+
+  // Count posted today
+  const today = new Date().toISOString().substring(0, 10)
+  const [todayResult] = await db
+    .select({ count: count() })
+    .from(rampTransactions)
+    .where(
+      and(
+        eq(rampTransactions.status, 'posted'),
+        sql`${rampTransactions.createdAt}::date = ${today}::date`
+      )
+    )
+  stats.postedToday = todayResult?.count ?? 0
+
   return stats
 }
 
@@ -284,6 +331,36 @@ export async function triggerRampSync(options?: {
 
   revalidatePath('/expenses/ramp')
   return { synced, autoCategorized, cleared }
+}
+
+// --- AI Categorization ---
+
+export type AiSuggestion = {
+  accountId: number
+  accountName: string
+  fundId: number
+  fundName: string
+  confidence: 'high' | 'medium' | 'low'
+  reasoning: string
+}
+
+export async function getAiCategorization(
+  rampTransactionId: number
+): Promise<AiSuggestion | null> {
+  const { getAiSuggestion } = await import('@/lib/ramp/ai-categorization')
+  return getAiSuggestion(rampTransactionId)
+}
+
+export async function batchAiCategorize(
+  rampTransactionIds: number[]
+): Promise<Record<number, AiSuggestion>> {
+  const { batchAiCategorize: batchAi } = await import('@/lib/ramp/ai-categorization')
+  const results = await batchAi(rampTransactionIds)
+  const record: Record<number, AiSuggestion> = {}
+  for (const [id, suggestion] of results) {
+    record[id] = suggestion
+  }
+  return record
 }
 
 // --- Shared data fetchers ---

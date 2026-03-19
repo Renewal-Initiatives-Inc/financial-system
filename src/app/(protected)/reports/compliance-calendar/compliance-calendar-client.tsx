@@ -10,7 +10,6 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ReportShell } from '@/components/reports/report-shell'
 import {
@@ -106,7 +105,7 @@ interface ComplianceCalendarClientProps {
 
 export function ComplianceCalendarClient({ initialData }: ComplianceCalendarClientProps) {
   const [data, setData] = useState(initialData)
-  const [isPending, startTransition] = useTransition()
+  const [_isPending, startTransition] = useTransition()
   const [activeCategories, setActiveCategories] = useState<Set<string>>(
     new Set(CATEGORIES)
   )
@@ -122,7 +121,7 @@ export function ComplianceCalendarClient({ initialData }: ComplianceCalendarClie
       setActiveCategories(next)
 
       // Re-fetch with filter
-      const categoryFilter = next.size === CATEGORIES.length ? undefined : [...next].join(',')
+      const _categoryFilter = next.size === CATEGORIES.length ? undefined : [...next].join(',')
       startTransition(async () => {
         // Fetch all and filter client-side for multi-select
         const result = await getComplianceCalendarData()

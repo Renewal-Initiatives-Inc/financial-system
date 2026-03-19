@@ -2,7 +2,6 @@ import {
   LayoutDashboard,
   BookOpen,
   ListTree,
-  Wallet,
   TrendingUp,
   Receipt,
   CreditCard,

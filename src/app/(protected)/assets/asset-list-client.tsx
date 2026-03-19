@@ -35,7 +35,7 @@ function formatCurrency(value: number): string {
 export function AssetListClient({
   initialAssets,
   accountOptions,
-  fundOptions,
+  fundOptions: _fundOptions,
 }: AssetListClientProps) {
   const router = useRouter()
   const [search, setSearch] = useState('')

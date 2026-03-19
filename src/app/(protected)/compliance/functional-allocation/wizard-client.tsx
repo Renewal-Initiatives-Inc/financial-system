@@ -73,7 +73,7 @@ export function WizardClient({
     : 0
   const isValid = Math.abs(sum - 100) < 0.01
 
-  const handleApplyDefaultsToAll = () => {
+  const _handleApplyDefaultsToAll = () => {
     // Apply current defaults to all remaining unedited editable accounts
     // (keep what's already been set for accounts already visited)
     setAllocations((prev) => [...prev])

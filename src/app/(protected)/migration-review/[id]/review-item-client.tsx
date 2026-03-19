@@ -34,7 +34,6 @@ import {
 import type {
   ReviewRecommendation,
   MatchData,
-  MatchCandidate,
   AccrualData,
   UserSelections,
 } from '@/lib/migration/review-engine'

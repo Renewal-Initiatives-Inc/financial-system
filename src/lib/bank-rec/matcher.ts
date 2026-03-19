@@ -13,6 +13,8 @@ import {
   transactionLines,
   transactions,
   accounts,
+  recurringExpectations,
+  appSettings,
 } from '@/lib/db/schema'
 import { logAudit } from '@/lib/audit/logger'
 import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
@@ -354,4 +356,446 @@ export async function removeMatch(
       afterState: { deleted: true },
     })
   })
+}
+
+// --- Three-Tier Auto-Match Engine (Phase 23a) ---
+
+export interface TierClassification {
+  tier: 1 | 2 | 3
+  reason: string
+  candidate?: MatchCandidate
+  ruleId?: number
+}
+
+export interface AutoMatchResult {
+  autoMatched: number
+  pendingReview: number
+  exceptions: number
+  errors: string[]
+}
+
+export interface BatchReviewItem {
+  bankTransaction: typeof bankTransactions.$inferSelect
+  candidate: MatchCandidate
+  reason: string
+  ruleId?: number
+}
+
+export interface ExceptionItem {
+  bankTransaction: typeof bankTransactions.$inferSelect
+  reason: string
+}
+
+/**
+ * Load auto-match threshold settings from app_settings.
+ */
+async function getThresholds(): Promise<{
+  autoMatchMinHitCount: number
+  autoMatchMinConfidence: number
+  autoMatchMaxAmount: number
+  reviewMinConfidence: number
+}> {
+  const rows = await db
+    .select({ key: appSettings.key, value: appSettings.value })
+    .from(appSettings)
+
+  const map = new Map(rows.map((r) => [r.key, r.value]))
+
+  return {
+    autoMatchMinHitCount: parseInt(map.get('autoMatchMinHitCount') ?? '5'),
+    autoMatchMinConfidence: parseFloat(map.get('autoMatchMinConfidence') ?? '0.95'),
+    autoMatchMaxAmount: parseFloat(map.get('autoMatchMaxAmount') ?? '500.00'),
+    reviewMinConfidence: parseFloat(map.get('reviewMinConfidence') ?? '0.70'),
+  }
+}
+
+/**
+ * Check if a bank transaction matches a recurring expectation.
+ * Returns the matching expectation or null.
+ */
+async function matchRecurringExpectation(
+  bankTxn: { amount: string; date: string; merchantName: string | null; bankAccountId: number }
+): Promise<(typeof recurringExpectations.$inferSelect) | null> {
+  if (!bankTxn.merchantName) return null
+
+  const expectations = await db
+    .select()
+    .from(recurringExpectations)
+    .where(
+      and(
+        eq(recurringExpectations.bankAccountId, bankTxn.bankAccountId),
+        eq(recurringExpectations.isActive, true)
+      )
+    )
+
+  const bankAmount = Math.abs(parseFloat(bankTxn.amount))
+  const bankDate = new Date(bankTxn.date)
+  const bankDay = bankDate.getDate()
+
+  for (const exp of expectations) {
+    // Test merchant pattern (regex)
+    try {
+      const regex = new RegExp(exp.merchantPattern, 'i')
+      if (!regex.test(bankTxn.merchantName)) continue
+    } catch {
+      continue
+    }
+
+    // Amount within tolerance
+    const expectedAmt = parseFloat(exp.expectedAmount)
+    const tolerance = parseFloat(exp.amountTolerance)
+    if (Math.abs(bankAmount - expectedAmt) > tolerance) continue
+
+    // Timing check: expectedDay ±3 adjusted by frequency
+    const expectedDay = exp.expectedDay
+    let dayMatch = false
+
+    if (exp.frequency === 'weekly' || exp.frequency === 'biweekly') {
+      // expectedDay is day of week (1=Mon, 7=Sun)
+      const bankDayOfWeek = bankDate.getDay() === 0 ? 7 : bankDate.getDay()
+      dayMatch = Math.abs(bankDayOfWeek - expectedDay) <= 3 ||
+        Math.abs(bankDayOfWeek - expectedDay + 7) <= 3 ||
+        Math.abs(bankDayOfWeek - expectedDay - 7) <= 3
+    } else {
+      // expectedDay is day of month
+      dayMatch = Math.abs(bankDay - expectedDay) <= 3 ||
+        // Handle month boundary (e.g., expected 1st, txn on 30th)
+        Math.abs(bankDay - expectedDay + 31) <= 3 ||
+        Math.abs(bankDay - expectedDay - 31) <= 3
+    }
+
+    if (!dayMatch) continue
+
+    return exp
+  }
+
+  return null
+}
+
+/**
+ * Classify a bank transaction into Tier 1 (auto), Tier 2 (review), or Tier 3 (exception).
+ */
+export async function classifyMatchTier(
+  bankTxn: typeof bankTransactions.$inferSelect,
+  candidates: MatchCandidate[],
+  rules: (typeof matchingRules.$inferSelect)[],
+  thresholds: {
+    autoMatchMinHitCount: number
+    autoMatchMinConfidence: number
+    autoMatchMaxAmount: number
+    reviewMinConfidence: number
+  }
+): Promise<TierClassification> {
+  const bankAmount = Math.abs(parseFloat(bankTxn.amount))
+
+  // Check for recurring expectation match
+  const recurringMatch = await matchRecurringExpectation({
+    amount: bankTxn.amount,
+    date: bankTxn.date,
+    merchantName: bankTxn.merchantName,
+    bankAccountId: bankTxn.bankAccountId,
+  })
+
+  if (recurringMatch && candidates.length > 0) {
+    return {
+      tier: 1,
+      reason: `Recurring expectation match: ${recurringMatch.description}`,
+      candidate: candidates[0],
+    }
+  }
+
+  // No candidates at all
+  if (candidates.length === 0) {
+    // New merchant?
+    const hasRule = rules.some((r) => {
+      const criteria = r.criteria as { merchantPattern?: string }
+      if (!criteria.merchantPattern || !bankTxn.merchantName) return false
+      return bankTxn.merchantName.toLowerCase().includes(criteria.merchantPattern.toLowerCase())
+    })
+
+    if (!hasRule && !recurringMatch) {
+      return { tier: 3, reason: 'No match candidates and no matching rule — new merchant' }
+    }
+    return { tier: 3, reason: 'No GL match candidates found' }
+  }
+
+  const best = candidates[0]
+
+  // Multiple candidates with similar confidence (ambiguous)
+  if (candidates.length > 1) {
+    const diff = best.confidenceScore - candidates[1].confidenceScore
+    if (diff < 0.05) {
+      return {
+        tier: 3,
+        reason: `Ambiguous: ${candidates.length} candidates with similar confidence`,
+        candidate: best,
+      }
+    }
+  }
+
+  // Below review threshold
+  if (best.confidenceScore < thresholds.reviewMinConfidence) {
+    return { tier: 3, reason: `Low confidence (${best.confidenceScore})`, candidate: best }
+  }
+
+  // Find the matching rule for this transaction
+  const matchedRule = rules.find((r) => {
+    const criteria = r.criteria as { merchantPattern?: string; amountExact?: string }
+    let ruleMatches = true
+    if (criteria.merchantPattern && bankTxn.merchantName) {
+      if (!bankTxn.merchantName.toLowerCase().includes(criteria.merchantPattern.toLowerCase())) {
+        ruleMatches = false
+      }
+    } else if (criteria.merchantPattern && !bankTxn.merchantName) {
+      ruleMatches = false
+    }
+    if (criteria.amountExact) {
+      if (Math.abs(parseFloat(bankTxn.amount) - parseFloat(criteria.amountExact)) > 0.01) {
+        ruleMatches = false
+      }
+    }
+    return ruleMatches
+  })
+
+  // Tier 1: all conditions met
+  if (
+    best.confidenceScore >= thresholds.autoMatchMinConfidence &&
+    matchedRule &&
+    matchedRule.autoMatchEligible &&
+    matchedRule.hitCount >= thresholds.autoMatchMinHitCount &&
+    bankAmount <= thresholds.autoMatchMaxAmount
+  ) {
+    return {
+      tier: 1,
+      reason: `Auto-match: confidence ${best.confidenceScore}, rule hit count ${matchedRule.hitCount}`,
+      candidate: best,
+      ruleId: matchedRule.id,
+    }
+  }
+
+  // Tier 2: has a candidate but doesn't meet all auto-match criteria
+  if (best.confidenceScore >= thresholds.reviewMinConfidence) {
+    const reasons: string[] = []
+    if (!matchedRule) reasons.push('no matching rule')
+    else if (!matchedRule.autoMatchEligible) reasons.push('rule not auto-match eligible')
+    else if (matchedRule.hitCount < thresholds.autoMatchMinHitCount) reasons.push(`rule hit count ${matchedRule.hitCount} < ${thresholds.autoMatchMinHitCount}`)
+    if (best.confidenceScore < thresholds.autoMatchMinConfidence) reasons.push(`confidence ${best.confidenceScore} < ${thresholds.autoMatchMinConfidence}`)
+    if (bankAmount > thresholds.autoMatchMaxAmount) reasons.push(`amount $${bankAmount} > max $${thresholds.autoMatchMaxAmount}`)
+
+    return {
+      tier: 2,
+      reason: reasons.join('; ') || 'Review needed',
+      candidate: best,
+      ruleId: matchedRule?.id,
+    }
+  }
+
+  return { tier: 3, reason: `Below review threshold (${best.confidenceScore} < ${thresholds.reviewMinConfidence})` }
+}
+
+/**
+ * Run auto-match for all unmatched bank transactions on a given bank account.
+ * Processes Tier 1 items automatically; returns counts per tier.
+ */
+export async function runAutoMatch(
+  bankAccountId: number
+): Promise<AutoMatchResult> {
+  const thresholds = await getThresholds()
+  const result: AutoMatchResult = { autoMatched: 0, pendingReview: 0, exceptions: 0, errors: [] }
+
+  // Get all unmatched, non-pending bank transactions
+  const matchedBankIds = await db
+    .select({ bankTxnId: bankMatches.bankTransactionId })
+    .from(bankMatches)
+
+  const matchedSet = new Set(matchedBankIds.map((m) => m.bankTxnId))
+
+  const allBankTxns = await db
+    .select()
+    .from(bankTransactions)
+    .where(
+      and(
+        eq(bankTransactions.bankAccountId, bankAccountId),
+        eq(bankTransactions.isPending, false)
+      )
+    )
+
+  const unmatchedTxns = allBankTxns.filter((t) => !matchedSet.has(t.id))
+
+  if (unmatchedTxns.length === 0) return result
+
+  // Load rules once
+  const rules = await db
+    .select()
+    .from(matchingRules)
+    .where(eq(matchingRules.isActive, true))
+
+  for (const txn of unmatchedTxns) {
+    try {
+      const candidates = await findMatchCandidates({
+        id: txn.id,
+        amount: txn.amount,
+        date: txn.date,
+        merchantName: txn.merchantName,
+        bankAccountId: txn.bankAccountId,
+      })
+
+      const classification = await classifyMatchTier(txn, candidates, rules, thresholds)
+
+      if (classification.tier === 1 && classification.candidate) {
+        // Execute auto-match
+        await createMatch({
+          bankTransactionId: txn.id,
+          glTransactionLineId: classification.candidate.glTransactionLineId,
+          matchType: 'auto',
+          confidenceScore: classification.candidate.confidenceScore,
+          ruleId: classification.ruleId,
+          userId: 'system-auto-match',
+        })
+
+        // Update rule hit count if applicable
+        if (classification.ruleId) {
+          await db
+            .update(matchingRules)
+            .set({ hitCount: sql`${matchingRules.hitCount} + 1` })
+            .where(eq(matchingRules.id, classification.ruleId))
+        }
+
+        // Update recurring expectation last matched time
+        if (classification.reason.startsWith('Recurring expectation match')) {
+          const recurringMatch = await matchRecurringExpectation({
+            amount: txn.amount,
+            date: txn.date,
+            merchantName: txn.merchantName,
+            bankAccountId: txn.bankAccountId,
+          })
+          if (recurringMatch) {
+            await db
+              .update(recurringExpectations)
+              .set({ lastMatchedAt: new Date(), updatedAt: new Date() })
+              .where(eq(recurringExpectations.id, recurringMatch.id))
+          }
+        }
+
+        result.autoMatched++
+      } else if (classification.tier === 2) {
+        result.pendingReview++
+      } else {
+        result.exceptions++
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      result.errors.push(`Transaction ${txn.id}: ${message}`)
+    }
+  }
+
+  return result
+}
+
+/**
+ * Get Tier 2 (batch review) candidates for a bank account.
+ */
+export async function getBatchReviewCandidates(
+  bankAccountId: number
+): Promise<BatchReviewItem[]> {
+  const thresholds = await getThresholds()
+  const items: BatchReviewItem[] = []
+
+  const matchedBankIds = await db
+    .select({ bankTxnId: bankMatches.bankTransactionId })
+    .from(bankMatches)
+
+  const matchedSet = new Set(matchedBankIds.map((m) => m.bankTxnId))
+
+  const allBankTxns = await db
+    .select()
+    .from(bankTransactions)
+    .where(
+      and(
+        eq(bankTransactions.bankAccountId, bankAccountId),
+        eq(bankTransactions.isPending, false)
+      )
+    )
+
+  const unmatchedTxns = allBankTxns.filter((t) => !matchedSet.has(t.id))
+  const rules = await db
+    .select()
+    .from(matchingRules)
+    .where(eq(matchingRules.isActive, true))
+
+  for (const txn of unmatchedTxns) {
+    const candidates = await findMatchCandidates({
+      id: txn.id,
+      amount: txn.amount,
+      date: txn.date,
+      merchantName: txn.merchantName,
+      bankAccountId: txn.bankAccountId,
+    })
+
+    const classification = await classifyMatchTier(txn, candidates, rules, thresholds)
+
+    if (classification.tier === 2 && classification.candidate) {
+      items.push({
+        bankTransaction: txn,
+        candidate: classification.candidate,
+        reason: classification.reason,
+        ruleId: classification.ruleId,
+      })
+    }
+  }
+
+  return items
+}
+
+/**
+ * Get Tier 3 (exception) items for a bank account.
+ */
+export async function getExceptions(
+  bankAccountId: number
+): Promise<ExceptionItem[]> {
+  const thresholds = await getThresholds()
+  const items: ExceptionItem[] = []
+
+  const matchedBankIds = await db
+    .select({ bankTxnId: bankMatches.bankTransactionId })
+    .from(bankMatches)
+
+  const matchedSet = new Set(matchedBankIds.map((m) => m.bankTxnId))
+
+  const allBankTxns = await db
+    .select()
+    .from(bankTransactions)
+    .where(
+      and(
+        eq(bankTransactions.bankAccountId, bankAccountId),
+        eq(bankTransactions.isPending, false)
+      )
+    )
+
+  const unmatchedTxns = allBankTxns.filter((t) => !matchedSet.has(t.id))
+  const rules = await db
+    .select()
+    .from(matchingRules)
+    .where(eq(matchingRules.isActive, true))
+
+  for (const txn of unmatchedTxns) {
+    const candidates = await findMatchCandidates({
+      id: txn.id,
+      amount: txn.amount,
+      date: txn.date,
+      merchantName: txn.merchantName,
+      bankAccountId: txn.bankAccountId,
+    })
+
+    const classification = await classifyMatchTier(txn, candidates, rules, thresholds)
+
+    if (classification.tier === 3) {
+      items.push({
+        bankTransaction: txn,
+        reason: classification.reason,
+      })
+    }
+  }
+
+  return items
 }

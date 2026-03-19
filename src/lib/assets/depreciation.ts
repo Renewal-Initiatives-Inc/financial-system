@@ -4,11 +4,8 @@ import {
   fixedAssets,
   transactions,
   transactionLines,
-  accounts,
 } from '@/lib/db/schema'
 import { createTransaction } from '@/lib/gl/engine'
-import { logAudit } from '@/lib/audit/logger'
-import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 
 export interface FixedAssetForDepreciation {
   id: number
