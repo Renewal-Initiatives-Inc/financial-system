@@ -18,6 +18,7 @@ import * as path from 'path'
 import type { Page } from '@playwright/test'
 
 const AUTH_STATE = path.join(__dirname, '.auth-state.json')
+const HAS_AUTH = fs.existsSync(AUTH_STATE)
 const REPORT_PATH = path.join(__dirname, '..', 'ui-smoke-report.md')
 const SHARD_DIR = path.join(__dirname, '..', '.ui-smoke-shards')
 
@@ -238,6 +239,7 @@ function mergeShardReports() {
 // PARALLEL SHARD TESTS
 // ══════════════════════════════════════════════════
 test.describe('UI Smoke', () => {
+  test.skip(!HAS_AUTH, 'Skipped — run npx tsx e2e/save-auth.ts first')
   test.use({ storageState: AUTH_STATE })
 
   for (let shard = 0; shard < SHARD_COUNT; shard++) {

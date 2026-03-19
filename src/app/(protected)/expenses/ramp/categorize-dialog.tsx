@@ -55,16 +55,14 @@ export function CategorizeDialog({
   useEffect(() => {
     if (!transaction || !open) return
 
-    // If AI suggestion is available, prefer it
-    if (aiSuggestion) {
-      setGlAccountId(aiSuggestion.accountId)
-      setFundId(aiSuggestion.fundId)
-      setCreateRule(false)
-      return
-    }
-
     let cancelled = false
-    findMatchingRule(transaction.merchantName).then((match) => {
+
+    // If AI suggestion is available, prefer it; otherwise look up matching rule
+    const prefill = aiSuggestion
+      ? Promise.resolve({ glAccountId: aiSuggestion.accountId, fundId: aiSuggestion.fundId })
+      : findMatchingRule(transaction.merchantName)
+
+    prefill.then((match) => {
       if (cancelled) return
       if (match) {
         setGlAccountId(match.glAccountId)

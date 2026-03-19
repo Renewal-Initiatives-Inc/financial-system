@@ -58,14 +58,13 @@ const EXPECTED_TABLES = [
   'annual_rate_config',
 ]
 
-describe('DB Integration', () => {
+const canConnect = !!process.env.DATABASE_URL
+
+describe.skipIf(!canConnect)('DB Integration', () => {
   let existingTables: Set<string>
 
   beforeAll(async () => {
-    const url = process.env.DATABASE_URL
-    if (!url) {
-      throw new Error('DATABASE_URL not set. Add it to .env.local.')
-    }
+    const url = process.env.DATABASE_URL!
 
     const sql = neon(url)
     const rows = await sql`
