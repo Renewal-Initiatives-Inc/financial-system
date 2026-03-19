@@ -3,7 +3,7 @@
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle, Loader2 } from 'lucide-react'
+import { CheckCircle, Info, Loader2 } from 'lucide-react'
 import type { Citation } from '@/lib/compliance/workflow-types'
 
 interface AIScanStepProps {
@@ -37,11 +37,20 @@ export function AIScanStep({
           <Skeleton className="h-4 w-full" />
         </div>
       ) : scanContent ? (
-        <div className="rounded-md border p-4 space-y-3 text-sm bg-muted/30">
-          {scanContent.split('\n').filter(Boolean).map((para, i) => (
-            <p key={i}>{para}</p>
-          ))}
-        </div>
+        <>
+          <div
+            className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300"
+            data-testid="compliance-scan-ai-disclaimer"
+          >
+            <Info className="h-4 w-4 shrink-0 mt-0.5" />
+            <span>AI-generated brief — verify all figures against source reports before acting.</span>
+          </div>
+          <div className="rounded-md border p-4 space-y-3 text-sm bg-muted/30">
+            {scanContent.split('\n').filter(Boolean).map((para, i) => (
+              <p key={i}>{para}</p>
+            ))}
+          </div>
+        </>
       ) : null}
 
       {citations.length > 0 && (

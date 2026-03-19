@@ -7,6 +7,7 @@ import { handleSearchAccounts } from './tools/search-accounts'
 import { handleGetAccountBalance } from './tools/get-account-balance'
 import { handleGetFundBalance } from './tools/get-fund-balance'
 import { handleSearchAuditLog } from './tools/search-audit-log'
+import { toolSchemas } from './tool-schemas'
 
 type ToolHandler = (input: Record<string, unknown>) => Promise<unknown>
 
@@ -24,6 +25,7 @@ const toolHandlers: Record<string, ToolHandler> = {
 
 /**
  * Execute a tool by name with the given input.
+ * Validates input against the tool's Zod schema before calling the handler.
  * Returns the tool result or an error object.
  */
 export async function executeTool(
@@ -33,6 +35,19 @@ export async function executeTool(
   const handler = toolHandlers[name]
   if (!handler) {
     return { error: `Unknown tool: ${name}` }
+  }
+
+  // Validate input against schema (strips unknown fields)
+  const schema = toolSchemas[name]
+  if (schema) {
+    const parsed = schema.safeParse(input)
+    if (!parsed.success) {
+      const issues = parsed.error.issues
+        .map((i) => `${i.path.join('.')}: ${i.message}`)
+        .join('; ')
+      return { error: `Invalid parameters for tool ${name}: ${issues}` }
+    }
+    input = parsed.data as Record<string, unknown>
   }
 
   try {

@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { z } from 'zod'
 
 export type ExtractedMilestone = {
   name: string
@@ -26,7 +27,32 @@ export type ExtractedTerms = {
   revenueClassification: 'GRANT_REVENUE' | 'EARNED_INCOME'
   classificationRationale: string
   fundingCategory: 'GRANT' | 'CONTRACT' | 'LOAN'
+  classificationWasDefaulted: boolean
+  categoryWasDefaulted: boolean
 }
+
+// Zod schema for validating AI-extracted contract terms
+const extractedTermsSchema = z.object({
+  milestones: z.array(z.object({
+    name: z.string(),
+    date: z.string().nullable().default(null),
+    description: z.string().default(''),
+  })).default([]),
+  paymentTerms: z.array(z.object({
+    schedule: z.string(),
+    amount: z.string().nullable().default(null),
+    conditions: z.string().nullable().default(null),
+  })).default([]),
+  deliverables: z.array(z.string()).default([]),
+  covenants: z.array(z.object({
+    type: z.string(),
+    description: z.string(),
+    deadline: z.string().nullable().default(null),
+  })).default([]),
+  revenueClassification: z.string().default(''),
+  classificationRationale: z.string().default(''),
+  fundingCategory: z.string().default(''),
+})
 
 const EXTRACTION_PROMPT = `You are analyzing a construction/vendor contract for a nonprofit housing organization. Extract the following structured information from the contract:
 
@@ -140,26 +166,45 @@ export async function extractContractTerms(
   }
 
   try {
-    const parsed = JSON.parse(jsonStr) as ExtractedTerms
+    const raw = JSON.parse(jsonStr)
+    const parsed = extractedTermsSchema.parse(raw)
+
+    const classificationWasDefaulted =
+      parsed.revenueClassification !== 'GRANT_REVENUE' &&
+      parsed.revenueClassification !== 'EARNED_INCOME'
+    const categoryWasDefaulted =
+      parsed.fundingCategory !== 'GRANT' &&
+      parsed.fundingCategory !== 'CONTRACT' &&
+      parsed.fundingCategory !== 'LOAN'
+
     return {
-      milestones: parsed.milestones ?? [],
-      paymentTerms: parsed.paymentTerms ?? [],
-      deliverables: parsed.deliverables ?? [],
-      covenants: parsed.covenants ?? [],
+      milestones: parsed.milestones,
+      paymentTerms: parsed.paymentTerms,
+      deliverables: parsed.deliverables,
+      covenants: parsed.covenants,
       revenueClassification:
         parsed.revenueClassification === 'EARNED_INCOME'
-          ? 'EARNED_INCOME'
-          : 'GRANT_REVENUE',
-      classificationRationale: parsed.classificationRationale ?? '',
+          ? 'EARNED_INCOME' as const
+          : 'GRANT_REVENUE' as const,
+      classificationRationale: parsed.classificationRationale,
       fundingCategory:
         parsed.fundingCategory === 'CONTRACT'
-          ? 'CONTRACT'
+          ? 'CONTRACT' as const
           : parsed.fundingCategory === 'LOAN'
-            ? 'LOAN'
-            : 'GRANT',
+            ? 'LOAN' as const
+            : 'GRANT' as const,
+      classificationWasDefaulted,
+      categoryWasDefaulted,
     }
-  } catch {
-    console.error('Failed to parse extraction JSON:', jsonStr.slice(0, 200))
+  } catch (err) {
+    if (err instanceof SyntaxError) {
+      console.error('Failed to parse extraction JSON:', jsonStr.slice(0, 200))
+      throw new Error(
+        'Failed to parse extracted terms. You can enter terms manually or retry your upload.'
+      )
+    }
+    // Zod validation error — log and re-throw as user-friendly message
+    console.error('Extraction validation error:', err)
     throw new Error(
       'Failed to parse extracted terms. You can enter terms manually or retry your upload.'
     )

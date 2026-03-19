@@ -1,6 +1,7 @@
 import {
   date,
   integer,
+  jsonb,
   numeric,
   pgTable,
   serial,
@@ -19,6 +20,10 @@ export const annualRateConfig = pgTable(
     value: numeric('value', { precision: 15, scale: 6 }).notNull(),
     effectiveDate: date('effective_date', { mode: 'string' }),
     notes: text('notes'),
+    sourceDocument: varchar('source_document', { length: 255 }),
+    sourceUrl: text('source_url'),
+    verifiedDate: date('verified_date', { mode: 'string' }),
+    jsonValue: jsonb('json_value'),
     updatedBy: varchar('updated_by', { length: 255 }).notNull(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },

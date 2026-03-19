@@ -1,6 +1,10 @@
 /**
  * Federal Income Tax Calculator
- * IRS Publication 15-T percentage method for 2026.
+ * IRS Publication 15-T percentage method.
+ *
+ * Brackets and standard deductions are loaded from the database
+ * (annualRateConfig table) when available. Falls back to hardcoded
+ * 2026 values if DB is unavailable — payroll cannot break.
  *
  * Algorithm (monthly pay period):
  * 1. Annualize monthly gross × 12
@@ -13,6 +17,10 @@
  * 8. Floor at $0
  */
 
+import { eq, and } from 'drizzle-orm'
+import { db } from '@/lib/db'
+import { annualRateConfig } from '@/lib/db/schema'
+
 interface TaxBracket {
   over: number
   notOver: number | null // null = no upper limit
@@ -22,8 +30,9 @@ interface TaxBracket {
 
 type BracketTable = Record<string, TaxBracket[]>
 
-// 2026 Federal Tax Brackets (Annual, Percentage Method) — IRS Pub 15-T
-const BRACKETS_2026: BracketTable = {
+// --- Hardcoded fallback values (2026) — safety net if DB is unavailable ---
+
+const FALLBACK_BRACKETS_2026: BracketTable = {
   single: [
     { over: 0, notOver: 7500, rate: 0, plus: 0 },
     { over: 7500, notOver: 19900, rate: 0.1, plus: 0 },
@@ -56,27 +65,75 @@ const BRACKETS_2026: BracketTable = {
   ],
 }
 
-// Standard deductions by filing status (2026)
-const STANDARD_DEDUCTIONS_2026: Record<string, number> = {
+const FALLBACK_DEDUCTIONS_2026: Record<string, number> = {
   single: 8600,
   married: 12900,
   head_of_household: 8600,
 }
 
-// Organized by tax year so future updates are isolated
-const BRACKETS_BY_YEAR: Record<number, BracketTable> = {
-  2026: BRACKETS_2026,
+const FALLBACK_BRACKETS_BY_YEAR: Record<number, BracketTable> = {
+  2026: FALLBACK_BRACKETS_2026,
 }
 
-const STANDARD_DEDUCTIONS_BY_YEAR: Record<number, Record<string, number>> = {
-  2026: STANDARD_DEDUCTIONS_2026,
+const FALLBACK_DEDUCTIONS_BY_YEAR: Record<number, Record<string, number>> = {
+  2026: FALLBACK_DEDUCTIONS_2026,
 }
 
-function getBrackets(
+// --- DB-backed bracket loading with fallback ---
+
+async function loadBracketsFromDb(taxYear: number): Promise<BracketTable | null> {
+  try {
+    const [row] = await db
+      .select({ jsonValue: annualRateConfig.jsonValue })
+      .from(annualRateConfig)
+      .where(
+        and(
+          eq(annualRateConfig.fiscalYear, taxYear),
+          eq(annualRateConfig.configKey, 'federal_tax_brackets')
+        )
+      )
+    if (row?.jsonValue && typeof row.jsonValue === 'object') {
+      return row.jsonValue as BracketTable
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+async function loadDeductionsFromDb(taxYear: number): Promise<Record<string, number> | null> {
+  try {
+    const [row] = await db
+      .select({ jsonValue: annualRateConfig.jsonValue })
+      .from(annualRateConfig)
+      .where(
+        and(
+          eq(annualRateConfig.fiscalYear, taxYear),
+          eq(annualRateConfig.configKey, 'federal_standard_deductions')
+        )
+      )
+    if (row?.jsonValue && typeof row.jsonValue === 'object') {
+      return row.jsonValue as Record<string, number>
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+async function getBrackets(
   taxYear: number,
   filingStatus: string
-): TaxBracket[] {
-  const yearBrackets = BRACKETS_BY_YEAR[taxYear]
+): Promise<TaxBracket[]> {
+  // Try DB first
+  const dbBrackets = await loadBracketsFromDb(taxYear)
+  if (dbBrackets) {
+    const brackets = dbBrackets[filingStatus]
+    if (brackets) return brackets
+  }
+
+  // Fallback to hardcoded
+  const yearBrackets = FALLBACK_BRACKETS_BY_YEAR[taxYear]
   if (!yearBrackets) {
     throw new Error(`No federal tax brackets configured for year ${taxYear}`)
   }
@@ -87,8 +144,15 @@ function getBrackets(
   return brackets
 }
 
-function getStandardDeduction(taxYear: number, filingStatus: string): number {
-  const yearDeductions = STANDARD_DEDUCTIONS_BY_YEAR[taxYear]
+async function getStandardDeduction(taxYear: number, filingStatus: string): Promise<number> {
+  // Try DB first
+  const dbDeductions = await loadDeductionsFromDb(taxYear)
+  if (dbDeductions) {
+    return dbDeductions[filingStatus] ?? 0
+  }
+
+  // Fallback to hardcoded
+  const yearDeductions = FALLBACK_DEDUCTIONS_BY_YEAR[taxYear]
   if (!yearDeductions) {
     throw new Error(`No standard deductions configured for year ${taxYear}`)
   }
@@ -109,14 +173,14 @@ function computeAnnualTax(taxableIncome: number, brackets: TaxBracket[]): number
   return topBracket.plus + (taxableIncome - topBracket.over) * topBracket.rate
 }
 
-export function calculateFederalWithholding(params: {
+export async function calculateFederalWithholding(params: {
   monthlyGross: number
   filingStatus: 'single' | 'married' | 'head_of_household'
   additionalDeductions: number // W-4 Step 4(b), annualized
   additionalIncome: number // W-4 Step 4(a), annualized
   additionalWithholding: number // W-4 Step 4(c), per period
   taxYear: number
-}): number {
+}): Promise<number> {
   const {
     monthlyGross,
     filingStatus,
@@ -126,8 +190,8 @@ export function calculateFederalWithholding(params: {
     taxYear,
   } = params
 
-  const brackets = getBrackets(taxYear, filingStatus)
-  const standardDeduction = getStandardDeduction(taxYear, filingStatus)
+  const brackets = await getBrackets(taxYear, filingStatus)
+  const standardDeduction = await getStandardDeduction(taxYear, filingStatus)
 
   // Step 1: Annualize
   const annualWages = monthlyGross * 12

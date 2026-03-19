@@ -151,12 +151,19 @@ export function RampQueueClient({
     (txn: RampTransactionRow, suggestion: AiSuggestion, createRule: boolean) => {
       startTransition(async () => {
         try {
-          await categorizeRampTransaction({
-            rampTransactionId: txn.id,
-            glAccountId: suggestion.accountId,
-            fundId: suggestion.fundId,
-            createRule,
-          })
+          await categorizeRampTransaction(
+            {
+              rampTransactionId: txn.id,
+              glAccountId: suggestion.accountId,
+              fundId: suggestion.fundId,
+              createRule,
+            },
+            {
+              accountId: suggestion.accountId,
+              fundId: suggestion.fundId,
+              confidence: suggestion.confidence,
+            }
+          )
           toast.success('AI suggestion accepted and posted to GL')
           router.refresh()
         } catch (err) {

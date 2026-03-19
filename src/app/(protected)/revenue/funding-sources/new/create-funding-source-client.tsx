@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -202,6 +202,12 @@ export function CreateFundingSourceClient({ vendors }: Props) {
                     <SelectItem value="LOAN">Loan</SelectItem>
                   </SelectContent>
                 </Select>
+                {contractData.categoryWasDefaulted && aiRecommended && (
+                  <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 mt-1" data-testid="funding-source-category-defaulted-warning">
+                    <AlertTriangle className="h-3 w-3 shrink-0" />
+                    AI could not confidently determine this — please verify.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -453,6 +459,12 @@ export function CreateFundingSourceClient({ vendors }: Props) {
                         <Label htmlFor="rc-earned">Earned Income</Label>
                       </div>
                     </RadioGroup>
+                    {contractData.classificationWasDefaulted && aiRecommended && (
+                      <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 mt-2" data-testid="funding-source-classification-defaulted-warning">
+                        <AlertTriangle className="h-3 w-3 shrink-0" />
+                        AI could not confidently determine this — please verify.
+                      </p>
+                    )}
                     {classificationRationale && (
                       <p className="text-sm text-muted-foreground mt-2">
                         {classificationRationale}

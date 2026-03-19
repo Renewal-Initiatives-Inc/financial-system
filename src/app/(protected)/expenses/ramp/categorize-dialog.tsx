@@ -92,7 +92,14 @@ export function CategorizeDialog({
             glAccountId,
             fundId,
             createRule,
-          }
+          },
+          aiSuggestion
+            ? {
+                accountId: aiSuggestion.accountId,
+                fundId: aiSuggestion.fundId,
+                confidence: aiSuggestion.confidence,
+              }
+            : null
         )
         toast.success('Transaction categorized and posted to GL')
         onClose()

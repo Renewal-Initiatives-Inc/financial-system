@@ -19,6 +19,8 @@ import { postCategorizedTransaction } from '@/lib/ramp/categorization'
 import { fetchTransactions } from '@/lib/integrations/ramp'
 import { autoCategorize, batchPostCategorized } from '@/lib/ramp/categorization'
 import { getUserId } from '@/lib/auth'
+import { logAudit } from '@/lib/audit/logger'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 
 // --- Types ---
 
@@ -156,7 +158,12 @@ export async function getRampStats(): Promise<RampStats> {
 // --- Mutations ---
 
 export async function categorizeRampTransaction(
-  data: CategorizeRampTransaction
+  data: CategorizeRampTransaction,
+  aiSuggestion?: {
+    accountId: number
+    fundId: number
+    confidence: 'high' | 'medium' | 'low'
+  } | null
 ): Promise<void> {
   const userId = await getUserId()
   const validated = categorizeRampTransactionSchema.parse(data)
@@ -182,6 +189,30 @@ export async function categorizeRampTransaction(
 
   // Post to GL immediately (TXN-P0-028)
   await postCategorizedTransaction(validated.rampTransactionId, userId)
+
+  // Log AI acceptance/override for calibration tracking
+  if (aiSuggestion) {
+    const aiAccepted =
+      aiSuggestion.accountId === validated.glAccountId &&
+      aiSuggestion.fundId === validated.fundId
+
+    await logAudit(db as unknown as NeonDatabase<Record<string, unknown>>, {
+      userId,
+      action: 'updated',
+      entityType: 'ramp_categorization',
+      entityId: validated.rampTransactionId,
+      afterState: {
+        glAccountId: validated.glAccountId,
+        fundId: validated.fundId,
+        aiConfidence: aiSuggestion.confidence,
+        aiAccepted,
+        ...(!aiAccepted && {
+          aiSuggestedAccountId: aiSuggestion.accountId,
+          aiSuggestedFundId: aiSuggestion.fundId,
+        }),
+      },
+    })
+  }
 
   // Optionally create auto-categorization rule
   if (validated.createRule) {

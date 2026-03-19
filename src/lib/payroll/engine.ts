@@ -231,7 +231,7 @@ export async function calculatePayrollRun(
     // W-2 employees: full withholding calculations
     const ytdWages = await getEmployeeYtdWages(employee.id, taxYear)
 
-    const federalWithholding = calculateFederalWithholding({
+    const federalWithholding = await calculateFederalWithholding({
       monthlyGross: grossPayResult.grossPay,
       filingStatus: employee.federalFilingStatus,
       additionalDeductions: 0,

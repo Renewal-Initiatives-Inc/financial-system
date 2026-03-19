@@ -29,6 +29,8 @@ export interface ContractExtractionData {
   revenueClassification: 'GRANT_REVENUE' | 'EARNED_INCOME' | null
   classificationRationale: string | null
   fundingCategory: 'GRANT' | 'CONTRACT' | 'LOAN' | null
+  classificationWasDefaulted?: boolean
+  categoryWasDefaulted?: boolean
 }
 
 interface ContractUploadExtractProps {
@@ -243,6 +245,8 @@ export function ContractUploadExtract({
         revenueClassification: newClassification,
         classificationRationale: newRationale,
         fundingCategory: newCategory,
+        classificationWasDefaulted: data.classificationWasDefaulted ?? false,
+        categoryWasDefaulted: data.categoryWasDefaulted ?? false,
       })
 
       toast.success('Contract terms extracted')

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Pencil, Plus, Loader2 } from 'lucide-react'
+import { Pencil, Plus, Loader2, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -218,8 +218,9 @@ export function RateConfigClient({ initialRates }: RateConfigClientProps) {
                     <TableHead>Rate</TableHead>
                     <TableHead>Value</TableHead>
                     <TableHead>Effective Date</TableHead>
+                    <TableHead>Source</TableHead>
+                    <TableHead>Verified</TableHead>
                     <TableHead>Notes</TableHead>
-                    <TableHead>Last Updated</TableHead>
                     <TableHead className="w-[80px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -238,11 +239,43 @@ export function RateConfigClient({ initialRates }: RateConfigClientProps) {
                       <TableCell>
                         {rate.effectiveDate ?? 'Full Year'}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {rate.notes ?? '—'}
+                      <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate" title={rate.sourceDocument ?? undefined}>
+                        {rate.sourceDocument ? (
+                          rate.sourceUrl ? (
+                            <a href={rate.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">
+                              {rate.sourceDocument}
+                            </a>
+                          ) : (
+                            rate.sourceDocument
+                          )
+                        ) : (
+                          <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                            <AlertTriangle className="h-3 w-3" />
+                            No source
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {new Date(rate.updatedAt).toLocaleDateString()}
+                        {rate.verifiedDate ? (
+                          <span className={
+                            new Date(rate.verifiedDate).getFullYear() < rate.fiscalYear
+                              ? 'flex items-center gap-1 text-amber-600 dark:text-amber-400'
+                              : ''
+                          }>
+                            {new Date(rate.verifiedDate).getFullYear() < rate.fiscalYear && (
+                              <AlertTriangle className="h-3 w-3" />
+                            )}
+                            {rate.verifiedDate}
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                            <AlertTriangle className="h-3 w-3" />
+                            Not verified
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {rate.notes ?? '—'}
                       </TableCell>
                       <TableCell>
                         <Button

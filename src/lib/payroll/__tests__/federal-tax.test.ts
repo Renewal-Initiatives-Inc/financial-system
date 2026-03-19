@@ -1,4 +1,16 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
+
+// Mock the DB module so federal-tax.ts falls back to hardcoded values
+vi.mock('@/lib/db', () => ({
+  db: {
+    select: () => ({
+      from: () => ({
+        where: () => Promise.resolve([]),
+      }),
+    }),
+  },
+}))
+
 import { calculateFederalWithholding } from '../federal-tax'
 
 const defaults = {
@@ -9,23 +21,21 @@ const defaults = {
 }
 
 describe('calculateFederalWithholding', () => {
-  it('calculates for single filer at $3,000/month', () => {
-    const result = calculateFederalWithholding({
+  it('calculates for single filer at $3,000/month', async () => {
+    const result = await calculateFederalWithholding({
       ...defaults,
       monthlyGross: 3000,
       filingStatus: 'single',
     })
     // Annual: $36,000 - $8,600 std deduction = $27,400 taxable
-    // $7,500 at 0% = $0
-    // $19,900-$7,500 at 10% = $1,240 → but bracket says plus $0 at 10%
-    // Actually: $27,400 is in the 12% bracket ($19,900-$57,900, plus $1,240)
+    // In 12% bracket ($19,900-$57,900, plus $1,240)
     // Tax = $1,240 + ($27,400 - $19,900) × 0.12 = $1,240 + $900 = $2,140
     // Monthly = $2,140 / 12 = $178.33
     expect(result).toBeCloseTo(178.33, 1)
   })
 
-  it('calculates for single filer at $8,000/month (crosses brackets)', () => {
-    const result = calculateFederalWithholding({
+  it('calculates for single filer at $8,000/month (crosses brackets)', async () => {
+    const result = await calculateFederalWithholding({
       ...defaults,
       monthlyGross: 8000,
       filingStatus: 'single',
@@ -37,8 +47,8 @@ describe('calculateFederalWithholding', () => {
     expect(result).toBeCloseTo(1024.17, 1)
   })
 
-  it('calculates for married filer at $5,000/month (lower bracket)', () => {
-    const result = calculateFederalWithholding({
+  it('calculates for married filer at $5,000/month (lower bracket)', async () => {
+    const result = await calculateFederalWithholding({
       ...defaults,
       monthlyGross: 5000,
       filingStatus: 'married',
@@ -50,8 +60,8 @@ describe('calculateFederalWithholding', () => {
     expect(result).toBeCloseTo(236.67, 1)
   })
 
-  it('calculates for married filer at $15,000/month (higher bracket)', () => {
-    const result = calculateFederalWithholding({
+  it('calculates for married filer at $15,000/month (higher bracket)', async () => {
+    const result = await calculateFederalWithholding({
       ...defaults,
       monthlyGross: 15000,
       filingStatus: 'married',
@@ -63,8 +73,8 @@ describe('calculateFederalWithholding', () => {
     expect(result).toBeCloseTo(1828.33, 1)
   })
 
-  it('calculates for head of household at $4,500/month', () => {
-    const result = calculateFederalWithholding({
+  it('calculates for head of household at $4,500/month', async () => {
+    const result = await calculateFederalWithholding({
       ...defaults,
       monthlyGross: 4500,
       filingStatus: 'head_of_household',
@@ -76,8 +86,8 @@ describe('calculateFederalWithholding', () => {
     expect(result).toBeCloseTo(269, 0)
   })
 
-  it('returns $0 for zero income', () => {
-    const result = calculateFederalWithholding({
+  it('returns $0 for zero income', async () => {
+    const result = await calculateFederalWithholding({
       ...defaults,
       monthlyGross: 0,
       filingStatus: 'single',
@@ -85,8 +95,8 @@ describe('calculateFederalWithholding', () => {
     expect(result).toBe(0)
   })
 
-  it('handles high income (top bracket)', () => {
-    const result = calculateFederalWithholding({
+  it('handles high income (top bracket)', async () => {
+    const result = await calculateFederalWithholding({
       ...defaults,
       monthlyGross: 60000,
       filingStatus: 'single',
@@ -99,13 +109,13 @@ describe('calculateFederalWithholding', () => {
     expect(result).toBeCloseTo(18033.35, 0)
   })
 
-  it('adds W-4 Step 4(c) additional withholding', () => {
-    const base = calculateFederalWithholding({
+  it('adds W-4 Step 4(c) additional withholding', async () => {
+    const base = await calculateFederalWithholding({
       ...defaults,
       monthlyGross: 5000,
       filingStatus: 'single',
     })
-    const withExtra = calculateFederalWithholding({
+    const withExtra = await calculateFederalWithholding({
       ...defaults,
       monthlyGross: 5000,
       filingStatus: 'single',
@@ -114,18 +124,29 @@ describe('calculateFederalWithholding', () => {
     expect(withExtra).toBeCloseTo(base + 100, 1)
   })
 
-  it('reduces withholding with W-4 Step 4(b) deductions', () => {
-    const base = calculateFederalWithholding({
+  it('reduces withholding with W-4 Step 4(b) deductions', async () => {
+    const base = await calculateFederalWithholding({
       ...defaults,
       monthlyGross: 5000,
       filingStatus: 'single',
     })
-    const withDeductions = calculateFederalWithholding({
+    const withDeductions = await calculateFederalWithholding({
       ...defaults,
       monthlyGross: 5000,
       filingStatus: 'single',
-      additionalDeductions: 5000, // $5,000 annual additional deduction
+      additionalDeductions: 5000,
     })
     expect(withDeductions).toBeLessThan(base)
+  })
+
+  it('falls back to hardcoded values when DB is unavailable (regression)', async () => {
+    // DB mock returns empty — function should still work with fallback values
+    const result = await calculateFederalWithholding({
+      ...defaults,
+      monthlyGross: 3000,
+      filingStatus: 'single',
+    })
+    // Same expected value as the first test — proves fallback produces identical results
+    expect(result).toBeCloseTo(178.33, 1)
   })
 })
