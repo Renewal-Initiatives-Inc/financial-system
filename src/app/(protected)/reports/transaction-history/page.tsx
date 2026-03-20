@@ -2,7 +2,7 @@ import { getTransactionHistoryData } from '@/lib/reports/transaction-history'
 import { getFundsForFilter } from '../actions'
 import { getAccountsForSelector } from '@/app/(protected)/transactions/actions'
 import { TransactionHistoryClient } from './transaction-history-client'
-import { getCurrentMonthRange } from '@/lib/reports/types'
+import { getCurrentMonthRange, getFiscalYearRange } from '@/lib/reports/types'
 
 interface TransactionHistoryPageProps {
   searchParams: Promise<{ accountId?: string }>
@@ -11,7 +11,8 @@ interface TransactionHistoryPageProps {
 export default async function TransactionHistoryPage({ searchParams }: TransactionHistoryPageProps) {
   const { accountId: accountIdParam } = await searchParams
   const initialAccountId = accountIdParam ? parseInt(accountIdParam, 10) : null
-  const { startDate, endDate } = getCurrentMonthRange()
+  // When filtering by account, show the full fiscal year so all transactions are visible
+  const { startDate, endDate } = initialAccountId ? getFiscalYearRange() : getCurrentMonthRange()
 
   const [data, funds, accountsList] = await Promise.all([
     getTransactionHistoryData({

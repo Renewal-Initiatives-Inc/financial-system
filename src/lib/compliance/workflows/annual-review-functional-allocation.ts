@@ -44,7 +44,7 @@ export const annualReviewFunctionalAllocationConfig: WorkflowConfig = {
       citations: [
         {
           label: 'ASC 958-720-45; FASB ASU 2016-14',
-          url: 'https://fasb.org/page/PageContent?pageId=/standards/fasb-accounting-standards-codification.html',
+          url: 'https://asc.fasb.org/',
         },
         {
           label: 'IRS Form 990 Part IX Instructions',

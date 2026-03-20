@@ -75,8 +75,7 @@ export function ConfirmMatchDialog({
           {
             glAccountId: candidate.transactionId, // Uses the transaction's account
             fundId: 1, // Default fund
-          },
-          'system'
+          }
         )
         toast.success('Matching rule created — future similar transactions will auto-match')
         handleClose()

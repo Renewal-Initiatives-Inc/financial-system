@@ -20,6 +20,7 @@ interface DraftStepProps {
   artifactType: 'pdf' | 'docx' | 'csv'
   fileName: string | null
   previewUrl: string | null
+  scanContent?: string | null
   isGenerating: boolean
   isDraftAccepted: boolean
   requiresWarningDialog: boolean
@@ -37,6 +38,7 @@ export function DraftStep({
   artifactType,
   fileName,
   previewUrl,
+  scanContent,
   isGenerating,
   isDraftAccepted,
   requiresWarningDialog,
@@ -58,6 +60,15 @@ export function DraftStep({
       <p className="text-sm text-muted-foreground">
         Review the generated draft before accepting.
       </p>
+
+      {!fileName && scanContent && (
+        <div className="rounded-md border p-4 space-y-2 text-sm bg-muted/30 max-h-48 overflow-y-auto">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">AI Compliance Brief (from prior step)</p>
+          {scanContent.split('\n').filter(Boolean).map((para, i) => (
+            <p key={i}>{para}</p>
+          ))}
+        </div>
+      )}
 
       {isGenerating ? (
         <div className="space-y-2">

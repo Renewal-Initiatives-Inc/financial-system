@@ -31,7 +31,9 @@ export function DeliveryStep({
       </div>
       <div>
         <h3 className="font-semibold text-lg">Workflow Complete</h3>
-        <p className="text-sm text-muted-foreground mt-1">Your artifact has been saved.</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          {fileName ? 'Your artifact has been saved.' : 'Workflow marked as complete.'}
+        </p>
       </div>
 
       {fileName && (

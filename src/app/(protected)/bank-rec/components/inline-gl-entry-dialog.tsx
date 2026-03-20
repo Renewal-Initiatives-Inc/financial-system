@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { GroupedAccountSelect, type AccountOption } from './grouped-account-select'
 import { HelpTooltip } from '@/components/shared/help-tooltip'
 import { createInlineGlEntry } from '../actions'
 import { toast } from 'sonner'
@@ -32,7 +33,7 @@ interface InlineGlEntryDialogProps {
   open: boolean
   onClose: () => void
   bankTransaction: BankTransactionRow | null
-  accountOptions: { id: number; name: string; code: string }[]
+  accountOptions: AccountOption[]
   fundOptions: { id: number; name: string }[]
   sessionId: number | null
 }
@@ -52,6 +53,17 @@ export function InlineGlEntryDialog({
   const [accountId, setAccountId] = useState('')
   const [fundId, setFundId] = useState('')
   const [showWarning, setShowWarning] = useState(false)
+
+  // Sync form state when bankTransaction changes (dialog is always mounted)
+  useEffect(() => {
+    if (bankTransaction && open) {
+      setDate(bankTransaction.date ?? '')
+      setMemo(bankTransaction.merchantName ?? '')
+      setAccountId('')
+      setFundId('')
+      setShowWarning(false)
+    }
+  }, [bankTransaction?.id, open])
 
   const amount = bankTransaction ? Math.abs(parseFloat(bankTransaction.amount)) : 0
   const isOverThreshold = amount > THRESHOLD
@@ -75,8 +87,7 @@ export function InlineGlEntryDialog({
             amount: bankTransaction.amount,
             bankTransactionId: bankTransaction.id,
           },
-          sessionId,
-          'system'
+          sessionId
         )
         toast.success('GL entry created and matched')
         handleClose()
@@ -152,18 +163,13 @@ export function InlineGlEntryDialog({
             <Label>
               Account <span className="text-destructive">*</span>
             </Label>
-            <Select value={accountId} onValueChange={setAccountId}>
-              <SelectTrigger data-testid="inline-gl-account">
-                <SelectValue placeholder="Select account" />
-              </SelectTrigger>
-              <SelectContent>
-                {accountOptions.map((a) => (
-                  <SelectItem key={a.id} value={String(a.id)}>
-                    {a.code} - {a.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <GroupedAccountSelect
+              accounts={accountOptions}
+              value={accountId}
+              onValueChange={setAccountId}
+              placeholder="Select account"
+              testId="inline-gl-account"
+            />
           </div>
 
           <div className="grid gap-2">

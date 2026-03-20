@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { eq, and, sql, desc, inArray, or } from 'drizzle-orm'
+import { eq, and, sql, desc, inArray, or, ilike } from 'drizzle-orm'
 import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 import { db } from '@/lib/db'
 import {
@@ -742,13 +742,14 @@ export async function getActiveVendors(): Promise<
 }
 
 export async function getExpenseAndCipAccounts(): Promise<
-  { id: number; code: string; name: string; subType: string | null }[]
+  { id: number; code: string; name: string; type: string; subType: string | null }[]
 > {
   return db
     .select({
       id: accounts.id,
       code: accounts.code,
       name: accounts.name,
+      type: accounts.type,
       subType: accounts.subType,
     })
     .from(accounts)
@@ -795,4 +796,30 @@ export async function getActiveCipCostCodes(): Promise<
     .from(cipCostCodes)
     .where(eq(cipCostCodes.isActive, true))
     .orderBy(cipCostCodes.sortOrder)
+}
+
+
+export async function getRecentExpenseEntries(limit = 25) {
+  return db
+    .select({
+      id: transactions.id,
+      date: transactions.date,
+      memo: transactions.memo,
+      sourceType: transactions.sourceType,
+      createdAt: transactions.createdAt,
+      amount: sql<string>`coalesce(${transactionLines.debit}, ${transactionLines.credit})`.as('amount'),
+      accountName: accounts.name,
+      accountCode: accounts.code,
+    })
+    .from(transactions)
+    .innerJoin(transactionLines, eq(transactionLines.transactionId, transactions.id))
+    .innerJoin(accounts, eq(transactionLines.accountId, accounts.id))
+    .where(
+      and(
+        eq(accounts.type, 'EXPENSE'),
+        eq(transactions.isVoided, false)
+      )
+    )
+    .orderBy(desc(transactions.date))
+    .limit(limit)
 }

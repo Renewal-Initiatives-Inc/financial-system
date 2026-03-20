@@ -26,6 +26,8 @@ const ROUTE_NAMES: Record<string, string> = {
   tenants: 'Tenants',
   donors: 'Donors',
   assets: 'Assets',
+  liabilities: 'Liabilities',
+  'match-transactions': 'Match Transactions',
   settings: 'Settings',
   // Expenses sub-routes
   'purchase-orders': 'Purchase Orders',
@@ -43,7 +45,13 @@ const ROUTE_NAMES: Record<string, string> = {
   rent: 'Rent',
   adjustment: 'Adjustment',
   payment: 'Payment',
+  // Liabilities sub-routes
+  loans: 'Notes Payable / Loans',
+  accrued: 'Accrued Liabilities',
+  'deferred-revenue': 'Deferred Revenue',
+  'security-deposits': 'Security Deposits',
   // Assets sub-routes
+  fixed: 'Fixed Assets',
   cip: 'Construction in Progress',
   convert: 'Convert',
   prepaid: 'Prepaid Expenses',

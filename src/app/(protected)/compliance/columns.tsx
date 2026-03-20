@@ -116,19 +116,4 @@ export const complianceColumns: ColumnDef<ComplianceDeadlineRow, unknown>[] = [
     },
     enableSorting: false,
   },
-  {
-    accessorKey: 'notes',
-    header: 'Notes',
-    cell: ({ row }) => {
-      const notes = row.getValue('notes') as string | null
-      return notes ? (
-        <span className="text-sm text-muted-foreground truncate max-w-[200px] block">
-          {notes}
-        </span>
-      ) : (
-        <span className="text-sm text-muted-foreground">-</span>
-      )
-    },
-    enableSorting: false,
-  },
 ]

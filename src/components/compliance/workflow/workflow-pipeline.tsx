@@ -9,6 +9,7 @@ import { DraftStep } from './draft-step'
 import { DeliveryStep } from './delivery-step'
 import type {
   WorkflowConfig,
+  WorkflowState,
   WorkflowStateData,
   WorkflowStateChange,
   WorkflowStep,
@@ -22,6 +23,12 @@ interface WorkflowPipelineProps {
   isSubmitting: boolean
   onStateChange: (change: WorkflowStateChange) => Promise<void>
   onRequestScan: () => void
+}
+
+const STEP_TO_STATE: Record<string, WorkflowState> = {
+  checklist: 'checklist',
+  scan: 'scan',
+  draft: 'draft',
 }
 
 const ALL_STEPS: { id: WorkflowStep | 'delivery'; label: string }[] = [
@@ -54,7 +61,10 @@ export function WorkflowPipeline({
     ? ALL_STEPS.filter((s) => s.id !== 'scan')
     : ALL_STEPS
 
-  const currentStepIndex = STATE_TO_STEP_INDEX[currentState] ?? -1
+  // When delivered, treat as past the last step so all circles show complete
+  const currentStepIndex = currentState === 'delivered'
+    ? ALL_STEPS.length
+    : (STATE_TO_STEP_INDEX[currentState] ?? -1)
 
   // Trigger scan fetch when entering scan state
   useEffect(() => {
@@ -121,21 +131,39 @@ export function WorkflowPipeline({
           const isComplete = currentStepIndex > stepIndex
           const isActive = currentStepIndex === stepIndex
 
+          const canGoBack = isComplete && currentState !== 'delivered' && STEP_TO_STATE[step.id]
+
           return (
             <div key={step.id} className="flex items-center flex-1 last:flex-none">
               <div className="flex flex-col items-center gap-1">
-                <div
-                  className={cn(
-                    'h-7 w-7 rounded-full flex items-center justify-center text-xs font-medium border-2',
-                    isComplete
-                      ? 'bg-primary border-primary text-primary-foreground'
-                      : isActive
-                        ? 'border-primary text-primary bg-background'
-                        : 'border-muted-foreground/30 text-muted-foreground bg-background'
-                  )}
-                >
-                  {isComplete ? '✓' : idx + 1}
-                </div>
+                {canGoBack ? (
+                  <button
+                    onClick={() => onStateChange({
+                      newState: STEP_TO_STATE[step.id],
+                      logEntry: { step: step.id as WorkflowStep, action: 'navigated_back', data: {} },
+                    })}
+                    title={`Go back to ${step.label}`}
+                    className={cn(
+                      'h-7 w-7 rounded-full flex items-center justify-center text-xs font-medium border-2 cursor-pointer hover:opacity-75 transition-opacity',
+                      'bg-primary border-primary text-primary-foreground'
+                    )}
+                  >
+                    ✓
+                  </button>
+                ) : (
+                  <div
+                    className={cn(
+                      'h-7 w-7 rounded-full flex items-center justify-center text-xs font-medium border-2',
+                      isComplete
+                        ? 'bg-primary border-primary text-primary-foreground'
+                        : isActive
+                          ? 'border-primary text-primary bg-background'
+                          : 'border-muted-foreground/30 text-muted-foreground bg-background'
+                    )}
+                  >
+                    {isComplete ? '✓' : idx + 1}
+                  </div>
+                )}
                 <span
                   className={cn(
                     'text-xs whitespace-nowrap',
@@ -204,6 +232,7 @@ export function WorkflowPipeline({
             artifactType={config.steps.draft.artifactType}
             fileName={artifactFileName ?? null}
             previewUrl={artifactUrl ?? null}
+            scanContent={scanContent}
             isGenerating={false}
             isDraftAccepted={!!draftAccepted}
             requiresWarningDialog={config.requiresWarningDialog}

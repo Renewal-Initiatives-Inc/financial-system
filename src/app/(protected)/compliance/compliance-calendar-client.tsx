@@ -28,14 +28,15 @@ export function ComplianceCalendarClient({
   googleCalendarId,
 }: ComplianceCalendarClientProps) {
   const [categoryFilter, setCategoryFilter] = useState('all')
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('active')
   const [selectedDeadline, setSelectedDeadline] = useState<ComplianceDeadlineRow | null>(null)
   const [copilotOpen, setCopilotOpen] = useState(false)
   const [view, setView] = useState<'list' | 'calendar'>('list')
 
   const filtered = initialDeadlines.filter((d) => {
     if (categoryFilter !== 'all' && d.category !== categoryFilter) return false
-    if (statusFilter !== 'all' && d.status !== statusFilter) return false
+    if (statusFilter === 'active' && d.status === 'completed') return false
+    if (statusFilter === 'completed' && d.status !== 'completed') return false
     return true
   })
 
@@ -138,12 +139,10 @@ export function ComplianceCalendarClient({
                 className="w-[180px]"
                 data-testid="compliance-status-filter"
               >
-                <SelectValue placeholder="All Statuses" />
+                <SelectValue placeholder="Not Done" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="upcoming">Upcoming</SelectItem>
-                <SelectItem value="reminded">Reminded</SelectItem>
+                <SelectItem value="active">Not Done</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
               </SelectContent>
             </Select>

@@ -18,6 +18,7 @@ import {
 import { HelpTooltip } from '@/components/shared/help-tooltip'
 import { toast } from 'sonner'
 import { recordInKindContribution } from '../actions'
+import { RecentEntriesTable, type RecentEntry } from '../components/recent-entries-table'
 
 const inKindTypes = [
   { value: 'GOODS', label: 'Goods' },
@@ -27,7 +28,7 @@ const inKindTypes = [
 
 interface Props {
   funds: { id: number; name: string; restrictionType: string }[]
-  recentEntries: Array<{ id: number; date: string; memo: string; createdAt: Date }>
+  recentEntries: RecentEntry[]
 }
 
 export function InKindClient({ funds, recentEntries }: Props) {
@@ -171,18 +172,10 @@ export function InKindClient({ funds, recentEntries }: Props) {
           <CardTitle>Recent Entries</CardTitle>
         </CardHeader>
         <CardContent>
-          {recentEntries.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No in-kind contributions recorded yet.</p>
-          ) : (
-            <div className="space-y-2">
-              {recentEntries.map((e) => (
-                <div key={e.id} className="flex justify-between text-sm border-b pb-2">
-                  <span>{e.memo}</span>
-                  <span className="text-muted-foreground">{e.date}</span>
-                </div>
-              ))}
-            </div>
-          )}
+          <RecentEntriesTable
+            entries={recentEntries}
+            emptyMessage="No in-kind contributions recorded yet."
+          />
         </CardContent>
       </Card>
     </div>

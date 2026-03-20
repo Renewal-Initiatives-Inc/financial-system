@@ -12,8 +12,10 @@ import {
 } from '@/components/ui/select'
 import {
   getArtifactsByYear,
+  getCompletedWorkflowCountByYear,
   getWorkflowLogsByDeadline,
   type ArtifactRow,
+  type DeadlineWithActivityRow,
 } from './admin-actions'
 
 type WorkflowLog = Awaited<ReturnType<typeof getWorkflowLogsByDeadline>>[number]
@@ -22,6 +24,8 @@ interface ComplianceAdminClientProps {
   initialArtifacts: ArtifactRow[]
   years: number[]
   initialYear: number
+  initialCompletedCount: number
+  deadlinesWithActivity: DeadlineWithActivityRow[]
 }
 
 function formatFileSize(bytes: number | null): string {
@@ -35,8 +39,11 @@ export function ComplianceAdminClient({
   initialArtifacts,
   years,
   initialYear,
+  initialCompletedCount,
+  deadlinesWithActivity,
 }: ComplianceAdminClientProps) {
   const [artifacts, setArtifacts] = useState<ArtifactRow[]>(initialArtifacts)
+  const [completedCount, setCompletedCount] = useState(initialCompletedCount)
   const [selectedYear, setSelectedYear] = useState(initialYear.toString())
   const [selectedDeadlineId, setSelectedDeadlineId] = useState<string>('')
   const [logs, setLogs] = useState<WorkflowLog[]>([])
@@ -46,17 +53,16 @@ export function ComplianceAdminClient({
   const currentYear = new Date().getFullYear()
   const yearOptions = years.length > 0 ? years : [currentYear]
 
-  // Unique deadlines from artifacts for the log viewer selector
-  const uniqueDeadlines = Array.from(
-    new Map(artifacts.map((a) => [a.deadlineId, a.taskName])).entries()
-  ).map(([id, name]) => ({ id, name }))
-
   async function handleYearChange(year: string) {
     setSelectedYear(year)
     setIsLoadingArtifacts(true)
     try {
-      const rows = await getArtifactsByYear(Number(year))
+      const [rows, count] = await Promise.all([
+        getArtifactsByYear(Number(year)),
+        getCompletedWorkflowCountByYear(Number(year)),
+      ])
       setArtifacts(rows)
+      setCompletedCount(count)
       setSelectedDeadlineId('')
       setLogs([])
     } finally {
@@ -94,7 +100,7 @@ export function ComplianceAdminClient({
         </div>
         <div className="rounded-lg border p-4">
           <p className="text-sm text-muted-foreground">Workflows Completed ({selectedYear})</p>
-          <p className="text-2xl font-semibold mt-1">{totalArtifacts}</p>
+          <p className="text-2xl font-semibold mt-1">{completedCount}</p>
         </div>
         <div className="rounded-lg border p-4">
           <p className="text-sm text-muted-foreground">Most Recent Delivery</p>
@@ -194,15 +200,15 @@ export function ComplianceAdminClient({
           <Select
             value={selectedDeadlineId}
             onValueChange={handleDeadlineChange}
-            disabled={uniqueDeadlines.length === 0}
+            disabled={deadlinesWithActivity.length === 0}
           >
             <SelectTrigger className="w-[280px]" data-testid="admin-deadline-select">
               <SelectValue placeholder="Select a deadline..." />
             </SelectTrigger>
             <SelectContent>
-              {uniqueDeadlines.map((d) => (
+              {deadlinesWithActivity.map((d) => (
                 <SelectItem key={d.id} value={d.id.toString()}>
-                  {d.name}
+                  {d.taskName}
                 </SelectItem>
               ))}
             </SelectContent>

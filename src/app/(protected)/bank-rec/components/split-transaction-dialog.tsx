@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useTransition } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,22 +13,32 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog'
-import { splitAndMatch } from '../actions'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { GroupedAccountSelect, type AccountOption } from './grouped-account-select'
+import { splitAndCreateGlEntries } from '../actions'
 import { toast } from 'sonner'
 import type { BankTransactionRow } from '../actions'
-import type { MatchCandidate } from '@/lib/bank-rec/matcher'
 
 interface SplitLine {
-  glTransactionLineId: number | null
+  accountId: number | null
+  fundId: number | null
   amount: string
-  label: string
+  showFund: boolean
 }
 
 interface SplitTransactionDialogProps {
   open: boolean
-  onClose: () => void
+  onClose: (matched?: boolean) => void
   bankTransaction: BankTransactionRow | null
-  candidates: MatchCandidate[]
+  accountOptions: AccountOption[]
+  fundOptions: { id: number; name: string }[]
+  defaultFundId: number | null
   sessionId: number | null
 }
 
@@ -37,19 +46,22 @@ export function SplitTransactionDialog({
   open,
   onClose,
   bankTransaction,
-  candidates,
+  accountOptions,
+  fundOptions,
+  defaultFundId,
   sessionId,
 }: SplitTransactionDialogProps) {
-  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [splits, setSplits] = useState<SplitLine[]>([
-    { glTransactionLineId: null, amount: '', label: '' },
-    { glTransactionLineId: null, amount: '', label: '' },
+    { accountId: null, fundId: defaultFundId, amount: '', showFund: false },
+    { accountId: null, fundId: defaultFundId, amount: '', showFund: false },
   ])
 
   const bankAmount = bankTransaction
     ? Math.abs(parseFloat(bankTransaction.amount))
     : 0
+
+  const isOutflow = bankTransaction ? parseFloat(bankTransaction.amount) > 0 : true
 
   const splitSum = splits.reduce(
     (sum, s) => sum + (parseFloat(s.amount) || 0),
@@ -58,8 +70,18 @@ export function SplitTransactionDialog({
 
   const remaining = Math.round((bankAmount - splitSum) * 100) / 100
 
+  // Reset when transaction changes
+  useEffect(() => {
+    if (bankTransaction && open) {
+      setSplits([
+        { accountId: null, fundId: defaultFundId, amount: '', showFund: false },
+        { accountId: null, fundId: defaultFundId, amount: '', showFund: false },
+      ])
+    }
+  }, [bankTransaction?.id, open, defaultFundId])
+
   const addSplit = () => {
-    setSplits([...splits, { glTransactionLineId: null, amount: '', label: '' }])
+    setSplits([...splits, { accountId: null, fundId: defaultFundId, amount: '', showFund: false }])
   }
 
   const removeSplit = (index: number) => {
@@ -67,30 +89,22 @@ export function SplitTransactionDialog({
     setSplits(splits.filter((_, i) => i !== index))
   }
 
-  const updateSplit = (index: number, field: keyof SplitLine, value: string | number) => {
+  const updateSplit = (index: number, field: keyof SplitLine, value: string | number | null) => {
     const newSplits = [...splits]
-    if (field === 'glTransactionLineId') {
-      const candidate = candidates.find(
-        (c) => c.glTransactionLineId === Number(value)
-      )
-      newSplits[index] = {
-        ...newSplits[index],
-        glTransactionLineId: Number(value),
-        label: candidate?.memo ?? '',
-      }
-    } else {
-      newSplits[index] = { ...newSplits[index], [field]: value }
-    }
+    newSplits[index] = { ...newSplits[index], [field]: value }
     setSplits(newSplits)
   }
+
+  const allSplitsValid = splits.every((s) => s.accountId && s.fundId && parseFloat(s.amount) > 0)
 
   const handleSubmit = () => {
     if (!bankTransaction) return
 
     const validSplits = splits
-      .filter((s) => s.glTransactionLineId && s.amount)
+      .filter((s) => s.accountId && s.fundId && s.amount)
       .map((s) => ({
-        glTransactionLineId: s.glTransactionLineId!,
+        accountId: s.accountId!,
+        fundId: s.fundId!,
         amount: parseFloat(s.amount),
       }))
 
@@ -101,87 +115,122 @@ export function SplitTransactionDialog({
 
     startTransition(async () => {
       try {
-        await splitAndMatch(
-          bankTransaction.id,
-          validSplits,
-          sessionId,
-          'system'
+        await splitAndCreateGlEntries(
+          {
+            bankTransactionId: bankTransaction.id,
+            date: bankTransaction.date,
+            memo: bankTransaction.merchantName ?? 'Split bank transaction',
+            splits: validSplits,
+          },
+          sessionId
         )
         toast.success('Split match created')
-        handleClose()
-        router.refresh()
+        handleClose(true)
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Split failed')
       }
     })
   }
 
-  const handleClose = () => {
+  const handleClose = (matched?: boolean) => {
     setSplits([
-      { glTransactionLineId: null, amount: '', label: '' },
-      { glTransactionLineId: null, amount: '', label: '' },
+      { accountId: null, fundId: defaultFundId, amount: '', showFund: false },
+      { accountId: null, fundId: defaultFundId, amount: '', showFund: false },
     ])
-    onClose()
+    onClose(matched)
   }
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
-      <DialogContent className="sm:max-w-[560px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Split Transaction</DialogTitle>
           <DialogDescription>
-            Split bank transaction (
+            Split{' '}
             {new Intl.NumberFormat('en-US', {
               style: 'currency',
               currency: 'USD',
-            }).format(bankAmount)}
-            ) into multiple GL matches.
+            }).format(bankAmount)}{' '}
+            {bankTransaction?.merchantName ? `(${bankTransaction.merchantName}) ` : ''}
+            across multiple accounts.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3 py-4">
           {splits.map((split, index) => (
-            <div key={index} className="flex items-center gap-2">
-              <div className="flex-1">
-                <Label className="text-xs">GL Entry</Label>
-                <select
-                  className="w-full rounded-md border px-3 py-2 text-sm"
-                  value={split.glTransactionLineId ?? ''}
-                  onChange={(e) =>
-                    updateSplit(index, 'glTransactionLineId', e.target.value)
-                  }
-                  data-testid={`split-gl-select-${index}`}
-                >
-                  <option value="">Select GL entry...</option>
-                  {candidates.map((c) => (
-                    <option key={c.glTransactionLineId} value={c.glTransactionLineId}>
-                      {c.date} — {c.memo} (${c.amount.toFixed(2)})
-                    </option>
-                  ))}
-                </select>
+            <div key={index} className="space-y-2 rounded-lg border p-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-medium text-muted-foreground">
+                  Split {index + 1}
+                </Label>
+                {splits.length > 2 && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => removeSplit(index)}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                )}
               </div>
-              <div className="w-[120px]">
-                <Label className="text-xs">Amount</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={split.amount}
-                  onChange={(e) =>
-                    updateSplit(index, 'amount', e.target.value)
-                  }
-                  placeholder="0.00"
-                  data-testid={`split-amount-${index}`}
-                />
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <Label className="text-xs">
+                    {isOutflow ? 'Where did this portion go?' : 'Where did this portion come from?'}
+                  </Label>
+                  <GroupedAccountSelect
+                    accounts={accountOptions}
+                    value={split.accountId ? String(split.accountId) : ''}
+                    onValueChange={(v) => updateSplit(index, 'accountId', parseInt(v, 10))}
+                    placeholder="Select account..."
+                    testId={`split-account-${index}`}
+                  />
+                </div>
+                <div className="w-[120px]">
+                  <Label className="text-xs">Amount</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={split.amount}
+                    onChange={(e) => updateSplit(index, 'amount', e.target.value)}
+                    placeholder="0.00"
+                    data-testid={`split-amount-${index}`}
+                  />
+                </div>
               </div>
-              {splits.length > 2 && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="mt-5"
-                  onClick={() => removeSplit(index)}
+              {/* Fund — collapsed by default */}
+              {split.showFund ? (
+                <div className="grid gap-1">
+                  <Label className="text-xs">Funding Source</Label>
+                  <Select
+                    value={split.fundId ? String(split.fundId) : ''}
+                    onValueChange={(v) => updateSplit(index, 'fundId', parseInt(v, 10))}
+                  >
+                    <SelectTrigger data-testid={`split-fund-${index}`}>
+                      <SelectValue placeholder="Select fund..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {fundOptions.map((f) => (
+                        <SelectItem key={f.id} value={String(f.id)}>
+                          {f.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:text-foreground text-left"
+                  onClick={() => {
+                    const newSplits = [...splits]
+                    newSplits[index] = { ...newSplits[index], showFund: true }
+                    setSplits(newSplits)
+                  }}
                 >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                  Fund: {fundOptions.find((f) => f.id === split.fundId)?.name ?? 'General Fund'} — change
+                </button>
               )}
             </div>
           ))}
@@ -203,12 +252,12 @@ export function SplitTransactionDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose}>
+          <Button variant="outline" onClick={() => handleClose()}>
             Cancel
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={isPending || Math.abs(remaining) >= 0.01}
+            disabled={isPending || Math.abs(remaining) >= 0.01 || !allSplitsValid}
             data-testid="split-match-submit"
           >
             Confirm Split

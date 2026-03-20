@@ -18,11 +18,12 @@ import {
 import { HelpTooltip } from '@/components/shared/help-tooltip'
 import { toast } from 'sonner'
 import { recordEarnedIncome } from '../actions'
+import { RecentEntriesTable, type RecentEntry } from '../components/recent-entries-table'
 
 interface Props {
   funds: { id: number; name: string; restrictionType: string }[]
   revenueAccounts: { id: number; name: string; code: string }[]
-  recentEntries: Array<{ id: number; date: string; memo: string; createdAt: Date }>
+  recentEntries: RecentEntry[]
 }
 
 export function EarnedIncomeClient({ funds, revenueAccounts, recentEntries }: Props) {
@@ -157,18 +158,10 @@ export function EarnedIncomeClient({ funds, revenueAccounts, recentEntries }: Pr
           <CardTitle>Recent Entries</CardTitle>
         </CardHeader>
         <CardContent>
-          {recentEntries.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No earned income recorded yet.</p>
-          ) : (
-            <div className="space-y-2">
-              {recentEntries.map((e) => (
-                <div key={e.id} className="flex justify-between text-sm border-b pb-2">
-                  <span>{e.memo}</span>
-                  <span className="text-muted-foreground">{e.date}</span>
-                </div>
-              ))}
-            </div>
-          )}
+          <RecentEntriesTable
+            entries={recentEntries}
+            emptyMessage="No earned income recorded yet."
+          />
         </CardContent>
       </Card>
     </div>

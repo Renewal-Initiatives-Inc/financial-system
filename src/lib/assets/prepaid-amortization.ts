@@ -56,7 +56,7 @@ export async function getActiveSchedules(asOfDate: string) {
  */
 async function hasAmortizationForMonth(
   glPrepaidAccountId: number,
-  glExpenseAccountId: number,
+  scheduleDescription: string,
   yearMonth: string
 ): Promise<boolean> {
   const result = await db
@@ -72,11 +72,22 @@ async function hasAmortizationForMonth(
         eq(transactions.isSystemGenerated, true),
         eq(transactions.isVoided, false),
         eq(transactionLines.accountId, glPrepaidAccountId),
+        sql`${transactions.memo} LIKE ${'%' + scheduleDescription + '%'}`,
         sql`to_char(${transactions.date}::date, 'YYYY-MM') = ${yearMonth}`
       )
     )
 
   return Number(result[0].count) > 0
+}
+
+/**
+ * Get the last day of a given year-month as YYYY-MM-DD.
+ */
+function lastDayOfMonth(yearMonth: string): string {
+  const [year, month] = yearMonth.split('-').map(Number)
+  // Day 0 of next month = last day of this month
+  const d = new Date(year, month, 0)
+  return d.toISOString().split('T')[0]
 }
 
 /**
@@ -97,7 +108,7 @@ export async function generateAmortizationEntries(
     // Idempotency check
     const alreadyProcessed = await hasAmortizationForMonth(
       schedule.glPrepaidAccountId,
-      schedule.glExpenseAccountId,
+      schedule.description,
       yearMonth
     )
     if (alreadyProcessed) continue
@@ -166,6 +177,114 @@ export async function generateAmortizationEntries(
 
     entriesCreated++
     totalAmount += monthlyAmount
+  }
+
+  return {
+    entriesCreated,
+    totalAmount: Math.round(totalAmount * 100) / 100,
+  }
+}
+
+/**
+ * Catch-up amortization: processes all missing months from each schedule's
+ * start date through the asOfDate month. Prevents missed months when backdating
+ * or when cron runs are missed.
+ */
+export async function generateAmortizationEntriesWithCatchUp(
+  asOfDate: string,
+  userId: string
+): Promise<AmortizationResult> {
+  const schedules = await getActiveSchedules(asOfDate)
+  const asOfYM = asOfDate.slice(0, 7)
+
+  let entriesCreated = 0
+  let totalAmount = 0
+
+  for (const schedule of schedules) {
+    // Walk month-by-month from schedule start through asOfDate
+    const startYM = schedule.startDate.slice(0, 7)
+    let currentYM = startYM
+
+    // Track running amortized total for this schedule across catch-up months
+    let runningAmortized = Number(schedule.amountAmortized)
+    const scheduleTotal = Number(schedule.totalAmount)
+
+    while (currentYM <= asOfYM) {
+      // Skip if already fully amortized
+      if (runningAmortized >= scheduleTotal) break
+
+      const alreadyProcessed = await hasAmortizationForMonth(
+        schedule.glPrepaidAccountId,
+        schedule.description,
+        currentYM
+      )
+
+      if (!alreadyProcessed) {
+        let monthlyAmount = calculateMonthlyAmortization(schedule)
+
+        // Final month: use remaining balance to avoid rounding drift
+        const remaining = Math.round((scheduleTotal - runningAmortized) * 100) / 100
+        if (remaining < monthlyAmount) {
+          monthlyAmount = remaining
+        }
+
+        if (monthlyAmount > 0) {
+          // Use last day of the catch-up month as the transaction date
+          const entryDate = lastDayOfMonth(currentYM)
+          const dateObj = new Date(entryDate)
+          const monthYear = dateObj.toLocaleDateString('en-US', {
+            month: 'long',
+            year: 'numeric',
+          })
+
+          await createTransaction({
+            date: entryDate,
+            memo: `Prepaid amortization - ${schedule.description} - ${monthYear}`,
+            sourceType: 'SYSTEM',
+            isSystemGenerated: true,
+            createdBy: userId,
+            lines: [
+              {
+                accountId: schedule.glExpenseAccountId,
+                fundId: schedule.fundId,
+                debit: monthlyAmount,
+                credit: null,
+              },
+              {
+                accountId: schedule.glPrepaidAccountId,
+                fundId: schedule.fundId,
+                debit: null,
+                credit: monthlyAmount,
+              },
+            ],
+          })
+
+          runningAmortized = Math.round((runningAmortized + monthlyAmount) * 100) / 100
+
+          await db
+            .update(prepaidSchedules)
+            .set({ amountAmortized: String(runningAmortized) })
+            .where(eq(prepaidSchedules.id, schedule.id))
+
+          // Mark as inactive if fully amortized
+          if (runningAmortized >= scheduleTotal) {
+            await db
+              .update(prepaidSchedules)
+              .set({ isActive: false })
+              .where(eq(prepaidSchedules.id, schedule.id))
+          }
+
+          entriesCreated++
+          totalAmount += monthlyAmount
+        }
+      }
+
+      // Advance to next month
+      const [y, m] = currentYM.split('-').map(Number)
+      const nextMonth = m === 12 ? 1 : m + 1
+      const nextYear = m === 12 ? y + 1 : y
+      currentYM = `${nextYear}-${String(nextMonth).padStart(2, '0')}`
+    }
   }
 
   return {

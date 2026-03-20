@@ -11,9 +11,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { HelpTooltip } from '@/components/shared/help-tooltip'
 import { toast } from 'sonner'
 import { recordInvestmentIncome } from '../actions'
+import { RecentEntriesTable, type RecentEntry } from '../components/recent-entries-table'
 
 interface Props {
-  recentEntries: Array<{ id: number; date: string; memo: string; createdAt: Date }>
+  recentEntries: RecentEntry[]
 }
 
 export function InvestmentIncomeClient({ recentEntries }: Props) {
@@ -96,18 +97,10 @@ export function InvestmentIncomeClient({ recentEntries }: Props) {
           <CardTitle>Recent Entries</CardTitle>
         </CardHeader>
         <CardContent>
-          {recentEntries.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No investment income recorded yet.</p>
-          ) : (
-            <div className="space-y-2">
-              {recentEntries.map((e) => (
-                <div key={e.id} className="flex justify-between text-sm border-b pb-2">
-                  <span>{e.memo}</span>
-                  <span className="text-muted-foreground">{e.date}</span>
-                </div>
-              ))}
-            </div>
-          )}
+          <RecentEntriesTable
+            entries={recentEntries}
+            emptyMessage="No investment income recorded yet."
+          />
         </CardContent>
       </Card>
     </div>

@@ -9,6 +9,7 @@ import {
   bankMatches,
   matchingRules,
   reconciliationSessions,
+  transactionLines,
 } from '@/lib/db/schema'
 import {
   findMatchCandidates,
@@ -39,7 +40,17 @@ import { createTransaction } from '@/lib/gl/engine'
 import { decrypt } from '@/lib/encryption'
 import { syncTransactions } from '@/lib/integrations/plaid'
 import { sendPlaidSyncFailureEmail } from '@/lib/integrations/plaid-sync-notification'
+import { auth } from '@/lib/auth'
 import type { MatchCandidate } from '@/lib/bank-rec/matcher'
+
+/** Get authenticated user info for audit trails. Falls back to 'system' if no session. */
+async function getAuthUser(): Promise<{ id: string; name: string }> {
+  const session = await auth()
+  return {
+    id: session?.user?.id ?? 'system',
+    name: session?.user?.name ?? 'system',
+  }
+}
 
 // --- Types ---
 
@@ -62,6 +73,7 @@ export type BankTransactionRow = {
   isMatched: boolean
   matchId: number | null
   matchType: string | null
+  glTransactionId: number | null
 }
 
 export type SessionData = {
@@ -135,6 +147,7 @@ export async function getBankTransactions(
       isMatched: !!match,
       matchId: match?.matchId ?? null,
       matchType: match?.matchType ?? null,
+      glTransactionId: null,
     }
   })
 }
@@ -226,23 +239,23 @@ export async function rejectMatch(
   revalidatePath('/bank-rec')
 }
 
-export async function createInlineGlEntry(
-  data: {
-    date: string
-    memo: string
-    accountId: number
-    fundId: number
-    amount: string
-    bankTransactionId: number
-  },
-  sessionId: number | null,
+/**
+ * Shared helper: fetch bank txn + bank acct, create GL entry, match cash lines.
+ * Used by both single-entry and split-entry flows.
+ */
+async function createGlEntryWithMatch(params: {
+  bankTransactionId: number
+  date: string
+  memo: string
+  sourceRefSuffix: string
+  splits: { accountId: number; fundId: number; amount: number }[]
+  sessionId?: number
   userId: string
-): Promise<void> {
-  // Get bank account's GL account
+}): Promise<void> {
   const [bankTxn] = await db
     .select()
     .from(bankTransactions)
-    .where(eq(bankTransactions.id, data.bankTransactionId))
+    .where(eq(bankTransactions.id, params.bankTransactionId))
 
   if (!bankTxn) throw new Error('Bank transaction not found')
 
@@ -253,77 +266,122 @@ export async function createInlineGlEntry(
 
   if (!bankAcct) throw new Error('Bank account not found')
 
-  const amount = parseFloat(data.amount)
-  const isOutflow = amount > 0 // positive = outflow in Plaid convention
+  const isOutflow = parseFloat(bankTxn.amount) > 0
 
-  // Create GL entry via GL engine
+  // Build debit/credit lines: one offsetting + one cash per split
+  const lines: { accountId: number; fundId: number; debit: number | null; credit: number | null }[] = []
+  for (const split of params.splits) {
+    const amt = Math.abs(split.amount)
+    if (isOutflow) {
+      lines.push({ accountId: split.accountId, fundId: split.fundId, debit: amt, credit: null })
+      lines.push({ accountId: bankAcct.glAccountId, fundId: split.fundId, debit: null, credit: amt })
+    } else {
+      lines.push({ accountId: bankAcct.glAccountId, fundId: split.fundId, debit: amt, credit: null })
+      lines.push({ accountId: split.accountId, fundId: split.fundId, debit: null, credit: amt })
+    }
+  }
+
   const result = await createTransaction({
-    date: data.date,
-    memo: data.memo,
+    date: params.date,
+    memo: params.memo,
     sourceType: 'BANK_FEED',
-    sourceReferenceId: `bank-txn-${data.bankTransactionId}`,
-    createdBy: userId,
+    sourceReferenceId: `bank-txn-${params.sourceRefSuffix}-${params.bankTransactionId}`,
+    createdBy: params.userId,
     isSystemGenerated: false,
-    lines: isOutflow
-      ? [
-          // Outflow: Debit expense account, Credit cash account
-          {
-            accountId: data.accountId,
-            fundId: data.fundId,
-            debit: Math.abs(amount),
-            credit: null,
-          },
-          {
-            accountId: bankAcct.glAccountId,
-            fundId: data.fundId,
-            debit: null,
-            credit: Math.abs(amount),
-          },
-        ]
-      : [
-          // Inflow: Debit cash account, Credit revenue/other account
-          {
-            accountId: bankAcct.glAccountId,
-            fundId: data.fundId,
-            debit: Math.abs(amount),
-            credit: null,
-          },
-          {
-            accountId: data.accountId,
-            fundId: data.fundId,
-            debit: null,
-            credit: Math.abs(amount),
-          },
-        ],
+    lines,
   })
 
-  // Find the cash account line to match
-  const cashLineId = result.transaction.lines.find(
+  // Match cash-side lines to the bank transaction
+  const cashLines = result.transaction.lines.filter(
     (l) => l.accountId === bankAcct.glAccountId
-  )?.id
-
-  if (cashLineId) {
+  )
+  for (const line of cashLines) {
     await createMatch({
-      bankTransactionId: data.bankTransactionId,
-      glTransactionLineId: cashLineId,
+      bankTransactionId: params.bankTransactionId,
+      glTransactionLineId: line.id,
       matchType: 'manual',
-      reconciliationSessionId: sessionId ?? undefined,
-      userId,
+      reconciliationSessionId: params.sessionId,
+      userId: params.userId,
     })
   }
+}
+
+export async function createInlineGlEntry(
+  data: {
+    date: string
+    memo: string
+    accountId: number
+    fundId: number
+    amount: string
+    bankTransactionId: number
+  },
+  sessionId: number | null
+): Promise<void> {
+  const user = await getAuthUser()
+
+  await createGlEntryWithMatch({
+    bankTransactionId: data.bankTransactionId,
+    date: data.date,
+    memo: data.memo,
+    sourceRefSuffix: 'inline',
+    splits: [{ accountId: data.accountId, fundId: data.fundId, amount: parseFloat(data.amount) }],
+    sessionId: sessionId ?? undefined,
+    userId: user.name,
+  })
+
+  revalidatePath('/bank-rec')
+}
+
+export async function splitAndCreateGlEntries(
+  data: {
+    bankTransactionId: number
+    date: string
+    memo: string
+    splits: { accountId: number; fundId: number; amount: number }[]
+  },
+  sessionId: number | null
+): Promise<void> {
+  const user = await getAuthUser()
+
+  // Validate split total matches bank transaction
+  const [bankTxn] = await db
+    .select({ amount: bankTransactions.amount })
+    .from(bankTransactions)
+    .where(eq(bankTransactions.id, data.bankTransactionId))
+
+  if (!bankTxn) throw new Error('Bank transaction not found')
+
+  const bankAmount = Math.abs(parseFloat(bankTxn.amount))
+  const splitSum = data.splits.reduce((sum, s) => sum + Math.abs(s.amount), 0)
+
+  if (Math.abs(bankAmount - splitSum) > 0.01) {
+    throw new Error(
+      `Split amounts ($${splitSum.toFixed(2)}) do not equal bank transaction amount ($${bankAmount.toFixed(2)})`
+    )
+  }
+
+  await createGlEntryWithMatch({
+    bankTransactionId: data.bankTransactionId,
+    date: data.date,
+    memo: data.memo,
+    sourceRefSuffix: 'split',
+    splits: data.splits,
+    sessionId: sessionId ?? undefined,
+    userId: user.name,
+  })
 
   revalidatePath('/bank-rec')
 }
 
 export async function createMatchingRuleAction(
   criteria: { merchantPattern?: string; amountExact?: string },
-  action: { glAccountId: number; fundId: number },
-  userId: string
+  action: { glAccountId: number; fundId: number }
 ): Promise<void> {
+  const user = await getAuthUser()
   await db.insert(matchingRules).values({
     criteria,
     action,
-    createdBy: userId,
+    createdBy: user.name,
   })
   revalidatePath('/bank-rec')
 }
@@ -556,17 +614,24 @@ export async function bulkApproveMatches(
 export async function getRecentAutoMatches(
   bankAccountId: number
 ): Promise<BankTransactionRow[]> {
-  const autoMatches = await db
+  // Get matched transactions for this bank account with their GL transaction ID
+  const matches = await db
     .select({
       bankTxnId: bankMatches.bankTransactionId,
       matchId: bankMatches.id,
       matchType: bankMatches.matchType,
-      confirmedAt: bankMatches.confirmedAt,
+      glTransactionId: transactionLines.transactionId,
     })
     .from(bankMatches)
-    .where(eq(bankMatches.matchType, 'auto'))
+    .innerJoin(transactionLines, eq(bankMatches.glTransactionLineId, transactionLines.id))
+    .innerJoin(bankTransactions, eq(bankMatches.bankTransactionId, bankTransactions.id))
+    .where(eq(bankTransactions.bankAccountId, bankAccountId))
 
-  const autoMatchedIds = new Set(autoMatches.map((m) => m.bankTxnId))
+  if (matches.length === 0) return []
+
+  const matchMap = new Map(
+    matches.map((m) => [m.bankTxnId, { matchId: m.matchId, matchType: m.matchType, glTransactionId: m.glTransactionId }])
+  )
 
   const txns = await db
     .select()
@@ -580,9 +645,9 @@ export async function getRecentAutoMatches(
     .orderBy(bankTransactions.date)
 
   return txns
-    .filter((t) => autoMatchedIds.has(t.id))
+    .filter((t) => matchMap.has(t.id))
     .map((t) => {
-      const match = autoMatches.find((m) => m.bankTxnId === t.id)
+      const match = matchMap.get(t.id)
       return {
         id: t.id,
         bankAccountId: t.bankAccountId,
@@ -594,7 +659,8 @@ export async function getRecentAutoMatches(
         isPending: t.isPending,
         isMatched: true,
         matchId: match?.matchId ?? null,
-        matchType: 'auto',
+        matchType: match?.matchType ?? null,
+        glTransactionId: match?.glTransactionId ?? null,
       }
     })
 }

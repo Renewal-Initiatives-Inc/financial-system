@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus } from 'lucide-react'
+import { Plus, BookOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -52,10 +52,20 @@ export function AccountsClient({ initialAccounts }: AccountsClientProps) {
         <h1 className="text-2xl font-semibold tracking-tight">
           Chart of Accounts
         </h1>
-        <Button onClick={() => setCreateOpen(true)} data-testid="create-account-btn">
-          <Plus className="mr-2 h-4 w-4" />
-          Create Account
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => router.push('/transactions/new')}
+            data-testid="journal-entry-btn"
+          >
+            <BookOpen className="mr-2 h-4 w-4" />
+            Make Journal Entry
+          </Button>
+          <Button onClick={() => setCreateOpen(true)} data-testid="create-account-btn">
+            <Plus className="mr-2 h-4 w-4" />
+            Create Account
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="table">

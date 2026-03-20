@@ -283,7 +283,11 @@ export function AccountDetailClient({ account, balanceDetail }: AccountDetailCli
                   </TableHeader>
                   <TableBody>
                     {balanceDetail.recentLines.map((line, i) => (
-                      <TableRow key={`${line.transactionId}-${i}`}>
+                      <TableRow
+                        key={`${line.transactionId}-${i}`}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => router.push(`/transactions/${line.transactionId}`)}
+                      >
                         <TableCell className="text-sm tabular-nums whitespace-nowrap">
                           {formatDate(line.date)}
                         </TableCell>

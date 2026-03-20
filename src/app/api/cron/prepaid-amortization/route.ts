@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { generateAmortizationEntries } from '@/lib/assets/prepaid-amortization'
+import { generateAmortizationEntriesWithCatchUp } from '@/lib/assets/prepaid-amortization'
 
 export async function GET(request: Request) {
   // Verify Vercel cron authorization
@@ -10,7 +10,7 @@ export async function GET(request: Request) {
 
   try {
     const today = new Date().toISOString().split('T')[0]
-    const result = await generateAmortizationEntries(today, 'system:cron')
+    const result = await generateAmortizationEntriesWithCatchUp(today, 'system:cron')
 
     return NextResponse.json({
       success: true,

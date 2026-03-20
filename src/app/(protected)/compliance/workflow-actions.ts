@@ -67,7 +67,10 @@ export async function advanceWorkflowState(
   await db.transaction(async (tx) => {
     await tx
       .update(complianceDeadlines)
-      .set({ workflowState: change.newState })
+      .set({
+        workflowState: change.newState,
+        ...(change.newState === 'delivered' ? { status: 'completed' } : {}),
+      })
       .where(eq(complianceDeadlines.id, deadlineId))
 
     await tx.insert(complianceWorkflowLogs).values({

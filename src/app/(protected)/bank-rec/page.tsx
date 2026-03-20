@@ -16,7 +16,7 @@ export default async function BankReconciliationPage() {
       .where(eq(bankAccounts.isActive, true))
       .orderBy(bankAccounts.name),
     db
-      .select({ id: accounts.id, name: accounts.name, code: accounts.code })
+      .select({ id: accounts.id, name: accounts.name, code: accounts.code, type: accounts.type })
       .from(accounts)
       .where(eq(accounts.isActive, true))
       .orderBy(accounts.code),

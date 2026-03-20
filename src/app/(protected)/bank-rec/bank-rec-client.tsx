@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   Hand,
   Clock,
+  Unlink,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -44,13 +45,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { GroupedAccountSelect, type AccountOption } from './components/grouped-account-select'
 import { BankAccountSelector } from './components/bank-account-selector'
 import { ReconciliationBalanceBar } from './components/reconciliation-balance-bar'
 import { ConfirmMatchDialog } from './components/confirm-match-dialog'
 import { SplitTransactionDialog } from './components/split-transaction-dialog'
 import { InlineGlEntryDialog } from './components/inline-gl-entry-dialog'
 import { SignOffDialog } from './components/sign-off-dialog'
-import { RampCrossCheck } from './components/ramp-cross-check'
 import { MatchSuggestionPanel } from './components/match-suggestion-panel'
 import {
   getMatchSuggestions,
@@ -62,7 +63,11 @@ import {
   getExceptionItems,
   getRecentAutoMatches,
   bulkApproveMatches,
+  createInlineGlEntry,
+  createMatchingRuleAction,
+  rejectMatch,
 } from './actions'
+import { createPrepaidSchedule } from '../assets/prepaid-actions'
 import { toast } from 'sonner'
 import type {
   BankAccountOption,
@@ -74,7 +79,7 @@ import type { MatchCandidate, BatchReviewItem, ExceptionItem } from '@/lib/bank-
 
 interface BankRecClientProps {
   bankAccounts: BankAccountOption[]
-  accountOptions: { id: number; name: string; code: string }[]
+  accountOptions: AccountOption[]
   fundOptions: { id: number; name: string }[]
 }
 
@@ -95,6 +100,8 @@ interface UnifiedRow {
   plaidTransactionId: string
   candidate?: MatchCandidate
   ruleId?: number
+  matchId?: number | null
+  glTransactionId?: number | null
 }
 
 const formatCurrency = (amount: string) => {
@@ -148,12 +155,39 @@ export function BankRecClient({
   const [statementDate, setStatementDate] = useState('')
   const [statementBalance, setStatementBalance] = useState('')
 
-  // Match dialog state (Ramp-style)
+  // Match dialog state
   const [matchDialogOpen, setMatchDialogOpen] = useState(false)
   const [matchDialogRow, setMatchDialogRow] = useState<UnifiedRow | null>(null)
   const [matchGlAccountId, setMatchGlAccountId] = useState<number | null>(null)
   const [matchFundId, setMatchFundId] = useState<number | null>(null)
   const [matchCreateRule, setMatchCreateRule] = useState(false)
+  const [matchShowAdvanced, setMatchShowAdvanced] = useState(false)
+
+  // Prepaid detection state
+  const [prepaidPromptOpen, setPrepaidPromptOpen] = useState(false)
+  const [prepaidPromptData, setPrepaidPromptData] = useState<{
+    merchantName: string
+    amount: number
+    accountId: number
+  } | null>(null)
+  const [prepaidDescription, setPrepaidDescription] = useState('')
+  const [prepaidStartDate, setPrepaidStartDate] = useState('')
+  const [prepaidEndDate, setPrepaidEndDate] = useState('')
+  const [prepaidExpenseAccountId, setPrepaidExpenseAccountId] = useState('')
+  const [prepaidFundId, setPrepaidFundId] = useState('')
+
+  // Default fund: General Fund (system-locked unrestricted)
+  const defaultFundId = useMemo(
+    () => fundOptions.find(f => f.name === 'General Fund')?.id ?? fundOptions[0]?.id ?? null,
+    [fundOptions]
+  )
+
+  // Whether the user changed the GL account from the auto-suggested one
+  const userOverrodeAccount = useMemo(() => {
+    if (!matchDialogRow?.candidate) return true
+    const suggestedAcct = accountOptions.find((a) => a.name === matchDialogRow.candidate!.accountName)
+    return matchGlAccountId != null && suggestedAcct?.id !== matchGlAccountId
+  }, [matchDialogRow?.candidate, matchGlAccountId, accountOptions])
 
   // Load all data for selected account — classification runs once, summary reuses counts
   const loadAccountData = useCallback(
@@ -245,6 +279,8 @@ export function BankRecClient({
         status: 'matched',
         bankAccountId: txn.bankAccountId,
         plaidTransactionId: txn.plaidTransactionId,
+        matchId: txn.matchId,
+        glTransactionId: txn.glTransactionId,
       })
     }
 
@@ -271,25 +307,53 @@ export function BankRecClient({
     return data.sort((a, b) => b.date.localeCompare(a.date))
   }, [unifiedRows, tab, search])
 
-  // Open the Ramp-style match dialog
+  // Move a row into the matched list optimistically (before server confirms).
+  // matchId/matchType/glTransactionId are null until handleRefresh() hydrates real data.
+  const optimisticMatch = (row: UnifiedRow) => {
+    setExceptionItems(prev => prev.filter(i => i.bankTransaction.id !== row.id))
+    setReviewItems(prev => prev.filter(i => i.bankTransaction.id !== row.id))
+    setAutoMatchedTxns(prev => [
+      ...prev,
+      {
+        id: row.id,
+        bankAccountId: row.bankAccountId,
+        plaidTransactionId: row.plaidTransactionId,
+        amount: row.amount,
+        date: row.date,
+        merchantName: row.merchantName,
+        category: row.category,
+        isPending: false,
+        isMatched: true,
+        matchId: null,
+        matchType: null,
+        glTransactionId: null,
+      },
+    ])
+  }
+
   const openMatchDialog = (row: UnifiedRow) => {
     setMatchDialogRow(row)
     // Pre-fill with suggested candidate's account if available
     if (row.candidate) {
-      // Find the account in accountOptions by name match
       const matchedAcct = accountOptions.find((a) => a.name === row.candidate!.accountName)
       setMatchGlAccountId(matchedAcct?.id ?? null)
     } else {
       setMatchGlAccountId(null)
     }
-    setMatchFundId(null)
+    setMatchFundId(defaultFundId)
     setMatchCreateRule(false)
+    setMatchShowAdvanced(false)
     setMatchDialogOpen(true)
   }
 
-  // Row click handler — opens match dialog
+  // Row click handler — match dialog for unmatched, navigate to GL detail for matched
   const handleRowClick = (row: UnifiedRow) => {
-    if (row.status === 'matched') return
+    if (row.status === 'matched') {
+      if (row.glTransactionId) {
+        router.push(`/transactions/${row.glTransactionId}`)
+      }
+      return
+    }
     openMatchDialog(row)
   }
 
@@ -300,8 +364,7 @@ export function BankRecClient({
 
   const handleApprove = (row: UnifiedRow) => {
     if (!row.candidate) return
-    // Optimistic: remove row from local state immediately
-    setReviewItems(prev => prev.filter(i => i.bankTransaction.id !== row.id))
+    optimisticMatch(row)
     startTransition(async () => {
       try {
         const result = await bulkApproveMatches(
@@ -345,6 +408,22 @@ export function BankRecClient({
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Bulk approve failed')
         handleRefresh() // Reload on failure
+      }
+    })
+  }
+
+  const handleUnmatch = (row: UnifiedRow) => {
+    if (!row.matchId) return
+    // Optimistic: move back from matched to exception
+    setAutoMatchedTxns(prev => prev.filter(t => t.id !== row.id))
+    startTransition(async () => {
+      try {
+        await rejectMatch(row.matchId!, 'system', row.bankAccountId)
+        toast.success('Match removed')
+        handleRefresh()
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Unmatch failed')
+        handleRefresh()
       }
     })
   }
@@ -408,6 +487,7 @@ export function BankRecClient({
         isMatched: false,
         matchId: null,
         matchType: null,
+        glTransactionId: null,
       }
     : null
 
@@ -425,6 +505,7 @@ export function BankRecClient({
         isMatched: false,
         matchId: null,
         matchType: null,
+        glTransactionId: null,
       }
     : null
 
@@ -622,7 +703,7 @@ export function BankRecClient({
                     key={row.id}
                     className={
                       row.status === 'matched'
-                        ? ''
+                        ? (row.glTransactionId ? 'cursor-pointer hover:bg-muted/50' : '')
                         : 'cursor-pointer hover:bg-muted/50'
                     }
                     onClick={() => handleRowClick(row)}
@@ -688,14 +769,25 @@ export function BankRecClient({
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => {
-                              setSelectedRow(row)
-                              setInlineGlDialogOpen(true)
-                            }}
+                            onClick={() => openMatchDialog(row)}
                             disabled={isPending}
                             data-testid={`bank-rec-create-gl-btn-${row.id}`}
                           >
                             <PlusCircle className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                      {row.status === 'matched' && row.matchId && (
+                        <div className="flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleUnmatch(row)}
+                            disabled={isPending}
+                            title="Unmatch"
+                            data-testid={`bank-rec-unmatch-btn-${row.id}`}
+                          >
+                            <Unlink className="h-3 w-3" />
                           </Button>
                         </div>
                       )}
@@ -714,16 +806,15 @@ export function BankRecClient({
         </div>
       </div>
 
-      {/* Ramp Cross-Check */}
-      <RampCrossCheck />
 
-      {/* Match Dialog (Ramp-style) — click row to open */}
+      {/* Match Dialog — simplified flow */}
       <Dialog
         open={matchDialogOpen}
         onOpenChange={(v) => {
           if (!v) {
             setMatchDialogOpen(false)
             setMatchDialogRow(null)
+            setMatchShowAdvanced(false)
           }
         }}
       >
@@ -796,45 +887,68 @@ export function BankRecClient({
                 </div>
               )}
 
-              {/* GL Account selector */}
+              {/* Prepaid threshold warning */}
+              {Math.abs(parseFloat(matchDialogRow.amount)) >= 2500 && (
+                <div className="flex items-start gap-2 p-3 rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                  <div className="text-sm text-amber-800 dark:text-amber-200">
+                    <p className="font-medium">Expense exceeds $2,500</p>
+                    <p className="mt-1 text-xs">
+                      If this prepayment covers a period longer than 12 months, consider posting to{' '}
+                      <span className="font-medium">Prepaid Expenses (1200)</span>{' '}
+                      and setting up an amortization schedule instead of expensing immediately.
+                      If the benefit is consumed within 12 months, direct expensing is acceptable.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Offsetting account selector (grouped by type) */}
               <div className="grid gap-2">
-                <Label>GL Account</Label>
-                <Select
+                <Label>
+                  {parseFloat(matchDialogRow.amount) > 0
+                    ? 'Where did this money go?'
+                    : 'Where did this money come from?'}
+                </Label>
+                <GroupedAccountSelect
+                  accounts={accountOptions}
                   value={matchGlAccountId ? String(matchGlAccountId) : ''}
                   onValueChange={(v) => setMatchGlAccountId(parseInt(v, 10))}
-                >
-                  <SelectTrigger data-testid="bank-rec-match-gl-account">
-                    <SelectValue placeholder="Select GL account..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {accountOptions.map((a) => (
-                      <SelectItem key={a.id} value={String(a.id)}>
-                        {a.code} — {a.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Select account..."
+                  testId="bank-rec-match-gl-account"
+                />
               </div>
 
-              {/* Fund selector */}
-              <div className="grid gap-2">
-                <Label>Funding Source</Label>
-                <Select
-                  value={matchFundId ? String(matchFundId) : ''}
-                  onValueChange={(v) => setMatchFundId(parseInt(v, 10))}
+              {/* Fund defaults to General Fund, shown collapsed unless user expands */}
+              {matchShowAdvanced ? (
+                <div className="grid gap-2">
+                  <Label>Funding Source</Label>
+                  <Select
+                    value={matchFundId ? String(matchFundId) : ''}
+                    onValueChange={(v) => setMatchFundId(parseInt(v, 10))}
+                  >
+                    <SelectTrigger data-testid="bank-rec-match-fund">
+                      <SelectValue placeholder="Select fund..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {fundOptions.map((f) => (
+                        <SelectItem key={f.id} value={String(f.id)}>
+                          {f.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:text-foreground text-left"
+                  onClick={() => setMatchShowAdvanced(true)}
+                  data-testid="bank-rec-match-show-advanced"
                 >
-                  <SelectTrigger data-testid="bank-rec-match-fund">
-                    <SelectValue placeholder="Select fund..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {fundOptions.map((f) => (
-                      <SelectItem key={f.id} value={String(f.id)}>
-                        {f.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                  Fund: {fundOptions.find(f => f.id === matchFundId)?.name ?? 'General Fund'} — change
+                </button>
+              )}
 
               {/* Create rule checkbox */}
               <div className="flex items-center gap-2">
@@ -847,24 +961,45 @@ export function BankRecClient({
                   data-testid="bank-rec-create-rule"
                 />
                 <Label htmlFor="bank-rec-create-rule">
-                  Always match &quot;{matchDialogRow.merchantName}&quot; to this GL account
+                  Always match &quot;{matchDialogRow.merchantName}&quot; to this account
                 </Label>
               </div>
+
+              {/* Split transaction link */}
+              <button
+                type="button"
+                className="text-xs text-muted-foreground hover:text-foreground text-left flex items-center gap-1"
+                onClick={() => {
+                  setSelectedRow(matchDialogRow)
+                  setMatchDialogOpen(false)
+                  setMatchDialogRow(null)
+                  setMatchShowAdvanced(false)
+                  setSplitDialogOpen(true)
+                }}
+                data-testid="bank-rec-match-split-link"
+              >
+                <Split className="h-3 w-3" />
+                Split this transaction across multiple accounts
+              </button>
             </div>
           )}
 
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => { setMatchDialogOpen(false); setMatchDialogRow(null) }}
+              onClick={() => { setMatchDialogOpen(false); setMatchDialogRow(null); setMatchShowAdvanced(false) }}
               data-testid="bank-rec-match-cancel-btn"
             >
               Cancel
             </Button>
-            {matchDialogRow?.candidate ? (
+            {matchDialogRow?.candidate && !userOverrodeAccount ? (
               <Button
                 onClick={() => {
                   if (!matchDialogRow.candidate) return
+                  optimisticMatch(matchDialogRow)
+                  setMatchDialogOpen(false)
+                  setMatchDialogRow(null)
+                  setMatchShowAdvanced(false)
                   startTransition(async () => {
                     try {
                       await bulkApproveMatches(
@@ -873,12 +1008,10 @@ export function BankRecClient({
                         'system'
                       )
                       toast.success('Match approved')
-                      setMatchDialogOpen(false)
-                      setMatchDialogRow(null)
                       handleRefresh()
-                      router.refresh()
                     } catch (err) {
                       toast.error(err instanceof Error ? err.message : 'Approve failed')
+                      handleRefresh()
                     }
                   })
                 }}
@@ -890,15 +1023,68 @@ export function BankRecClient({
             ) : (
               <Button
                 onClick={() => {
-                  setSelectedRow(matchDialogRow)
+                  if (!matchDialogRow || !matchGlAccountId) return
+                  const fundId = matchFundId || defaultFundId
+                  if (!fundId) {
+                    toast.error('No fund available')
+                    return
+                  }
+                  optimisticMatch(matchDialogRow)
                   setMatchDialogOpen(false)
-                  setInlineGlDialogOpen(true)
+                  setMatchDialogRow(null)
+                  setMatchShowAdvanced(false)
+                  startTransition(async () => {
+                    try {
+                      await createInlineGlEntry(
+                        {
+                          date: matchDialogRow.date,
+                          memo: matchDialogRow.merchantName ?? 'Bank transaction',
+                          accountId: matchGlAccountId,
+                          fundId,
+                          amount: matchDialogRow.amount,
+                          bankTransactionId: matchDialogRow.id,
+                        },
+                        sessionData.session?.id ?? null
+                      )
+                      // Create matching rule if requested
+                      if (matchCreateRule && matchDialogRow.merchantName) {
+                        await createMatchingRuleAction(
+                          { merchantPattern: matchDialogRow.merchantName },
+                          { glAccountId: matchGlAccountId, fundId }
+                        )
+                      }
+                      toast.success('GL entry created and matched')
+
+                      // Refresh to hydrate real matchId (enables unmatch button)
+                      handleRefresh()
+
+                      // Detect prepaid account: if offsetting account is prepaid and amount >= $2,500
+                      const matchedAccount = accountOptions.find((a) => a.id === matchGlAccountId)
+                      const txnAmount = Math.abs(parseFloat(matchDialogRow.amount))
+                      if (
+                        matchedAccount &&
+                        matchedAccount.code?.startsWith('12') &&
+                        txnAmount >= 2500
+                      ) {
+                        setPrepaidPromptData({
+                          merchantName: matchDialogRow.merchantName ?? 'Prepaid expense',
+                          amount: txnAmount,
+                          accountId: matchGlAccountId,
+                        })
+                        setPrepaidDescription(matchDialogRow.merchantName ?? '')
+                        setPrepaidFundId(String(fundId))
+                        setPrepaidPromptOpen(true)
+                      }
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : 'Failed to create GL entry')
+                      handleRefresh()
+                    }
+                  })
                 }}
-                disabled={isPending}
+                disabled={isPending || !matchGlAccountId}
                 data-testid="bank-rec-match-create-gl-btn"
               >
-                <PlusCircle className="mr-1 h-3 w-3" />
-                Create GL Entry
+                Match to Account
               </Button>
             )}
           </DialogFooter>
@@ -920,12 +1106,14 @@ export function BankRecClient({
 
       <SplitTransactionDialog
         open={splitDialogOpen}
-        onClose={() => {
+        onClose={(matched) => {
           setSplitDialogOpen(false)
-          handleRefresh()
+          if (matched && selectedRow) optimisticMatch(selectedRow)
         }}
         bankTransaction={selectedBankTxn}
-        candidates={matchCandidates}
+        accountOptions={accountOptions}
+        fundOptions={fundOptions}
+        defaultFundId={defaultFundId}
         sessionId={sessionData.session?.id ?? null}
       />
 
@@ -996,6 +1184,141 @@ export function BankRecClient({
               data-testid="session-start-submit"
             >
               Start Session
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Prepaid Amortization Prompt Dialog */}
+      <Dialog
+        open={prepaidPromptOpen}
+        onOpenChange={(v) => {
+          if (!v) {
+            setPrepaidPromptOpen(false)
+            setPrepaidPromptData(null)
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Set Up Amortization Schedule?</DialogTitle>
+          </DialogHeader>
+
+          {prepaidPromptData && (
+            <div className="space-y-4">
+              <p className="text-sm">
+                This{' '}
+                <span className="font-medium font-mono">
+                  {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(prepaidPromptData.amount)}
+                </span>{' '}
+                expense was posted to Prepaid Expenses. Would you like to set up an amortization schedule?
+              </p>
+
+              <div>
+                <Label>Description</Label>
+                <Input
+                  value={prepaidDescription}
+                  onChange={(e) => setPrepaidDescription(e.target.value)}
+                  placeholder="e.g., Annual property insurance"
+                  data-testid="prepaid-prompt-description"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Start Date</Label>
+                  <Input
+                    type="date"
+                    value={prepaidStartDate}
+                    onChange={(e) => setPrepaidStartDate(e.target.value)}
+                    data-testid="prepaid-prompt-start-date"
+                  />
+                </div>
+                <div>
+                  <Label>End Date</Label>
+                  <Input
+                    type="date"
+                    value={prepaidEndDate}
+                    onChange={(e) => setPrepaidEndDate(e.target.value)}
+                    data-testid="prepaid-prompt-end-date"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label>GL Expense Account</Label>
+                <GroupedAccountSelect
+                  accounts={accountOptions.filter((a) => a.type === 'EXPENSE')}
+                  value={prepaidExpenseAccountId}
+                  onValueChange={setPrepaidExpenseAccountId}
+                  placeholder="Select expense account..."
+                  testId="prepaid-prompt-expense-account"
+                />
+              </div>
+
+              <div>
+                <Label>Funding Source</Label>
+                <Select value={prepaidFundId} onValueChange={setPrepaidFundId}>
+                  <SelectTrigger data-testid="prepaid-prompt-fund">
+                    <SelectValue placeholder="Select fund..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {fundOptions.map((f) => (
+                      <SelectItem key={f.id} value={String(f.id)}>
+                        {f.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPrepaidPromptOpen(false)
+                setPrepaidPromptData(null)
+              }}
+              data-testid="prepaid-prompt-dismiss-btn"
+            >
+              Not Now
+            </Button>
+            <Button
+              onClick={() => {
+                if (!prepaidPromptData || !prepaidStartDate || !prepaidEndDate || !prepaidExpenseAccountId || !prepaidFundId) {
+                  toast.error('Please fill in all fields')
+                  return
+                }
+                startTransition(async () => {
+                  try {
+                    await createPrepaidSchedule({
+                      description: prepaidDescription.trim() || prepaidPromptData.merchantName,
+                      totalAmount: prepaidPromptData.amount,
+                      startDate: prepaidStartDate,
+                      endDate: prepaidEndDate,
+                      glExpenseAccountId: parseInt(prepaidExpenseAccountId, 10),
+                      glPrepaidAccountId: prepaidPromptData.accountId,
+                      fundId: parseInt(prepaidFundId, 10),
+                    })
+                    toast.success('Amortization schedule created')
+                    setPrepaidPromptOpen(false)
+                    setPrepaidPromptData(null)
+                    setPrepaidDescription('')
+                    setPrepaidStartDate('')
+                    setPrepaidEndDate('')
+                    setPrepaidExpenseAccountId('')
+                    setPrepaidFundId('')
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : 'Failed to create schedule')
+                  }
+                })
+              }}
+              disabled={isPending || !prepaidStartDate || !prepaidEndDate || !prepaidExpenseAccountId || !prepaidFundId}
+              data-testid="prepaid-prompt-create-btn"
+            >
+              {isPending ? 'Creating...' : 'Create Schedule'}
             </Button>
           </DialogFooter>
         </DialogContent>

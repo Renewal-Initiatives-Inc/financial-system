@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowRight, Clock, Database, DollarSign } from 'lucide-react'
+import { ArrowRight, Clock, Database, Settings, ListTree } from 'lucide-react'
 import {
   Card,
   CardDescription,
@@ -18,6 +18,21 @@ export default function SettingsPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Link href="/accounts" data-testid="settings-accounts-link">
+          <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <ListTree className="text-muted-foreground h-5 w-5" />
+                <ArrowRight className="text-muted-foreground h-4 w-4" />
+              </div>
+              <CardTitle className="text-base">Chart of Accounts</CardTitle>
+              <CardDescription>
+                Manage GL accounts, codes, and hierarchy.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
+
         <Link href="/settings/staging" data-testid="settings-staging-link">
           <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
             <CardHeader>
@@ -25,10 +40,25 @@ export default function SettingsPage() {
                 <Database className="text-muted-foreground h-5 w-5" />
                 <ArrowRight className="text-muted-foreground h-4 w-4" />
               </div>
-              <CardTitle className="text-base">Staging Records</CardTitle>
+              <CardTitle className="text-base">Timesheets & ERs</CardTitle>
               <CardDescription>
                 View and manage records from renewal-timesheets and
                 expense-reports.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
+
+        <Link href="/settings/rates" data-testid="settings-rates-link">
+          <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <Settings className="text-muted-foreground h-5 w-5" />
+                <ArrowRight className="text-muted-foreground h-4 w-4" />
+              </div>
+              <CardTitle className="text-base">Annual Rates</CardTitle>
+              <CardDescription>
+                Configure annual interest and tax rates.
               </CardDescription>
             </CardHeader>
           </Card>
@@ -44,22 +74,6 @@ export default function SettingsPage() {
               <CardTitle className="text-base">Data Retention</CardTitle>
               <CardDescription>
                 Review record age by category for annual retention compliance.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </Link>
-
-        <Link href="/settings/cash-thresholds" data-testid="settings-cash-thresholds-link">
-          <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <DollarSign className="text-muted-foreground h-5 w-5" />
-                <ArrowRight className="text-muted-foreground h-4 w-4" />
-              </div>
-              <CardTitle className="text-base">Cash Forecast Thresholds</CardTitle>
-              <CardDescription>
-                Set warning and critical levels for unrestricted cash alerts in
-                the 13-week forecast.
               </CardDescription>
             </CardHeader>
           </Card>

@@ -402,61 +402,67 @@ export async function getDonations(limit = 50) {
     .limit(limit)
 }
 
-export async function getRecentEarnedIncome(limit = 20) {
+async function getRecentTransactionsByCodePrefix(codePrefix: string, limit = 20) {
   return db
     .select({
       id: transactions.id,
       date: transactions.date,
       memo: transactions.memo,
+      sourceType: transactions.sourceType,
       createdAt: transactions.createdAt,
+      amount: sql<string>`coalesce(${transactionLines.credit}, ${transactionLines.debit})`.as('amount'),
+      accountName: accounts.name,
+      accountCode: accounts.code,
     })
     .from(transactions)
+    .innerJoin(transactionLines, eq(transactionLines.transactionId, transactions.id))
+    .innerJoin(accounts, eq(transactionLines.accountId, accounts.id))
     .where(
       and(
-        ilike(transactions.memo, 'Earned income%'),
+        eq(accounts.type, 'REVENUE'),
+        ilike(accounts.code, codePrefix),
         eq(transactions.isVoided, false)
       )
     )
     .orderBy(desc(transactions.date))
     .limit(limit)
+}
+
+export async function getRecentRevenueEntries(limit = 25) {
+  return db
+    .select({
+      id: transactions.id,
+      date: transactions.date,
+      memo: transactions.memo,
+      sourceType: transactions.sourceType,
+      createdAt: transactions.createdAt,
+      amount: sql<string>`coalesce(${transactionLines.credit}, ${transactionLines.debit})`.as('amount'),
+      accountName: accounts.name,
+      accountCode: accounts.code,
+    })
+    .from(transactions)
+    .innerJoin(transactionLines, eq(transactionLines.transactionId, transactions.id))
+    .innerJoin(accounts, eq(transactionLines.accountId, accounts.id))
+    .where(
+      and(
+        eq(accounts.type, 'REVENUE'),
+        eq(transactions.isVoided, false)
+      )
+    )
+    .orderBy(desc(transactions.date))
+    .limit(limit)
+}
+
+export async function getRecentEarnedIncome(limit = 20) {
+  return getRecentTransactionsByCodePrefix('43%', limit)
 }
 
 export async function getRecentInvestmentIncome(limit = 20) {
-  return db
-    .select({
-      id: transactions.id,
-      date: transactions.date,
-      memo: transactions.memo,
-      createdAt: transactions.createdAt,
-    })
-    .from(transactions)
-    .where(
-      and(
-        ilike(transactions.memo, 'Investment income%'),
-        eq(transactions.isVoided, false)
-      )
-    )
-    .orderBy(desc(transactions.date))
-    .limit(limit)
+  return getRecentTransactionsByCodePrefix('44%', limit)
 }
 
 export async function getRecentInKindContributions(limit = 20) {
-  return db
-    .select({
-      id: transactions.id,
-      date: transactions.date,
-      memo: transactions.memo,
-      createdAt: transactions.createdAt,
-    })
-    .from(transactions)
-    .where(
-      and(
-        ilike(transactions.memo, 'In-kind contribution%'),
-        eq(transactions.isVoided, false)
-      )
-    )
-    .orderBy(desc(transactions.date))
-    .limit(limit)
+  return getRecentTransactionsByCodePrefix('45%', limit)
 }
 
 // --- Dropdown helpers ---

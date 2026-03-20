@@ -1,27 +1,28 @@
 import Link from 'next/link'
 import {
-  Home,
   FileText,
+  Home,
   Heart,
   HandCoins,
   Briefcase,
-  TrendingUp,
   Gift,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { getRecentRevenueEntries } from './actions'
+import { RecentEntriesTable } from './components/recent-entries-table'
 
 const revenueCards = [
-  {
-    label: 'Rent',
-    description: 'Accruals, payments, and adjustments',
-    href: '/revenue/rent',
-    icon: Home,
-  },
   {
     label: 'Funding Sources',
     description: 'Manage funds, cash receipts, revenue recognition',
     href: '/revenue/funding-sources',
     icon: FileText,
+  },
+  {
+    label: 'Rent',
+    description: 'Accruals, payments, and adjustments',
+    href: '/revenue/rent',
+    icon: Home,
   },
   {
     label: 'Donations',
@@ -42,12 +43,6 @@ const revenueCards = [
     icon: Briefcase,
   },
   {
-    label: 'Investment Income',
-    description: 'Interest and investment returns',
-    href: '/revenue/investment-income',
-    icon: TrendingUp,
-  },
-  {
     label: 'In-Kind Contributions',
     description: 'Goods, services, facility use',
     href: '/revenue/in-kind',
@@ -55,7 +50,9 @@ const revenueCards = [
   },
 ]
 
-export default function RevenuePage() {
+export default async function RevenuePage() {
+  const recentEntries = await getRecentRevenueEntries()
+
   return (
     <div className="space-y-6">
       <div>
@@ -84,6 +81,14 @@ export default function RevenuePage() {
             </Card>
           </Link>
         ))}
+      </div>
+
+      <div className="space-y-2">
+        <h2 className="text-lg font-semibold">Recent Revenue Entries</h2>
+        <RecentEntriesTable
+          entries={recentEntries}
+          emptyMessage="No revenue entries recorded yet."
+        />
       </div>
     </div>
   )

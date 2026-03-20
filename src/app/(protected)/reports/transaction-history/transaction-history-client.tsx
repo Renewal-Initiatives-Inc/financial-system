@@ -24,7 +24,8 @@ import { ReportShell } from '@/components/reports/report-shell'
 import type { TransactionHistoryData, TransactionHistoryRow } from '@/lib/reports/transaction-history'
 import { getTransactionHistoryData } from '../actions'
 import { formatCurrency, formatDate } from '@/lib/reports/types'
-import { ChevronDown, ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { ChevronDown, ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight, ExternalLink } from 'lucide-react'
+import Link from 'next/link'
 
 type FundRow = { id: number; name: string; restrictionType: string; isActive: boolean }
 type AccountSelectorRow = { id: number; code: string; name: string }
@@ -97,6 +98,15 @@ function TransactionRow({ row }: { row: TransactionHistoryRow }) {
         <TableCell className="text-right tabular-nums text-sm">
           {formatCurrency(row.totalCredit)}
         </TableCell>
+        <TableCell className="w-8" onClick={(e) => e.stopPropagation()}>
+          <Link
+            href={`/transactions/${row.id}`}
+            className="text-muted-foreground hover:text-foreground"
+            title="View transaction detail"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+          </Link>
+        </TableCell>
       </TableRow>
       {isExpanded && row.lines.map((line) => (
         <TableRow key={line.lineId} className="bg-muted/30">
@@ -112,6 +122,7 @@ function TransactionRow({ row }: { row: TransactionHistoryRow }) {
           <TableCell className="text-right text-xs tabular-nums">
             {line.credit > 0 ? formatCurrency(line.credit) : ''}
           </TableCell>
+          <TableCell />
         </TableRow>
       ))}
     </>
@@ -295,12 +306,13 @@ export function TransactionHistoryClient({
               <TableHead>Source</TableHead>
               <TableHead className="text-right">Debit</TableHead>
               <TableHead className="text-right">Credit</TableHead>
+              <TableHead className="w-8" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {data.rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                   No transactions found.
                 </TableCell>
               </TableRow>

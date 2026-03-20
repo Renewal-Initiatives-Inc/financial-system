@@ -1,6 +1,6 @@
 'use server'
 
-import { eq, sql } from 'drizzle-orm'
+import { eq, sql, and, ne } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import {
   complianceArtifacts,
@@ -50,6 +50,37 @@ export async function getWorkflowLogsByDeadline(deadlineId: number) {
     .from(complianceWorkflowLogs)
     .where(eq(complianceWorkflowLogs.deadlineId, deadlineId))
     .orderBy(complianceWorkflowLogs.createdAt)
+}
+
+export async function getCompletedWorkflowCountByYear(year: number): Promise<number> {
+  const rows = await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(complianceDeadlines)
+    .where(
+      and(
+        eq(complianceDeadlines.workflowState, 'delivered'),
+        sql`EXTRACT(year FROM ${complianceDeadlines.dueDate}) = ${year}`
+      )
+    )
+  return Number(rows[0]?.count ?? 0)
+}
+
+export interface DeadlineWithActivityRow {
+  id: number
+  taskName: string
+}
+
+export async function getDeadlinesWithWorkflowActivity(): Promise<DeadlineWithActivityRow[]> {
+  const rows = await db
+    .selectDistinct({
+      id: complianceDeadlines.id,
+      taskName: complianceDeadlines.taskName,
+    })
+    .from(complianceDeadlines)
+    .innerJoin(complianceWorkflowLogs, eq(complianceWorkflowLogs.deadlineId, complianceDeadlines.id))
+    .where(ne(complianceDeadlines.workflowState, 'not_started'))
+    .orderBy(complianceDeadlines.taskName)
+  return rows
 }
 
 export async function getAllArtifactYears(): Promise<number[]> {

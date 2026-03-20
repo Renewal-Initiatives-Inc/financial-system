@@ -39,6 +39,7 @@ import {
   ContractUploadExtract,
   type ContractExtractionData,
 } from '@/components/shared/contract-upload-extract'
+import { GroupedAccountSelect } from '@/app/(protected)/bank-rec/components/grouped-account-select'
 import { createPurchaseOrder } from '../../actions'
 import { toast } from 'sonner'
 
@@ -46,51 +47,9 @@ import { toast } from 'sonner'
 
 interface CreatePOFormProps {
   vendors: { id: number; name: string }[]
-  accounts: { id: number; code: string; name: string; subType: string | null }[]
+  accounts: { id: number; code: string; name: string; type: string; subType: string | null }[]
   funds: { id: number; name: string; restrictionType: string }[]
   cipCostCodes: { id: number; code: string; name: string; category: string }[]
-}
-
-// --- Account type grouping ---
-
-const typeLabels: Record<string, string> = {
-  ASSET: 'Asset',
-  LIABILITY: 'Liability',
-  NET_ASSET: 'Net Asset',
-  REVENUE: 'Revenue',
-  EXPENSE: 'Expense',
-}
-
-const typeOrder = ['ASSET', 'LIABILITY', 'NET_ASSET', 'REVENUE', 'EXPENSE']
-
-function groupAccountsByType(
-  accounts: { id: number; code: string; name: string; subType: string | null }[]
-) {
-  // Infer account type from code prefix:
-  // 1xxx = ASSET, 2xxx = LIABILITY, 3xxx = NET_ASSET, 4xxx = REVENUE, 5xxx-9xxx = EXPENSE
-  function inferType(code: string): string {
-    const first = code.charAt(0)
-    switch (first) {
-      case '1':
-        return 'ASSET'
-      case '2':
-        return 'LIABILITY'
-      case '3':
-        return 'NET_ASSET'
-      case '4':
-        return 'REVENUE'
-      default:
-        return 'EXPENSE'
-    }
-  }
-
-  return typeOrder
-    .map((type) => ({
-      type,
-      label: typeLabels[type],
-      accounts: accounts.filter((a) => inferType(a.code) === type),
-    }))
-    .filter((g) => g.accounts.length > 0)
 }
 
 // --- Component ---
@@ -130,9 +89,6 @@ export function CreatePOForm({
   // Derived: does the selected GL account have CIP subType?
   const selectedAccount = accounts.find((a) => a.id === Number(glAccountId))
   const showCipCostCode = selectedAccount?.subType?.includes('CIP') ?? false
-
-  // Grouped accounts for the Select
-  const groupedAccounts = groupAccountsByType(accounts)
 
   // --- Handlers ---
 
@@ -349,13 +305,14 @@ export function CreatePOForm({
             )}
           </div>
 
-          {/* 5. GL Destination Account — Select grouped by type */}
+          {/* 5. GL Destination Account — Searchable combobox grouped by type */}
           <div className="grid gap-2">
             <Label>
               GL Destination Account{' '}
               <span className="text-destructive">*</span>
             </Label>
-            <Select
+            <GroupedAccountSelect
+              accounts={accounts}
               value={glAccountId}
               onValueChange={(v) => {
                 setGlAccountId(v)
@@ -366,26 +323,9 @@ export function CreatePOForm({
                   setCipCostCodeId('')
                 }
               }}
-            >
-              <SelectTrigger data-testid="po-gl-account">
-                <SelectValue placeholder="Select GL account..." />
-              </SelectTrigger>
-              <SelectContent>
-                {groupedAccounts.map((group) => (
-                  <SelectGroup key={group.type}>
-                    <SelectLabel>{group.label}</SelectLabel>
-                    {group.accounts.map((acct) => (
-                      <SelectItem key={acct.id} value={String(acct.id)}>
-                        <span className="font-mono text-xs mr-2">
-                          {acct.code}
-                        </span>
-                        {acct.name}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="Search GL accounts..."
+              testId="po-gl-account"
+            />
             {fieldErrors.glAccount && (
               <p className="text-sm text-destructive">
                 {fieldErrors.glAccount}

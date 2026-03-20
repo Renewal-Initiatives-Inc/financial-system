@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { Fragment, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -14,6 +15,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog'
 import {
   Select,
@@ -31,10 +33,25 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { HelpTooltip } from '@/components/shared/help-tooltip'
-import { AlertTriangle, Play, Plus } from 'lucide-react'
+import {
+  AlertTriangle,
+  ChevronDown,
+  ChevronRight,
+  ExternalLink,
+  Pencil,
+  Play,
+  Plus,
+  X,
+} from 'lucide-react'
 import { toast } from 'sonner'
-import { createPrepaidSchedule, runPrepaidAmortization } from '../prepaid-actions'
-import type { PrepaidScheduleRow } from '../prepaid-actions'
+import {
+  createPrepaidSchedule,
+  runPrepaidAmortization,
+  getAmortizationHistory,
+  updatePrepaidSchedule,
+  cancelPrepaidSchedule,
+} from '../prepaid-actions'
+import type { PrepaidScheduleRow, AmortizationHistoryEntry } from '../prepaid-actions'
 import { CAPITALIZATION_THRESHOLD } from '@/lib/assets/asset-categories'
 
 interface PrepaidClientProps {
@@ -64,6 +81,16 @@ function formatDate(date: string): string {
   })
 }
 
+function getStatusBadge(schedule: PrepaidScheduleRow) {
+  if (schedule.cancelledAt) {
+    return <Badge variant="destructive">Cancelled</Badge>
+  }
+  if (!schedule.isActive) {
+    return <Badge variant="secondary">Completed</Badge>
+  }
+  return <Badge variant="default">Active</Badge>
+}
+
 export function PrepaidClient({
   initialSchedules,
   accountOptions,
@@ -82,6 +109,23 @@ export function PrepaidClient({
   const [glExpenseAccountId, setGlExpenseAccountId] = useState('')
   const [glPrepaidAccountId, setGlPrepaidAccountId] = useState('')
   const [fundId, setFundId] = useState('')
+
+  // Expand/collapse state
+  const [expandedScheduleId, setExpandedScheduleId] = useState<number | null>(null)
+  const [historyCache, setHistoryCache] = useState<Record<number, AmortizationHistoryEntry[]>>({})
+  const [loadingHistory, setLoadingHistory] = useState(false)
+
+  // Edit dialog state
+  const [editOpen, setEditOpen] = useState(false)
+  const [editSchedule, setEditSchedule] = useState<PrepaidScheduleRow | null>(null)
+  const [editDescription, setEditDescription] = useState('')
+  const [editEndDate, setEditEndDate] = useState('')
+  const [editExpenseAccountId, setEditExpenseAccountId] = useState('')
+  const [editFundId, setEditFundId] = useState('')
+
+  // Cancel dialog state
+  const [cancelOpen, setCancelOpen] = useState(false)
+  const [cancelSchedule, setCancelSchedule] = useState<PrepaidScheduleRow | null>(null)
 
   const expenseAccounts = accountOptions.filter(
     (a) => a.subType && ['Operating', 'Property Ops', 'Financial', 'Non-Cash', 'Payroll'].includes(a.subType)
@@ -125,21 +169,18 @@ export function PrepaidClient({
   const handleCreate = () => {
     startTransition(async () => {
       try {
-        await createPrepaidSchedule(
-          {
-            description: description.trim(),
-            totalAmount: Number(totalAmount),
-            startDate,
-            endDate,
-            glExpenseAccountId: Number(glExpenseAccountId),
-            glPrepaidAccountId: Number(
-              glPrepaidAccountId ||
-                (defaultPrepaidAccount ? defaultPrepaidAccount.id : 0)
-            ),
-            fundId: Number(fundId),
-          },
-          'current-user'
-        )
+        await createPrepaidSchedule({
+          description: description.trim(),
+          totalAmount: Number(totalAmount),
+          startDate,
+          endDate,
+          glExpenseAccountId: Number(glExpenseAccountId),
+          glPrepaidAccountId: Number(
+            glPrepaidAccountId ||
+              (defaultPrepaidAccount ? defaultPrepaidAccount.id : 0)
+          ),
+          fundId: Number(fundId),
+        })
 
         toast.success('Prepaid schedule created')
         resetForm()
@@ -149,6 +190,77 @@ export function PrepaidClient({
         toast.error(
           err instanceof Error ? err.message : 'Failed to create schedule'
         )
+      }
+    })
+  }
+
+  const handleToggleExpand = async (scheduleId: number) => {
+    if (expandedScheduleId === scheduleId) {
+      setExpandedScheduleId(null)
+      return
+    }
+
+    setExpandedScheduleId(scheduleId)
+
+    // Lazy load history if not cached
+    if (!historyCache[scheduleId]) {
+      setLoadingHistory(true)
+      try {
+        const history = await getAmortizationHistory(scheduleId)
+        setHistoryCache((prev) => ({ ...prev, [scheduleId]: history }))
+      } catch (err) {
+        toast.error('Failed to load amortization history')
+      } finally {
+        setLoadingHistory(false)
+      }
+    }
+  }
+
+  const openEditDialog = (schedule: PrepaidScheduleRow) => {
+    setEditSchedule(schedule)
+    setEditDescription(schedule.description)
+    setEditEndDate(schedule.endDate)
+    setEditExpenseAccountId(String(schedule.glExpenseAccountId))
+    setEditFundId(String(schedule.fundId))
+    setEditOpen(true)
+  }
+
+  const handleEdit = () => {
+    if (!editSchedule) return
+    startTransition(async () => {
+      try {
+        await updatePrepaidSchedule(editSchedule.id, {
+          description: editDescription.trim(),
+          endDate: editEndDate,
+          glExpenseAccountId: Number(editExpenseAccountId),
+          fundId: Number(editFundId),
+        })
+        toast.success('Schedule updated')
+        setEditOpen(false)
+        setEditSchedule(null)
+        router.refresh()
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Failed to update schedule')
+      }
+    })
+  }
+
+  const openCancelDialog = (schedule: PrepaidScheduleRow) => {
+    setCancelSchedule(schedule)
+    setCancelOpen(true)
+  }
+
+  const handleCancel = () => {
+    if (!cancelSchedule) return
+    startTransition(async () => {
+      try {
+        await cancelPrepaidSchedule(cancelSchedule.id)
+        toast.success('Schedule cancelled')
+        setCancelOpen(false)
+        setCancelSchedule(null)
+        router.refresh()
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Failed to cancel schedule')
       }
     })
   }
@@ -172,14 +284,16 @@ export function PrepaidClient({
               startTransition(async () => {
                 try {
                   const today = new Date().toISOString().split('T')[0]
-                  const result = await runPrepaidAmortization(today, 'current-user')
+                  const result = await runPrepaidAmortization(today)
                   if (result.entriesCreated === 0) {
-                    toast.info('No amortization entries needed for this month')
+                    toast.info('No amortization entries needed')
                   } else {
                     toast.success(
-                      `Created ${result.entriesCreated} amortization ${result.entriesCreated === 1 ? 'entry' : 'entries'} totaling $${result.totalAmount.toFixed(2)}`
+                      `Created ${result.entriesCreated} amortization ${result.entriesCreated === 1 ? 'entry' : 'entries'} totaling ${formatCurrency(result.totalAmount)}`
                     )
                   }
+                  // Clear history cache so expanded rows re-fetch
+                  setHistoryCache({})
                   router.refresh()
                 } catch (err) {
                   toast.error(
@@ -228,13 +342,15 @@ export function PrepaidClient({
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-8"></TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead className="text-right">Total</TableHead>
                   <TableHead>Period</TableHead>
                   <TableHead className="text-right">Monthly</TableHead>
-                  <TableHead className="text-right">Amortized</TableHead>
+                  <TableHead className="text-right">Amortized / Remaining</TableHead>
                   <TableHead>Progress</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -242,36 +358,131 @@ export function PrepaidClient({
                   const total = Number(schedule.totalAmount)
                   const amortized = Number(schedule.amountAmortized)
                   const pct = total > 0 ? (amortized / total) * 100 : 0
+                  const isExpanded = expandedScheduleId === schedule.id
+                  const history = historyCache[schedule.id]
+
                   return (
-                    <TableRow key={schedule.id}>
-                      <TableCell className="font-medium">
-                        {schedule.description}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(schedule.totalAmount)}
-                      </TableCell>
-                      <TableCell>
-                        {formatDate(schedule.startDate)} -{' '}
-                        {formatDate(schedule.endDate)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(schedule.monthlyAmount)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(schedule.amountAmortized)} /{' '}
-                        {formatCurrency(schedule.remainingBalance)}
-                      </TableCell>
-                      <TableCell className="w-32">
-                        <Progress value={pct} className="h-2" />
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={schedule.isActive ? 'default' : 'secondary'}
-                        >
-                          {schedule.isActive ? 'Active' : 'Completed'}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
+                    <Fragment key={schedule.id}>
+                      <TableRow
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => handleToggleExpand(schedule.id)}
+                        data-testid={`prepaid-row-${schedule.id}`}
+                      >
+                        <TableCell>
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {schedule.description}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(schedule.totalAmount)}
+                        </TableCell>
+                        <TableCell>
+                          {formatDate(schedule.startDate)} -{' '}
+                          {formatDate(schedule.endDate)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(schedule.monthlyAmount)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(schedule.amountAmortized)} /{' '}
+                          {formatCurrency(schedule.remainingBalance)}
+                        </TableCell>
+                        <TableCell className="w-32">
+                          <Progress value={pct} className="h-2" />
+                        </TableCell>
+                        <TableCell>
+                          {getStatusBadge(schedule)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {schedule.isActive && (
+                            <div className="flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openEditDialog(schedule)}
+                                title="Edit schedule"
+                                data-testid={`prepaid-edit-btn-${schedule.id}`}
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openCancelDialog(schedule)}
+                                title="Cancel schedule"
+                                data-testid={`prepaid-cancel-schedule-btn-${schedule.id}`}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                      {isExpanded && (
+                        <TableRow>
+                          <TableCell colSpan={9} className="bg-muted/30 p-0">
+                            <div className="px-8 py-4">
+                              <h4 className="text-sm font-medium mb-3">Amortization History</h4>
+                              {loadingHistory && !history ? (
+                                <p className="text-sm text-muted-foreground">Loading...</p>
+                              ) : history && history.length > 0 ? (
+                                <div className="space-y-2">
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead className="text-right">Amount</TableHead>
+                                        <TableHead>Memo</TableHead>
+                                        <TableHead className="text-right">GL Entry</TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {history.map((entry) => (
+                                        <TableRow key={entry.transactionId}>
+                                          <TableCell className="text-sm">
+                                            {formatDate(entry.date)}
+                                          </TableCell>
+                                          <TableCell className="text-sm text-right font-mono">
+                                            {formatCurrency(entry.amount)}
+                                          </TableCell>
+                                          <TableCell className="text-sm text-muted-foreground truncate max-w-[250px]">
+                                            {entry.memo}
+                                          </TableCell>
+                                          <TableCell className="text-right">
+                                            <Link
+                                              href={`/transactions/${entry.transactionId}`}
+                                              className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                                              onClick={(e) => e.stopPropagation()}
+                                              data-testid={`prepaid-history-link-${entry.transactionId}`}
+                                            >
+                                              View <ExternalLink className="h-3 w-3" />
+                                            </Link>
+                                          </TableCell>
+                                        </TableRow>
+                                      ))}
+                                    </TableBody>
+                                  </Table>
+                                  <p className="text-xs text-muted-foreground pt-2">
+                                    Total amortized: {formatCurrency(
+                                      history.reduce((sum, e) => sum + e.amount, 0)
+                                    )}
+                                  </p>
+                                </div>
+                              ) : (
+                                <p className="text-sm text-muted-foreground">
+                                  No amortization entries yet.
+                                </p>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </Fragment>
                   )
                 })}
               </TableBody>
@@ -418,6 +629,171 @@ export function PrepaidClient({
             </Button>
             <Button onClick={handleCreate} disabled={isPending} data-testid="prepaid-create-btn">
               {isPending ? 'Creating...' : 'Create Schedule'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={editOpen} onOpenChange={(v) => { if (!v) { setEditOpen(false); setEditSchedule(null) } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Prepaid Schedule</DialogTitle>
+            <DialogDescription>
+              Editing this schedule changes future amortization only. Past entries are not adjusted.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>
+              To correct past entries, go to Reports &rarr; Transaction History, filter by source type SYSTEM, and edit or void individual entries.
+            </span>
+          </div>
+
+          {editSchedule && (
+            <div className="space-y-4">
+              <div>
+                <Label>Description</Label>
+                <Input
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  data-testid="prepaid-edit-description"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Start Date (locked)</Label>
+                  <Input
+                    type="date"
+                    value={editSchedule.startDate}
+                    disabled
+                    className="bg-muted"
+                  />
+                </div>
+                <div>
+                  <Label>End Date</Label>
+                  <Input
+                    type="date"
+                    value={editEndDate}
+                    onChange={(e) => setEditEndDate(e.target.value)}
+                    data-testid="prepaid-edit-end-date"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label>Total Amount (locked)</Label>
+                <Input
+                  value={formatCurrency(editSchedule.totalAmount)}
+                  disabled
+                  className="bg-muted"
+                />
+              </div>
+
+              <div>
+                <Label>GL Expense Account</Label>
+                <Select
+                  value={editExpenseAccountId}
+                  onValueChange={setEditExpenseAccountId}
+                >
+                  <SelectTrigger data-testid="prepaid-edit-expense-account">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {expenseAccounts.map((a) => (
+                      <SelectItem key={a.id} value={String(a.id)}>
+                        {a.code} - {a.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Funding Source</Label>
+                <Select value={editFundId} onValueChange={setEditFundId}>
+                  <SelectTrigger data-testid="prepaid-edit-fund">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {fundOptions.map((f) => (
+                      <SelectItem key={f.id} value={String(f.id)}>
+                        {f.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => { setEditOpen(false); setEditSchedule(null) }}
+              disabled={isPending}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleEdit} disabled={isPending} data-testid="prepaid-edit-save-btn">
+              {isPending ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Dialog */}
+      <Dialog open={cancelOpen} onOpenChange={(v) => { if (!v) { setCancelOpen(false); setCancelSchedule(null) } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Cancel Prepaid Schedule</DialogTitle>
+          </DialogHeader>
+
+          {cancelSchedule && (
+            <div className="space-y-4">
+              <p className="text-sm">
+                Cancelling stops all future amortization for{' '}
+                <span className="font-medium">{cancelSchedule.description}</span>.
+                Past amortization entries are not affected.
+              </p>
+
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200 space-y-3">
+                <p className="font-medium">
+                  Remaining unamortized balance: {formatCurrency(cancelSchedule.remainingBalance)}
+                </p>
+                <p>You will need to create a journal entry to handle this balance:</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>If refundable &rarr; reclassify to Accounts Receivable</li>
+                  <li>If non-refundable &rarr; expense the remaining balance immediately</li>
+                </ul>
+                <p>
+                  Go to{' '}
+                  <Link href="/transactions/new" className="underline font-medium">
+                    Transactions &rarr; New Entry
+                  </Link>{' '}
+                  to record this adjustment.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => { setCancelOpen(false); setCancelSchedule(null) }}
+              disabled={isPending}
+            >
+              Keep Schedule
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleCancel}
+              disabled={isPending}
+              data-testid="prepaid-cancel-confirm-btn"
+            >
+              {isPending ? 'Cancelling...' : 'Cancel Schedule'}
             </Button>
           </DialogFooter>
         </DialogContent>

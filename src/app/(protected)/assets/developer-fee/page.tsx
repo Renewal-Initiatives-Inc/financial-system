@@ -11,6 +11,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { getTotalDeveloperFee } from './actions'
+import { EditableTotalCard } from './editable-total-card'
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -36,9 +38,11 @@ async function getDeveloperFeeData() {
     where: (a, { eq }) => eq(a.code, '2510'),
   })
 
+  const totalDevFee = await getTotalDeveloperFee()
+
   if (!cipDevFee || !deferredDevFee) {
     return {
-      totalDevFee: 827000,
+      totalDevFee,
       cipDevFeeBalance: 0,
       deferredBalance: 0,
       recentTransactions: [],
@@ -104,7 +108,7 @@ async function getDeveloperFeeData() {
     .limit(20)
 
   return {
-    totalDevFee: 827000,
+    totalDevFee,
     cipDevFeeBalance: Number(cipResult.balance),
     deferredBalance: Number(deferredResult.balance),
     recentTransactions: recentTxns.map((t) => ({
@@ -138,18 +142,7 @@ export default async function DeveloperFeePage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Developer Fee
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(data.totalDevFee)}
-            </div>
-          </CardContent>
-        </Card>
+        <EditableTotalCard initialValue={data.totalDevFee} />
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">

@@ -546,6 +546,34 @@ export async function removeMatch(
 
     if (!existing) throw new Error('Match not found')
 
+    // If the GL entry was created inline from bank rec, void it so the GL stays in sync.
+    // We identify these by sourceType = 'BANK_FEED' on the parent transaction.
+    const [line] = await tx
+      .select({
+        transactionId: transactionLines.transactionId,
+        sourceType: transactions.sourceType,
+        isVoided: transactions.isVoided,
+      })
+      .from(transactionLines)
+      .innerJoin(transactions, eq(transactionLines.transactionId, transactions.id))
+      .where(eq(transactionLines.id, existing.glTransactionLineId))
+
+    if (line?.sourceType === 'BANK_FEED' && !line.isVoided) {
+      await tx
+        .update(transactions)
+        .set({ isVoided: true })
+        .where(eq(transactions.id, line.transactionId))
+
+      await logAudit(tx as unknown as NeonDatabase<any>, {
+        userId,
+        action: 'voided',
+        entityType: 'transaction',
+        entityId: line.transactionId,
+        beforeState: { isVoided: false },
+        afterState: { isVoided: true },
+      })
+    }
+
     await tx.delete(bankMatches).where(eq(bankMatches.id, matchId))
 
     await logAudit(tx as unknown as NeonDatabase<any>, {
@@ -839,6 +867,10 @@ function determineTier(
  * Get Tier 2 (batch review) items from pre-computed columns.
  * Looks up the OFFSETTING line (expense/revenue account), not the checking-side line.
  */
+/** Subquery: all bank transaction IDs that already have a match row */
+const alreadyMatchedBankTxnIds = () =>
+  db.select({ id: bankMatches.bankTransactionId }).from(bankMatches)
+
 export async function getBatchReviewCandidates(
   bankAccountId: number
 ): Promise<BatchReviewItem[]> {
@@ -861,7 +893,8 @@ export async function getBatchReviewCandidates(
     .where(
       and(
         eq(bankTransactions.bankAccountId, bankAccountId),
-        eq(bankTransactions.matchTier, 2)
+        eq(bankTransactions.matchTier, 2),
+        not(inArray(bankTransactions.id, alreadyMatchedBankTxnIds()))
       )
     )
 
@@ -937,7 +970,8 @@ export async function getExceptions(
     .where(
       and(
         eq(bankTransactions.bankAccountId, bankAccountId),
-        eq(bankTransactions.matchTier, 3)
+        eq(bankTransactions.matchTier, 3),
+        not(inArray(bankTransactions.id, alreadyMatchedBankTxnIds()))
       )
     )
 

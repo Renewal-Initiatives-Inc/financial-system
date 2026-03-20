@@ -15,6 +15,7 @@ export const insertPrepaidScheduleSchema = z
     glExpenseAccountId: z.number().int().positive(),
     glPrepaidAccountId: z.number().int().positive(),
     fundId: z.number().int().positive(),
+    sourceTransactionId: z.number().int().positive().optional(),
   })
   .refine((data) => data.endDate > data.startDate, {
     message: 'End date must be after start date',

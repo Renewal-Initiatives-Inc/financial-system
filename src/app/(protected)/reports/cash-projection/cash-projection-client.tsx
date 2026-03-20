@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import Link from 'next/link'
+import { ChevronDown, ChevronRight, Settings } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -68,22 +69,29 @@ export function CashProjectionClient({
 
   // View toggle buttons
   const viewToggle = (
-    <div className="flex gap-1 rounded-md border p-0.5" data-testid="cash-projection-view-toggle">
-      <Button
-        variant={view === 'monthly' ? 'default' : 'ghost'}
-        size="sm"
-        onClick={() => handleViewChange('monthly')}
-        data-testid="cash-projection-monthly-btn"
-      >
-        Monthly
-      </Button>
-      <Button
-        variant={view === 'weekly' ? 'default' : 'ghost'}
-        size="sm"
-        onClick={() => handleViewChange('weekly')}
-        data-testid="cash-projection-weekly-btn"
-      >
-        Weekly
+    <div className="flex items-center gap-2">
+      <div className="flex gap-1 rounded-md border p-0.5" data-testid="cash-projection-view-toggle">
+        <Button
+          variant={view === 'monthly' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => handleViewChange('monthly')}
+          data-testid="cash-projection-monthly-btn"
+        >
+          Monthly
+        </Button>
+        <Button
+          variant={view === 'weekly' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => handleViewChange('weekly')}
+          data-testid="cash-projection-weekly-btn"
+        >
+          Weekly
+        </Button>
+      </div>
+      <Button variant="ghost" size="icon" asChild>
+        <Link href="/settings/cash-thresholds" data-testid="cash-forecast-settings-link">
+          <Settings className="h-4 w-4" />
+        </Link>
       </Button>
     </div>
   )

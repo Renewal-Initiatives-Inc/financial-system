@@ -40,4 +40,5 @@ export const prepaidSchedules = pgTable('prepaid_schedules', {
   ),
   createdBy: varchar('created_by', { length: 255 }).notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
+  cancelledAt: timestamp('cancelled_at'),
 })

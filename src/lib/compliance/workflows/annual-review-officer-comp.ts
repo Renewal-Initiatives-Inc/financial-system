@@ -35,8 +35,8 @@ export const annualReviewOfficerCompConfig: WorkflowConfig = {
           url: 'https://www.irs.gov/charities-non-profits/charitable-organizations/intermediate-sanctions-irc-4958',
         },
         {
-          label: 'Open990.org — Comparability Data',
-          url: 'https://open990.org',
+          label: 'ProPublica Nonprofit Explorer — Comparability Data',
+          url: 'https://projects.propublica.org/nonprofits/',
         },
       ],
     },
