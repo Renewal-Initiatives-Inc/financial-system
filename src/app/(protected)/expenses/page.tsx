@@ -57,7 +57,7 @@ export default async function ExpensesPage() {
             </CardContent>
           </Card>
         </Link>
-        <Link href="/bank-rec">
+        <Link href="/match-transactions/bank">
           <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center gap-3 pb-2">
               <Scale className="h-5 w-5 text-muted-foreground" />
@@ -65,7 +65,7 @@ export default async function ExpensesPage() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Reconcile bank statement transactions.
+                Categorize and match incoming bank feed transactions to the GL.
               </p>
             </CardContent>
           </Card>

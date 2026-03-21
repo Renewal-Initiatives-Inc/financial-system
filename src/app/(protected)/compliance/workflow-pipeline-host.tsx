@@ -7,6 +7,8 @@ import {
   advanceWorkflowState,
   getWorkflowClientConfig,
 } from './workflow-actions'
+import { markDeadlineComplete } from './actions'
+import { Button } from '@/components/ui/button'
 import type {
   WorkflowStateData,
   WorkflowStateChange,
@@ -18,6 +20,46 @@ interface WorkflowPipelineHostProps {
   deadlineId: number
   workflowType: string | null
   userId: string
+  onComplete?: () => void
+}
+
+function NoWorkflowComplete({
+  deadlineId,
+  userId,
+  onComplete,
+}: {
+  deadlineId: number
+  userId: string
+  onComplete?: () => void
+}) {
+  const [done, setDone] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  async function handleMark() {
+    setIsSubmitting(true)
+    try {
+      await markDeadlineComplete(deadlineId, userId)
+      setDone(true)
+      onComplete?.()
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  if (done) {
+    return <p className="text-sm text-muted-foreground">Marked as complete.</p>
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">
+        No automated workflow for this item. Mark it complete when done.
+      </p>
+      <Button onClick={handleMark} disabled={isSubmitting} size="sm">
+        {isSubmitting ? 'Saving…' : 'Mark Complete'}
+      </Button>
+    </div>
+  )
 }
 
 function buildRuntimeConfig(clientConfig: WorkflowClientConfig): WorkflowConfig {
@@ -52,6 +94,7 @@ export function WorkflowPipelineHost({
   deadlineId,
   workflowType,
   userId,
+  onComplete,
 }: WorkflowPipelineHostProps) {
   const [stateData, setStateData] = useState<WorkflowStateData | null>(null)
   const [runtimeConfig, setRuntimeConfig] = useState<WorkflowConfig | null>(null)
@@ -114,11 +157,7 @@ export function WorkflowPipelineHost({
   }
 
   if (!workflowType) {
-    return (
-      <p className="text-muted-foreground text-sm">
-        No workflow configured for this item.
-      </p>
-    )
+    return <NoWorkflowComplete deadlineId={deadlineId} userId={userId} onComplete={onComplete} />
   }
 
   if (isLoading || !stateData) {

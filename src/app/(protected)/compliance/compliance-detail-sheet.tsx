@@ -120,6 +120,7 @@ export function ComplianceDetailSheet({
                 deadlineId={deadline.id}
                 workflowType={deadline.workflowType ?? null}
                 userId={userId}
+                onComplete={onClose}
               />
             </TabsContent>
           </Tabs>

@@ -2,17 +2,26 @@ import { google } from 'googleapis'
 import type { GoogleCalendarEvent } from './types'
 
 function getAuth() {
+  // Prefer OAuth2 refresh token if available (avoids service account sharing issues)
+  if (process.env.GOOGLE_CALENDAR_REFRESH_TOKEN) {
+    const oauth2 = new google.auth.OAuth2(
+      process.env.GOOGLE_OAUTH_CLIENT_ID,
+      process.env.GOOGLE_OAUTH_CLIENT_SECRET,
+    )
+    oauth2.setCredentials({ refresh_token: process.env.GOOGLE_CALENDAR_REFRESH_TOKEN })
+    oauth2.quotaProjectId = 'renewal-initiatives-apps'
+    return oauth2
+  }
+
+  // Fallback: service account key
   const keyBase64 = process.env.GOOGLE_SERVICE_ACCOUNT_KEY
   if (!keyBase64) {
     throw new Error(
-      'GOOGLE_SERVICE_ACCOUNT_KEY environment variable is not set. ' +
-      'See docs/google-calendar-setup.md for setup instructions.'
+      'Neither GOOGLE_CALENDAR_REFRESH_TOKEN nor GOOGLE_SERVICE_ACCOUNT_KEY is set.'
     )
   }
 
-  const keyJson = Buffer.from(keyBase64, 'base64').toString('utf-8')
-  const key = JSON.parse(keyJson)
-
+  const key = JSON.parse(Buffer.from(keyBase64, 'base64').toString('utf-8'))
   return new google.auth.GoogleAuth({
     credentials: key,
     scopes: ['https://www.googleapis.com/auth/calendar'],

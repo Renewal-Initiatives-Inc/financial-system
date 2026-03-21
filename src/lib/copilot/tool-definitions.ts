@@ -201,6 +201,26 @@ Pre-built query templates are available for common compliance checks:
   },
 }
 
+export const searchBankTransactionsDefinition: CopilotToolDefinition = {
+  name: 'searchBankTransactions',
+  description:
+    'Search the Plaid bank transaction feed. Returns raw bank transactions with merchant name, amount, date, pending status, and match tier (1=auto-matched, 2=needs review, 3=exception, null=unclassified). Use this to verify whether a specific payment appeared in the bank feed, check matching status, or investigate unreconciled items.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      query: { type: 'string', description: 'Search merchant name (optional)' },
+      dateFrom: { type: 'string', description: 'Start date YYYY-MM-DD (optional)' },
+      dateTo: { type: 'string', description: 'End date YYYY-MM-DD (optional)' },
+      matchTier: {
+        type: 'number',
+        description: 'Filter by match tier: 1=auto-matched, 2=needs review, 3=exception (optional)',
+      },
+      isPending: { type: 'boolean', description: 'Filter to pending-only transactions (optional)' },
+      limit: { type: 'number', description: 'Max results (default 20, max 50)' },
+    },
+  },
+}
+
 export const searchAuditLogDefinition: CopilotToolDefinition = {
   name: 'searchAuditLog',
   description:

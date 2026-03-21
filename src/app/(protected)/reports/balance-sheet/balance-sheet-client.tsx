@@ -152,7 +152,7 @@ export function BalanceSheetClient({
 
   return (
     <ReportShell
-      title="Statement of Financial Position"
+      title="Balance Sheet"
       fundName={data.fundName}
       reportSlug="balance-sheet"
       exportData={exportData}

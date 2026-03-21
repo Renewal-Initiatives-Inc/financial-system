@@ -35,7 +35,6 @@ import {
   type ReconciliationSummary,
   type ReconciliationBalance,
 } from '@/lib/bank-rec/reconciliation'
-import { getRampSettlementSummary } from '@/lib/ramp/settlement-crosscheck'
 import { createTransaction } from '@/lib/gl/engine'
 import { decrypt } from '@/lib/encryption'
 import { syncTransactions } from '@/lib/integrations/plaid'
@@ -80,14 +79,6 @@ export type SessionData = {
   session: typeof reconciliationSessions.$inferSelect | null
   summary: ReconciliationSummary | null
   balance: ReconciliationBalance | null
-}
-
-export type CrossCheckResult = {
-  settlementAmount: number
-  rampTotal: number
-  rampCount: number
-  variance: number
-  isMatched: boolean
 }
 
 // --- Server Actions ---
@@ -207,6 +198,7 @@ export async function confirmMatch(
   }
 
   revalidatePath('/bank-rec')
+  revalidatePath('/match-transactions/bank')
 }
 
 export async function splitAndMatch(
@@ -222,6 +214,7 @@ export async function splitAndMatch(
     userId,
   })
   revalidatePath('/bank-rec')
+  revalidatePath('/match-transactions/bank')
 }
 
 export async function rejectMatch(
@@ -237,6 +230,7 @@ export async function rejectMatch(
   }
 
   revalidatePath('/bank-rec')
+  revalidatePath('/match-transactions/bank')
 }
 
 /**
@@ -330,6 +324,7 @@ export async function createInlineGlEntry(
   })
 
   revalidatePath('/bank-rec')
+  revalidatePath('/match-transactions/bank')
 }
 
 export async function splitAndCreateGlEntries(
@@ -371,6 +366,7 @@ export async function splitAndCreateGlEntries(
   })
 
   revalidatePath('/bank-rec')
+  revalidatePath('/match-transactions/bank')
 }
 
 export async function createMatchingRuleAction(
@@ -384,6 +380,7 @@ export async function createMatchingRuleAction(
     createdBy: user.name,
   })
   revalidatePath('/bank-rec')
+  revalidatePath('/match-transactions/bank')
 }
 
 export async function getReconciliationSession(
@@ -413,6 +410,7 @@ export async function startReconciliationSession(
     userId,
   })
   revalidatePath('/bank-rec')
+  revalidatePath('/match-transactions/bank')
 }
 
 export async function signOffReconciliation(
@@ -421,6 +419,7 @@ export async function signOffReconciliation(
 ): Promise<void> {
   await signOff(sessionId, userId)
   revalidatePath('/bank-rec')
+  revalidatePath('/match-transactions/bank')
 }
 
 export async function triggerManualSync(
@@ -500,6 +499,7 @@ export async function triggerManualSync(
     await classifyBankTransactions(bankAccountId)
 
     revalidatePath('/bank-rec')
+  revalidatePath('/match-transactions/bank')
     return { added: totalAdded, modified: totalModified }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
@@ -608,6 +608,7 @@ export async function bulkApproveMatches(
   }
 
   revalidatePath('/bank-rec')
+  revalidatePath('/match-transactions/bank')
   return { approved, failed }
 }
 
@@ -665,19 +666,39 @@ export async function getRecentAutoMatches(
     })
 }
 
-export async function getRampCrossCheck(
-  periodStart: string,
-  periodEnd: string,
-  settlementAmount: number
-): Promise<CrossCheckResult> {
-  const rampSummary = await getRampSettlementSummary(periodStart, periodEnd)
-  const variance = Math.round((settlementAmount - rampSummary.totalCategorized) * 100) / 100
+export type PastSession = {
+  id: number
+  bankAccountId: number
+  bankAccountName: string
+  statementDate: string
+  statementBalance: string
+  status: string
+  signedOffBy: string | null
+  signedOffAt: Date | null
+  createdAt: Date
+}
 
-  return {
-    settlementAmount,
-    rampTotal: rampSummary.totalCategorized,
-    rampCount: rampSummary.transactionCount,
-    variance,
-    isMatched: Math.abs(variance) < 0.01,
-  }
+export async function getPastSessions(bankAccountId: number): Promise<PastSession[]> {
+  const rows = await db
+    .select({
+      id: reconciliationSessions.id,
+      bankAccountId: reconciliationSessions.bankAccountId,
+      bankAccountName: bankAccounts.name,
+      statementDate: reconciliationSessions.statementDate,
+      statementBalance: reconciliationSessions.statementBalance,
+      status: reconciliationSessions.status,
+      signedOffBy: reconciliationSessions.signedOffBy,
+      signedOffAt: reconciliationSessions.signedOffAt,
+      createdAt: reconciliationSessions.createdAt,
+    })
+    .from(reconciliationSessions)
+    .innerJoin(bankAccounts, eq(reconciliationSessions.bankAccountId, bankAccounts.id))
+    .where(eq(reconciliationSessions.bankAccountId, bankAccountId))
+    .orderBy(reconciliationSessions.statementDate)
+
+  return rows.map((r) => ({
+    ...r,
+    statementDate: String(r.statementDate),
+    statementBalance: String(r.statementBalance),
+  }))
 }

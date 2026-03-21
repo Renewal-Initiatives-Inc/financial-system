@@ -70,6 +70,15 @@ export const govInfoSearchSchema = z.object({
   granuleId: z.string().optional(),
 })
 
+export const searchBankTransactionsSchema = z.object({
+  query: z.string().optional(),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+  matchTier: z.number().optional(),
+  isPending: z.boolean().optional(),
+  limit: z.number().optional(),
+})
+
 export const searchAuditLogSchema = z.object({
   entityType: z.string().optional(),
   entityId: z.number().optional(),
@@ -85,6 +94,7 @@ export const toolSchemas: Record<string, z.ZodType> = {
   regulationLookup: regulationLookupSchema,
   nonprofitExplorerLookup: nonprofitExplorerLookupSchema,
   searchTransactions: searchTransactionsSchema,
+  searchBankTransactions: searchBankTransactionsSchema,
   searchAccounts: searchAccountsSchema,
   getAccountBalance: getAccountBalanceSchema,
   getFundBalance: getFundBalanceSchema,

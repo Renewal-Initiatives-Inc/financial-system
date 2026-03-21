@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Pencil, Plus, Loader2, AlertTriangle } from 'lucide-react'
+import { Pencil, Plus, Loader2, AlertTriangle, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -54,6 +54,8 @@ const RATE_LABELS: Record<string, string> = {
   ma_surtax_rate: 'MA Surtax Rate',
   ma_surtax_threshold: 'MA Surtax Threshold',
   mileage_rate: 'IRS Mileage Rate',
+  federal_standard_deductions: 'Federal Standard Deductions',
+  federal_tax_brackets: 'Federal Tax Brackets',
 }
 
 const RATE_TOOLTIPS: Record<string, string> = {
@@ -66,6 +68,9 @@ const RATE_TOOLTIPS: Record<string, string> = {
 
 function formatRateValue(key: string, value: string): string {
   const num = parseFloat(value)
+  if (key === 'mileage_rate') {
+    return `$${num.toFixed(3)}/mile`
+  }
   if (key.includes('rate')) {
     return `${(num * 100).toFixed(3)}%`
   }
@@ -74,6 +79,72 @@ function formatRateValue(key: string, value: string): string {
     currency: 'USD',
     maximumFractionDigits: 0,
   }).format(num)
+}
+
+type StandardDeductions = { single: number; married: number; head_of_household: number }
+type TaxBracket = { over: number; notOver: number | null; rate: number; plus: number }
+type TaxBrackets = { single: TaxBracket[]; married: TaxBracket[]; head_of_household: TaxBracket[] }
+
+function JsonValueSummary({ configKey, jsonValue }: { configKey: string; jsonValue: unknown }) {
+  if (configKey === 'federal_standard_deductions') {
+    const d = jsonValue as StandardDeductions
+    const fmt = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n)
+    return (
+      <span className="text-sm">
+        {fmt(d.single)} / {fmt(d.married)} / {fmt(d.head_of_household)}
+        <span className="ml-1 text-xs text-muted-foreground">(S/M/HOH)</span>
+      </span>
+    )
+  }
+  if (configKey === 'federal_tax_brackets') {
+    const b = jsonValue as TaxBrackets
+    const count = b.single?.length ?? 0
+    return (
+      <span className="text-sm">
+        {count} brackets
+        <span className="ml-1 text-xs text-muted-foreground">(S/M/HOH)</span>
+      </span>
+    )
+  }
+  return <span className="text-sm text-muted-foreground">JSON</span>
+}
+
+function TaxBracketsDialog({ brackets }: { brackets: TaxBrackets }) {
+  const fmt = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n)
+  const filingStatuses = [
+    { key: 'single' as const, label: 'Single' },
+    { key: 'married' as const, label: 'Married' },
+    { key: 'head_of_household' as const, label: 'Head of Household' },
+  ]
+  return (
+    <div className="space-y-4">
+      {filingStatuses.map(({ key, label }) => (
+        <div key={key}>
+          <p className="text-sm font-semibold mb-1">{label}</p>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Over</TableHead>
+                <TableHead>Not Over</TableHead>
+                <TableHead>Rate</TableHead>
+                <TableHead>Plus</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {brackets[key].map((b, i) => (
+                <TableRow key={i}>
+                  <TableCell>{fmt(b.over)}</TableCell>
+                  <TableCell>{b.notOver != null ? fmt(b.notOver) : '—'}</TableCell>
+                  <TableCell>{(b.rate * 100).toFixed(0)}%</TableCell>
+                  <TableCell>{fmt(b.plus)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 interface RateConfigClientProps {
@@ -87,6 +158,7 @@ export function RateConfigClient({ initialRates }: RateConfigClientProps) {
   const [editRate, setEditRate] = useState<RateRow | null>(null)
   const [editValue, setEditValue] = useState('')
   const [editNotes, setEditNotes] = useState('')
+  const [viewJsonRate, setViewJsonRate] = useState<RateRow | null>(null)
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [newRate, setNewRate] = useState({
     fiscalYear: new Date().getFullYear(),
@@ -217,9 +289,7 @@ export function RateConfigClient({ initialRates }: RateConfigClientProps) {
                   <TableRow>
                     <TableHead>Rate</TableHead>
                     <TableHead>Value</TableHead>
-                    <TableHead>Effective Date</TableHead>
                     <TableHead>Source</TableHead>
-                    <TableHead>Verified</TableHead>
                     <TableHead>Notes</TableHead>
                     <TableHead className="w-[80px]">Actions</TableHead>
                   </TableRow>
@@ -234,10 +304,21 @@ export function RateConfigClient({ initialRates }: RateConfigClientProps) {
                         )}
                       </TableCell>
                       <TableCell>
-                        {formatRateValue(rate.configKey, rate.value)}
-                      </TableCell>
-                      <TableCell>
-                        {rate.effectiveDate ?? 'Full Year'}
+                        {rate.jsonValue != null ? (
+                          <div className="flex items-center gap-2">
+                            <JsonValueSummary configKey={rate.configKey} jsonValue={rate.jsonValue} />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => setViewJsonRate(rate)}
+                            >
+                              <Eye className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ) : (
+                          formatRateValue(rate.configKey, rate.value)
+                        )}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate" title={rate.sourceDocument ?? undefined}>
                         {rate.sourceDocument ? (
@@ -252,25 +333,6 @@ export function RateConfigClient({ initialRates }: RateConfigClientProps) {
                           <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
                             <AlertTriangle className="h-3 w-3" />
                             No source
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {rate.verifiedDate ? (
-                          <span className={
-                            new Date(rate.verifiedDate).getFullYear() < rate.fiscalYear
-                              ? 'flex items-center gap-1 text-amber-600 dark:text-amber-400'
-                              : ''
-                          }>
-                            {new Date(rate.verifiedDate).getFullYear() < rate.fiscalYear && (
-                              <AlertTriangle className="h-3 w-3" />
-                            )}
-                            {rate.verifiedDate}
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
-                            <AlertTriangle className="h-3 w-3" />
-                            Not verified
                           </span>
                         )}
                       </TableCell>
@@ -344,6 +406,45 @@ export function RateConfigClient({ initialRates }: RateConfigClientProps) {
               Save
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* JSON value view dialog */}
+      <Dialog open={!!viewJsonRate} onOpenChange={() => setViewJsonRate(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>
+              {viewJsonRate ? RATE_LABELS[viewJsonRate.configKey] ?? viewJsonRate.configKey : ''}
+              {viewJsonRate ? ` — FY${viewJsonRate.fiscalYear}` : ''}
+            </DialogTitle>
+            <DialogDescription>
+              Read-only view. Edit via seed data or direct DB update.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="overflow-y-auto flex-1 pr-1">
+          {viewJsonRate?.configKey === 'federal_tax_brackets' && viewJsonRate.jsonValue != null && (
+            <TaxBracketsDialog brackets={viewJsonRate.jsonValue as TaxBrackets} />
+          )}
+          {viewJsonRate?.configKey === 'federal_standard_deductions' && viewJsonRate.jsonValue != null && (() => {
+            const d = viewJsonRate.jsonValue as StandardDeductions
+            const fmt = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n)
+            return (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Filing Status</TableHead>
+                    <TableHead>Standard Deduction</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow><TableCell>Single</TableCell><TableCell>{fmt(d.single)}</TableCell></TableRow>
+                  <TableRow><TableCell>Married Filing Jointly</TableCell><TableCell>{fmt(d.married)}</TableCell></TableRow>
+                  <TableRow><TableCell>Head of Household</TableCell><TableCell>{fmt(d.head_of_household)}</TableCell></TableRow>
+                </TableBody>
+              </Table>
+            )
+          })()}
+          </div>
         </DialogContent>
       </Dialog>
 

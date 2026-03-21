@@ -177,6 +177,7 @@ export function ComplianceCalendarClient({
                 deadlineId={selectedDeadline.id}
                 workflowType={selectedDeadline.workflowType ?? null}
                 userId={userId}
+                onComplete={() => setSelectedDeadline(null)}
               />
             )
             : undefined

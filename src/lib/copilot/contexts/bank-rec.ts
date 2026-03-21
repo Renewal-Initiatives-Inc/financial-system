@@ -1,5 +1,5 @@
 import type { CopilotContextPackage } from '../types'
-import { searchTransactionsDefinition, getAccountBalanceDefinition } from '../tool-definitions'
+import { searchTransactionsDefinition, searchBankTransactionsDefinition, searchAccountsDefinition, getAccountBalanceDefinition } from '../tool-definitions'
 
 export function getBankRecContext(data?: Record<string, unknown>): CopilotContextPackage {
   return {
@@ -14,7 +14,7 @@ export function getBankRecContext(data?: Record<string, unknown>): CopilotContex
       lastSyncStatus: data?.lastSyncStatus ?? 'unknown',
       ...data,
     },
-    tools: [searchTransactionsDefinition, getAccountBalanceDefinition],
+    tools: [searchBankTransactionsDefinition, searchTransactionsDefinition, searchAccountsDefinition, getAccountBalanceDefinition],
     knowledge: [
       'fund-accounting',
       'bank-reconciliation',

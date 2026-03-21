@@ -13,7 +13,7 @@ export async function GET(request: Request) {
 
     // Sync compliance deadlines to Google Calendar if configured
     let calendarSync: { created: number; updated: number; deleted: number } | null = null
-    if (process.env.GOOGLE_CALENDAR_ID && process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
+    if (process.env.GOOGLE_CALENDAR_ID && process.env.GOOGLE_CALENDAR_REFRESH_TOKEN) {
       calendarSync = await syncComplianceCalendar()
     }
 

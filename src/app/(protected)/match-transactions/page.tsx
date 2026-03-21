@@ -11,8 +11,8 @@ const matchCards = [
   },
   {
     label: 'Match Bank Transactions',
-    description: 'Reconcile bank statement transactions.',
-    href: '/bank-rec',
+    description: 'Categorize and match incoming bank feed transactions to the GL.',
+    href: '/match-transactions/bank',
     icon: Scale,
   },
 ]

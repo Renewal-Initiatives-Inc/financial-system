@@ -45,18 +45,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { GroupedAccountSelect, type AccountOption } from './components/grouped-account-select'
-import { BankAccountSelector } from './components/bank-account-selector'
-import { ReconciliationBalanceBar } from './components/reconciliation-balance-bar'
-import { ConfirmMatchDialog } from './components/confirm-match-dialog'
-import { SplitTransactionDialog } from './components/split-transaction-dialog'
-import { InlineGlEntryDialog } from './components/inline-gl-entry-dialog'
-import { SignOffDialog } from './components/sign-off-dialog'
-import { MatchSuggestionPanel } from './components/match-suggestion-panel'
 import {
-  getMatchSuggestions,
-  getReconciliationSession,
-  startReconciliationSession,
+  GroupedAccountSelect,
+  type AccountOption,
+} from '@/app/(protected)/bank-rec/components/grouped-account-select'
+import { BankAccountSelector } from '@/app/(protected)/bank-rec/components/bank-account-selector'
+import { ConfirmMatchDialog } from '@/app/(protected)/bank-rec/components/confirm-match-dialog'
+import { SplitTransactionDialog } from '@/app/(protected)/bank-rec/components/split-transaction-dialog'
+import { InlineGlEntryDialog } from '@/app/(protected)/bank-rec/components/inline-gl-entry-dialog'
+import {
   triggerManualSync,
   getDailyCloseSummary,
   getBatchReviewItems,
@@ -66,18 +63,17 @@ import {
   createInlineGlEntry,
   createMatchingRuleAction,
   rejectMatch,
-} from './actions'
-import { createPrepaidSchedule } from '../assets/prepaid-actions'
+} from '@/app/(protected)/bank-rec/actions'
+import { createPrepaidSchedule } from '@/app/(protected)/assets/prepaid-actions'
 import { toast } from 'sonner'
 import type {
   BankAccountOption,
   BankTransactionRow,
-  SessionData,
   DailyCloseSummary,
-} from './actions'
+} from '@/app/(protected)/bank-rec/actions'
 import type { MatchCandidate, BatchReviewItem, ExceptionItem } from '@/lib/bank-rec/matcher'
 
-interface BankRecClientProps {
+interface BankMatchClientProps {
   bankAccounts: BankAccountOption[]
   accountOptions: AccountOption[]
   fundOptions: { id: number; name: string }[]
@@ -85,7 +81,6 @@ interface BankRecClientProps {
 
 type TabValue = 'exceptions' | 'pending_review' | 'matched' | 'all'
 
-// Unified row type for the single table
 interface UnifiedRow {
   id: number
   date: string
@@ -112,50 +107,35 @@ const formatCurrency = (amount: string) => {
   }).format(Math.abs(num))
 }
 
-export function BankRecClient({
+export function BankMatchClient({
   bankAccounts,
   accountOptions,
   fundOptions,
-}: BankRecClientProps) {
+}: BankMatchClientProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
-  // Selection state
   const [selectedAccountId, setSelectedAccountId] = useState<string>(
     bankAccounts.length > 0 ? String(bankAccounts[0].id) : ''
   )
-  const [sessionData, setSessionData] = useState<SessionData>({
-    session: null,
-    summary: null,
-    balance: null,
-  })
 
-  // Tab & search
   const [tab, setTab] = useState<TabValue>('exceptions')
   const [search, setSearch] = useState('')
 
-  // Dashboard state
   const [dashSummary, setDashSummary] = useState<DailyCloseSummary | null>(null)
   const [reviewItems, setReviewItems] = useState<BatchReviewItem[]>([])
   const [exceptionItems, setExceptionItems] = useState<ExceptionItem[]>([])
   const [autoMatchedTxns, setAutoMatchedTxns] = useState<BankTransactionRow[]>([])
 
-  // Match interaction state (for suggestion panel below table)
   const [selectedRow, setSelectedRow] = useState<UnifiedRow | null>(null)
   const [matchCandidates, setMatchCandidates] = useState<MatchCandidate[]>([])
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)
 
-  // Dialog state
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
   const [confirmCandidate, setConfirmCandidate] = useState<MatchCandidate | null>(null)
   const [splitDialogOpen, setSplitDialogOpen] = useState(false)
   const [inlineGlDialogOpen, setInlineGlDialogOpen] = useState(false)
-  const [signOffDialogOpen, setSignOffDialogOpen] = useState(false)
-  const [startSessionOpen, setStartSessionOpen] = useState(false)
-  const [statementDate, setStatementDate] = useState('')
-  const [statementBalance, setStatementBalance] = useState('')
 
-  // Match dialog state
   const [matchDialogOpen, setMatchDialogOpen] = useState(false)
   const [matchDialogRow, setMatchDialogRow] = useState<UnifiedRow | null>(null)
   const [matchGlAccountId, setMatchGlAccountId] = useState<number | null>(null)
@@ -163,7 +143,6 @@ export function BankRecClient({
   const [matchCreateRule, setMatchCreateRule] = useState(false)
   const [matchShowAdvanced, setMatchShowAdvanced] = useState(false)
 
-  // Prepaid detection state
   const [prepaidPromptOpen, setPrepaidPromptOpen] = useState(false)
   const [prepaidPromptData, setPrepaidPromptData] = useState<{
     merchantName: string
@@ -176,49 +155,39 @@ export function BankRecClient({
   const [prepaidExpenseAccountId, setPrepaidExpenseAccountId] = useState('')
   const [prepaidFundId, setPrepaidFundId] = useState('')
 
-  // Default fund: General Fund (system-locked unrestricted)
   const defaultFundId = useMemo(
-    () => fundOptions.find(f => f.name === 'General Fund')?.id ?? fundOptions[0]?.id ?? null,
+    () => fundOptions.find((f) => f.name === 'General Fund')?.id ?? fundOptions[0]?.id ?? null,
     [fundOptions]
   )
 
-  // Whether the user changed the GL account from the auto-suggested one
   const userOverrodeAccount = useMemo(() => {
     if (!matchDialogRow?.candidate) return true
     const suggestedAcct = accountOptions.find((a) => a.name === matchDialogRow.candidate!.accountName)
     return matchGlAccountId != null && suggestedAcct?.id !== matchGlAccountId
   }, [matchDialogRow?.candidate, matchGlAccountId, accountOptions])
 
-  // Load all data for selected account — classification runs once, summary reuses counts
-  const loadAccountData = useCallback(
-    async (accountId: string) => {
-      const id = parseInt(accountId, 10)
-      try {
-        // Run classification + session + auto-matches in parallel
-        const [session, review, exceptions, autoMatches] = await Promise.all([
-          getReconciliationSession(id),
-          getBatchReviewItems(id),
-          getExceptionItems(id),
-          getRecentAutoMatches(id),
-        ])
+  const loadAccountData = useCallback(async (accountId: string) => {
+    const id = parseInt(accountId, 10)
+    try {
+      const [review, exceptions, autoMatches] = await Promise.all([
+        getBatchReviewItems(id),
+        getExceptionItems(id),
+        getRecentAutoMatches(id),
+      ])
 
-        // Get summary with pre-computed counts (avoids re-running classification)
-        const summary = await getDailyCloseSummary(id, {
-          pendingReview: review.length,
-          exceptions: exceptions.length,
-        })
+      const summary = await getDailyCloseSummary(id, {
+        pendingReview: review.length,
+        exceptions: exceptions.length,
+      })
 
-        setSessionData(session)
-        setDashSummary(summary)
-        setReviewItems(review)
-        setExceptionItems(exceptions)
-        setAutoMatchedTxns(autoMatches)
-      } catch (err) {
-        console.error('[bank-rec] loadAccountData failed:', err)
-      }
-    },
-    []
-  )
+      setDashSummary(summary)
+      setReviewItems(review)
+      setExceptionItems(exceptions)
+      setAutoMatchedTxns(autoMatches)
+    } catch (err) {
+      console.error('[bank-match] loadAccountData failed:', err)
+    }
+  }, [])
 
   const handleAccountChange = (value: string) => {
     setSelectedAccountId(value)
@@ -233,7 +202,6 @@ export function BankRecClient({
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Build unified rows from all tiers
   const unifiedRows: UnifiedRow[] = useMemo(() => {
     const rows: UnifiedRow[] = []
 
@@ -287,13 +255,11 @@ export function BankRecClient({
     return rows
   }, [exceptionItems, reviewItems, autoMatchedTxns])
 
-  // Filter rows by tab + search
   const filtered = useMemo(() => {
     let data = unifiedRows
     if (tab === 'exceptions') data = data.filter((r) => r.status === 'exception')
     else if (tab === 'pending_review') data = data.filter((r) => r.status === 'pending_review')
     else if (tab === 'matched') data = data.filter((r) => r.status === 'matched')
-    // 'all' shows everything
 
     if (search) {
       const q = search.toLowerCase()
@@ -307,12 +273,10 @@ export function BankRecClient({
     return data.sort((a, b) => b.date.localeCompare(a.date))
   }, [unifiedRows, tab, search])
 
-  // Move a row into the matched list optimistically (before server confirms).
-  // matchId/matchType/glTransactionId are null until handleRefresh() hydrates real data.
   const optimisticMatch = (row: UnifiedRow) => {
-    setExceptionItems(prev => prev.filter(i => i.bankTransaction.id !== row.id))
-    setReviewItems(prev => prev.filter(i => i.bankTransaction.id !== row.id))
-    setAutoMatchedTxns(prev => [
+    setExceptionItems((prev) => prev.filter((i) => i.bankTransaction.id !== row.id))
+    setReviewItems((prev) => prev.filter((i) => i.bankTransaction.id !== row.id))
+    setAutoMatchedTxns((prev) => [
       ...prev,
       {
         id: row.id,
@@ -333,7 +297,6 @@ export function BankRecClient({
 
   const openMatchDialog = (row: UnifiedRow) => {
     setMatchDialogRow(row)
-    // Pre-fill with suggested candidate's account if available
     if (row.candidate) {
       const matchedAcct = accountOptions.find((a) => a.name === row.candidate!.accountName)
       setMatchGlAccountId(matchedAcct?.id ?? null)
@@ -346,7 +309,6 @@ export function BankRecClient({
     setMatchDialogOpen(true)
   }
 
-  // Row click handler — match dialog for unmatched, navigate to GL detail for matched
   const handleRowClick = (row: UnifiedRow) => {
     if (row.status === 'matched') {
       if (row.glTransactionId) {
@@ -368,19 +330,25 @@ export function BankRecClient({
     startTransition(async () => {
       try {
         const result = await bulkApproveMatches(
-          [{ bankTransactionId: row.id, glTransactionLineId: row.candidate!.glTransactionLineId, ruleId: row.ruleId }],
-          sessionData.session?.id ?? null,
+          [
+            {
+              bankTransactionId: row.id,
+              glTransactionLineId: row.candidate!.glTransactionLineId,
+              ruleId: row.ruleId,
+            },
+          ],
+          null,
           'system'
         )
         if (result.approved > 0) {
           toast.success('Match approved')
         } else {
           toast.error('Failed to approve match')
-          handleRefresh() // Reload on failure
+          handleRefresh()
         }
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Approve failed')
-        handleRefresh() // Reload on failure
+        handleRefresh()
       }
     })
   }
@@ -388,7 +356,6 @@ export function BankRecClient({
   const handleApproveAll = () => {
     if (reviewItems.length === 0) return
     const itemsToApprove = [...reviewItems]
-    // Optimistic: clear all review items immediately
     setReviewItems([])
     startTransition(async () => {
       try {
@@ -398,24 +365,23 @@ export function BankRecClient({
             glTransactionLineId: item.candidate.glTransactionLineId,
             ruleId: item.ruleId,
           })),
-          sessionData.session?.id ?? null,
+          null,
           'system'
         )
         toast.success(
           `${result.approved} matches approved${result.failed > 0 ? `, ${result.failed} failed` : ''}`
         )
-        if (result.failed > 0) handleRefresh() // Reload if any failed
+        if (result.failed > 0) handleRefresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Bulk approve failed')
-        handleRefresh() // Reload on failure
+        handleRefresh()
       }
     })
   }
 
   const handleUnmatch = (row: UnifiedRow) => {
     if (!row.matchId) return
-    // Optimistic: move back from matched to exception
-    setAutoMatchedTxns(prev => prev.filter(t => t.id !== row.id))
+    setAutoMatchedTxns((prev) => prev.filter((t) => t.id !== row.id))
     startTransition(async () => {
       try {
         await rejectMatch(row.matchId!, 'system', row.bankAccountId)
@@ -432,37 +398,12 @@ export function BankRecClient({
     if (!selectedAccountId) return
     startTransition(async () => {
       try {
-        const result = await triggerManualSync(
-          parseInt(selectedAccountId, 10),
-          'system'
-        )
-        toast.success(
-          `Synced: ${result.added} added, ${result.modified} modified`
-        )
+        const result = await triggerManualSync(parseInt(selectedAccountId, 10), 'system')
+        toast.success(`Synced: ${result.added} added, ${result.modified} modified`)
         await loadAccountData(selectedAccountId)
         router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Sync failed')
-      }
-    })
-  }
-
-  const handleStartSession = () => {
-    if (!selectedAccountId || !statementDate || !statementBalance) return
-    startTransition(async () => {
-      try {
-        await startReconciliationSession(
-          parseInt(selectedAccountId, 10),
-          statementDate,
-          statementBalance,
-          'system'
-        )
-        toast.success('Reconciliation session started')
-        setStartSessionOpen(false)
-        await loadAccountData(selectedAccountId)
-        router.refresh()
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Failed to start session')
       }
     })
   }
@@ -473,7 +414,6 @@ export function BankRecClient({
     startTransition(() => loadAccountData(selectedAccountId))
   }
 
-  // Construct the selected bank transaction for legacy dialogs
   const selectedBankTxn: BankTransactionRow | null = selectedRow
     ? {
         id: selectedRow.id,
@@ -491,7 +431,6 @@ export function BankRecClient({
       }
     : null
 
-  // Same for match dialog row
   const matchDialogBankTxn: BankTransactionRow | null = matchDialogRow
     ? {
         id: matchDialogRow.id,
@@ -512,16 +451,13 @@ export function BankRecClient({
   if (bankAccounts.length === 0) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Bank Reconciliation
-        </h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Match Bank Transactions</h1>
         <Card>
           <CardContent className="py-8 text-center">
             <p className="text-muted-foreground mb-4">
-              No bank accounts connected. Connect a bank account to start
-              reconciling.
+              No bank accounts connected. Connect a bank account to start matching.
             </p>
-            <Button asChild data-testid="bank-rec-settings-empty-btn">
+            <Button asChild data-testid="bank-match-settings-empty-btn">
               <Link href="/bank-rec/settings">
                 <Settings className="mr-2 h-4 w-4" />
                 Bank Account Settings
@@ -538,14 +474,12 @@ export function BankRecClient({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Bank Reconciliation
-          </h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Match Bank Transactions</h1>
           <HelpTooltip term="bank-reconciliation" />
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" asChild>
-            <Link href="/bank-rec/settings" data-testid="bank-rec-settings-link">
+            <Link href="/bank-rec/settings" data-testid="bank-match-settings-link">
               <Settings className="mr-1 h-3 w-3" />
               Settings
             </Link>
@@ -553,7 +487,7 @@ export function BankRecClient({
         </div>
       </div>
 
-      {/* Account selector + session controls */}
+      {/* Account selector + sync */}
       <div className="flex items-center gap-4 flex-wrap">
         <BankAccountSelector
           accounts={bankAccounts}
@@ -565,77 +499,56 @@ export function BankRecClient({
           size="sm"
           onClick={handleSync}
           disabled={isPending}
-          data-testid="bank-rec-sync-btn"
+          data-testid="bank-match-sync-btn"
         >
-          <RefreshCw
-            className={`mr-1 h-3 w-3 ${isPending ? 'animate-spin' : ''}`}
-          />
+          <RefreshCw className={`mr-1 h-3 w-3 ${isPending ? 'animate-spin' : ''}`} />
           Sync Now
         </Button>
-        {!sessionData.session && (
-          <Button
-            size="sm"
-            onClick={() => setStartSessionOpen(true)}
-            data-testid="start-session-btn"
-          >
-            Start Reconciliation
-          </Button>
-        )}
-        {sessionData.session && sessionData.session.status === 'in_progress' && (
-          <Button
-            size="sm"
-            onClick={() => setSignOffDialogOpen(true)}
-            data-testid="sign-off-btn"
-          >
-            <CheckCircle2 className="mr-1 h-3 w-3" />
-            Sign Off
-          </Button>
-        )}
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4" data-testid="bank-rec-summary-cards">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4" data-testid="bank-match-summary-cards">
         <SummaryCard
           icon={AlertTriangle}
           label="Exceptions"
           count={exceptionItems.length}
           variant="warning"
-          testId="bank-rec-exceptions-card"
+          testId="bank-match-exceptions-card"
         />
         <SummaryCard
           icon={Hand}
           label="Pending Review"
           count={reviewItems.length}
           variant="info"
-          testId="bank-rec-pending-card"
+          testId="bank-match-pending-card"
         />
         <SummaryCard
           icon={CheckCircle2}
           label="Auto-Matched"
           count={dashSummary?.autoMatched ?? 0}
           variant="success"
-          testId="bank-rec-auto-matched-card"
+          testId="bank-match-auto-matched-card"
         />
         <SummaryCard
           icon={Clock}
           label="Matched Today"
           count={autoMatchedTxns.length}
           variant="info"
-          testId="bank-rec-matched-today-card"
+          testId="bank-match-matched-today-card"
         />
       </div>
 
-      {/* Reconciliation balance bar */}
-      <ReconciliationBalanceBar
-        balance={sessionData.balance}
-        onSignOff={() => setSignOffDialogOpen(true)}
-        hasSession={!!sessionData.session}
-      />
-
       {/* Tabs */}
-      <Tabs value={tab} onValueChange={(v) => { setTab(v as TabValue); setSelectedRow(null); setMatchCandidates([]) }}>
+      <Tabs
+        value={tab}
+        onValueChange={(v) => {
+          setTab(v as TabValue)
+          setSelectedRow(null)
+          setMatchCandidates([])
+        }}
+      >
         <TabsList>
-          <TabsTrigger value="exceptions" data-testid="bank-rec-tab-exceptions">
+          <TabsTrigger value="exceptions" data-testid="bank-match-tab-exceptions">
             Exceptions
             {exceptionItems.length > 0 && (
               <Badge variant="secondary" className="ml-2">
@@ -643,7 +556,7 @@ export function BankRecClient({
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="pending_review" data-testid="bank-rec-tab-pending">
+          <TabsTrigger value="pending_review" data-testid="bank-match-tab-pending">
             Pending Review
             {reviewItems.length > 0 && (
               <Badge variant="secondary" className="ml-2">
@@ -651,10 +564,10 @@ export function BankRecClient({
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="matched" data-testid="bank-rec-tab-matched">
+          <TabsTrigger value="matched" data-testid="bank-match-tab-matched">
             Matched
           </TabsTrigger>
-          <TabsTrigger value="all" data-testid="bank-rec-tab-all">
+          <TabsTrigger value="all" data-testid="bank-match-tab-all">
             All
           </TabsTrigger>
         </TabsList>
@@ -667,13 +580,13 @@ export function BankRecClient({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
-          data-testid="bank-rec-search-input"
+          data-testid="bank-match-search-input"
         />
         {tab === 'pending_review' && reviewItems.length > 0 && (
           <Button
             onClick={handleApproveAll}
             disabled={isPending}
-            data-testid="bank-rec-approve-all-btn"
+            data-testid="bank-match-approve-all-btn"
           >
             <CheckCircle2 className="mr-2 h-4 w-4" />
             Approve All ({reviewItems.length})
@@ -681,8 +594,8 @@ export function BankRecClient({
         )}
       </div>
 
-      {/* Unified transaction table */}
-      <div data-testid="bank-rec-table">
+      {/* Transaction table */}
+      <div data-testid="bank-match-table">
         <div className="rounded-md border">
           <Table>
             <TableHeader>
@@ -703,11 +616,13 @@ export function BankRecClient({
                     key={row.id}
                     className={
                       row.status === 'matched'
-                        ? (row.glTransactionId ? 'cursor-pointer hover:bg-muted/50' : '')
+                        ? row.glTransactionId
+                          ? 'cursor-pointer hover:bg-muted/50'
+                          : ''
                         : 'cursor-pointer hover:bg-muted/50'
                     }
                     onClick={() => handleRowClick(row)}
-                    data-testid={`bank-rec-row-${row.id}`}
+                    data-testid={`bank-match-row-${row.id}`}
                   >
                     <TableCell className="text-sm">{row.date}</TableCell>
                     <TableCell className="text-sm truncate max-w-[150px]">
@@ -745,47 +660,62 @@ export function BankRecClient({
                       {row.confidenceScore != null && (
                         <StatusBadge
                           type="confidence"
-                          value={row.confidenceScore >= 90 ? 'high' : row.confidenceScore >= 70 ? 'medium' : 'low'}
+                          value={
+                            row.confidenceScore >= 90
+                              ? 'high'
+                              : row.confidenceScore >= 70
+                                ? 'medium'
+                                : 'low'
+                          }
                           label={`${Math.round(row.confidenceScore)}%`}
                         />
                       )}
                     </TableCell>
                     <TableCell className="text-right">
                       {row.status === 'pending_review' && row.candidate && (
-                        <div className="flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
+                        <div
+                          className="flex gap-1 justify-end"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleApprove(row)}
                             disabled={isPending}
-                            data-testid={`bank-rec-approve-btn-${row.id}`}
+                            data-testid={`bank-match-approve-btn-${row.id}`}
                           >
                             <CheckCircle2 className="h-3 w-3" />
                           </Button>
                         </div>
                       )}
                       {row.status === 'exception' && (
-                        <div className="flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
+                        <div
+                          className="flex gap-1 justify-end"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => openMatchDialog(row)}
                             disabled={isPending}
-                            data-testid={`bank-rec-create-gl-btn-${row.id}`}
+                            data-testid={`bank-match-create-gl-btn-${row.id}`}
                           >
                             <PlusCircle className="h-3 w-3" />
                           </Button>
                         </div>
                       )}
                       {row.status === 'matched' && row.matchId && (
-                        <div className="flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
+                        <div
+                          className="flex gap-1 justify-end"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleUnmatch(row)}
                             disabled={isPending}
                             title="Unmatch"
-                            data-testid={`bank-rec-unmatch-btn-${row.id}`}
+                            data-testid={`bank-match-unmatch-btn-${row.id}`}
                           >
                             <Unlink className="h-3 w-3" />
                           </Button>
@@ -796,7 +726,11 @@ export function BankRecClient({
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center" data-testid="bank-rec-table-empty">
+                  <TableCell
+                    colSpan={7}
+                    className="h-24 text-center"
+                    data-testid="bank-match-table-empty"
+                  >
                     No transactions found.
                   </TableCell>
                 </TableRow>
@@ -806,8 +740,7 @@ export function BankRecClient({
         </div>
       </div>
 
-
-      {/* Match Dialog — simplified flow */}
+      {/* Match Dialog */}
       <Dialog
         open={matchDialogOpen}
         onOpenChange={(v) => {
@@ -825,7 +758,6 @@ export function BankRecClient({
 
           {matchDialogRow && (
             <div className="grid gap-4 py-4">
-              {/* Transaction details */}
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">Merchant</span>
@@ -833,11 +765,13 @@ export function BankRecClient({
                 </div>
                 <div>
                   <span className="text-muted-foreground">Amount</span>
-                  <p className={`font-medium font-mono ${
-                    parseFloat(matchDialogRow.amount) > 0
-                      ? 'text-red-600 dark:text-red-400'
-                      : 'text-green-600 dark:text-green-400'
-                  }`}>
+                  <p
+                    className={`font-medium font-mono ${
+                      parseFloat(matchDialogRow.amount) > 0
+                        ? 'text-red-600 dark:text-red-400'
+                        : 'text-green-600 dark:text-green-400'
+                    }`}
+                  >
                     {parseFloat(matchDialogRow.amount) > 0 ? '-' : '+'}
                     {formatCurrency(matchDialogRow.amount)}
                   </p>
@@ -852,7 +786,6 @@ export function BankRecClient({
                 </div>
               </div>
 
-              {/* Suggestion banner */}
               {matchDialogRow.candidate && (
                 <div className="flex items-start gap-2 p-3 rounded-lg border bg-blue-50/50 dark:bg-blue-900/10">
                   <CheckCircle2 className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
@@ -879,15 +812,12 @@ export function BankRecClient({
                       {matchDialogRow.candidate.memo && ` — ${matchDialogRow.candidate.memo}`}
                     </p>
                     {matchDialogRow.reason && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {matchDialogRow.reason}
-                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">{matchDialogRow.reason}</p>
                     )}
                   </div>
                 </div>
               )}
 
-              {/* Prepaid threshold warning */}
               {Math.abs(parseFloat(matchDialogRow.amount)) >= 2500 && (
                 <div className="flex items-start gap-2 p-3 rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950">
                   <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
@@ -895,15 +825,13 @@ export function BankRecClient({
                     <p className="font-medium">Expense exceeds $2,500</p>
                     <p className="mt-1 text-xs">
                       If this prepayment covers a period longer than 12 months, consider posting to{' '}
-                      <span className="font-medium">Prepaid Expenses (1200)</span>{' '}
-                      and setting up an amortization schedule instead of expensing immediately.
-                      If the benefit is consumed within 12 months, direct expensing is acceptable.
+                      <span className="font-medium">Prepaid Expenses (1200)</span> and setting up an
+                      amortization schedule instead of expensing immediately.
                     </p>
                   </div>
                 </div>
               )}
 
-              {/* Offsetting account selector (grouped by type) */}
               <div className="grid gap-2">
                 <Label>
                   {parseFloat(matchDialogRow.amount) > 0
@@ -915,11 +843,10 @@ export function BankRecClient({
                   value={matchGlAccountId ? String(matchGlAccountId) : ''}
                   onValueChange={(v) => setMatchGlAccountId(parseInt(v, 10))}
                   placeholder="Select account..."
-                  testId="bank-rec-match-gl-account"
+                  testId="bank-match-gl-account"
                 />
               </div>
 
-              {/* Fund defaults to General Fund, shown collapsed unless user expands */}
               {matchShowAdvanced ? (
                 <div className="grid gap-2">
                   <Label>Funding Source</Label>
@@ -927,7 +854,7 @@ export function BankRecClient({
                     value={matchFundId ? String(matchFundId) : ''}
                     onValueChange={(v) => setMatchFundId(parseInt(v, 10))}
                   >
-                    <SelectTrigger data-testid="bank-rec-match-fund">
+                    <SelectTrigger data-testid="bank-match-fund">
                       <SelectValue placeholder="Select fund..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -944,28 +871,27 @@ export function BankRecClient({
                   type="button"
                   className="text-xs text-muted-foreground hover:text-foreground text-left"
                   onClick={() => setMatchShowAdvanced(true)}
-                  data-testid="bank-rec-match-show-advanced"
+                  data-testid="bank-match-show-advanced"
                 >
-                  Fund: {fundOptions.find(f => f.id === matchFundId)?.name ?? 'General Fund'} — change
+                  Fund: {fundOptions.find((f) => f.id === matchFundId)?.name ?? 'General Fund'} —
+                  change
                 </button>
               )}
 
-              {/* Create rule checkbox */}
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  id="bank-rec-create-rule"
+                  id="bank-match-create-rule"
                   checked={matchCreateRule}
                   onChange={(e) => setMatchCreateRule(e.target.checked)}
                   className="h-4 w-4 rounded border-gray-300"
-                  data-testid="bank-rec-create-rule"
+                  data-testid="bank-match-create-rule"
                 />
-                <Label htmlFor="bank-rec-create-rule">
+                <Label htmlFor="bank-match-create-rule">
                   Always match &quot;{matchDialogRow.merchantName}&quot; to this account
                 </Label>
               </div>
 
-              {/* Split transaction link */}
               <button
                 type="button"
                 className="text-xs text-muted-foreground hover:text-foreground text-left flex items-center gap-1"
@@ -976,7 +902,7 @@ export function BankRecClient({
                   setMatchShowAdvanced(false)
                   setSplitDialogOpen(true)
                 }}
-                data-testid="bank-rec-match-split-link"
+                data-testid="bank-match-split-link"
               >
                 <Split className="h-3 w-3" />
                 Split this transaction across multiple accounts
@@ -987,8 +913,12 @@ export function BankRecClient({
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => { setMatchDialogOpen(false); setMatchDialogRow(null); setMatchShowAdvanced(false) }}
-              data-testid="bank-rec-match-cancel-btn"
+              onClick={() => {
+                setMatchDialogOpen(false)
+                setMatchDialogRow(null)
+                setMatchShowAdvanced(false)
+              }}
+              data-testid="bank-match-cancel-btn"
             >
               Cancel
             </Button>
@@ -1003,8 +933,14 @@ export function BankRecClient({
                   startTransition(async () => {
                     try {
                       await bulkApproveMatches(
-                        [{ bankTransactionId: matchDialogRow.id, glTransactionLineId: matchDialogRow.candidate!.glTransactionLineId, ruleId: matchDialogRow.ruleId }],
-                        sessionData.session?.id ?? null,
+                        [
+                          {
+                            bankTransactionId: matchDialogRow.id,
+                            glTransactionLineId: matchDialogRow.candidate!.glTransactionLineId,
+                            ruleId: matchDialogRow.ruleId,
+                          },
+                        ],
+                        null,
                         'system'
                       )
                       toast.success('Match approved')
@@ -1016,7 +952,7 @@ export function BankRecClient({
                   })
                 }}
                 disabled={isPending}
-                data-testid="bank-rec-match-approve-btn"
+                data-testid="bank-match-approve-btn"
               >
                 Approve Match
               </Button>
@@ -1044,9 +980,8 @@ export function BankRecClient({
                           amount: matchDialogRow.amount,
                           bankTransactionId: matchDialogRow.id,
                         },
-                        sessionData.session?.id ?? null
+                        null
                       )
-                      // Create matching rule if requested
                       if (matchCreateRule && matchDialogRow.merchantName) {
                         await createMatchingRuleAction(
                           { merchantPattern: matchDialogRow.merchantName },
@@ -1054,11 +989,8 @@ export function BankRecClient({
                         )
                       }
                       toast.success('GL entry created and matched')
-
-                      // Refresh to hydrate real matchId (enables unmatch button)
                       handleRefresh()
 
-                      // Detect prepaid account: if offsetting account is prepaid and amount >= $2,500
                       const matchedAccount = accountOptions.find((a) => a.id === matchGlAccountId)
                       const txnAmount = Math.abs(parseFloat(matchDialogRow.amount))
                       if (
@@ -1082,7 +1014,7 @@ export function BankRecClient({
                   })
                 }}
                 disabled={isPending || !matchGlAccountId}
-                data-testid="bank-rec-match-create-gl-btn"
+                data-testid="bank-match-create-gl-btn"
               >
                 Match to Account
               </Button>
@@ -1091,7 +1023,6 @@ export function BankRecClient({
         </DialogContent>
       </Dialog>
 
-      {/* Legacy dialogs */}
       <ConfirmMatchDialog
         open={confirmDialogOpen}
         onClose={() => {
@@ -1101,7 +1032,7 @@ export function BankRecClient({
         }}
         bankTransaction={selectedBankTxn}
         candidate={confirmCandidate}
-        sessionId={sessionData.session?.id ?? null}
+        sessionId={null}
       />
 
       <SplitTransactionDialog
@@ -1114,7 +1045,7 @@ export function BankRecClient({
         accountOptions={accountOptions}
         fundOptions={fundOptions}
         defaultFundId={defaultFundId}
-        sessionId={sessionData.session?.id ?? null}
+        sessionId={null}
       />
 
       <InlineGlEntryDialog
@@ -1126,70 +1057,10 @@ export function BankRecClient({
         bankTransaction={matchDialogBankTxn ?? selectedBankTxn}
         accountOptions={accountOptions}
         fundOptions={fundOptions}
-        sessionId={sessionData.session?.id ?? null}
+        sessionId={null}
       />
 
-      <SignOffDialog
-        open={signOffDialogOpen}
-        onClose={() => {
-          setSignOffDialogOpen(false)
-          handleRefresh()
-        }}
-        sessionId={sessionData.session?.id ?? null}
-        balance={sessionData.balance}
-        statementDate={sessionData.session?.statementDate ?? ''}
-      />
-
-      {/* Start Session Dialog */}
-      <Dialog open={startSessionOpen} onOpenChange={setStartSessionOpen}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle>Start Reconciliation Session</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="stmt-date">Statement Date</Label>
-              <Input
-                id="stmt-date"
-                type="date"
-                value={statementDate}
-                onChange={(e) => setStatementDate(e.target.value)}
-                data-testid="session-statement-date"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="stmt-balance">Statement Balance</Label>
-              <Input
-                id="stmt-balance"
-                type="number"
-                step="0.01"
-                value={statementBalance}
-                onChange={(e) => setStatementBalance(e.target.value)}
-                placeholder="0.00"
-                data-testid="session-statement-balance"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setStartSessionOpen(false)}
-              data-testid="bank-rec-session-cancel-btn"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleStartSession}
-              disabled={isPending || !statementDate || !statementBalance}
-              data-testid="session-start-submit"
-            >
-              Start Session
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Prepaid Amortization Prompt Dialog */}
+      {/* Prepaid Amortization Prompt */}
       <Dialog
         open={prepaidPromptOpen}
         onOpenChange={(v) => {
@@ -1209,9 +1080,13 @@ export function BankRecClient({
               <p className="text-sm">
                 This{' '}
                 <span className="font-medium font-mono">
-                  {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(prepaidPromptData.amount)}
+                  {new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: 'USD',
+                  }).format(prepaidPromptData.amount)}
                 </span>{' '}
-                expense was posted to Prepaid Expenses. Would you like to set up an amortization schedule?
+                expense was posted to Prepaid Expenses. Would you like to set up an amortization
+                schedule?
               </p>
 
               <div>
@@ -1287,7 +1162,13 @@ export function BankRecClient({
             </Button>
             <Button
               onClick={() => {
-                if (!prepaidPromptData || !prepaidStartDate || !prepaidEndDate || !prepaidExpenseAccountId || !prepaidFundId) {
+                if (
+                  !prepaidPromptData ||
+                  !prepaidStartDate ||
+                  !prepaidEndDate ||
+                  !prepaidExpenseAccountId ||
+                  !prepaidFundId
+                ) {
                   toast.error('Please fill in all fields')
                   return
                 }
@@ -1315,7 +1196,13 @@ export function BankRecClient({
                   }
                 })
               }}
-              disabled={isPending || !prepaidStartDate || !prepaidEndDate || !prepaidExpenseAccountId || !prepaidFundId}
+              disabled={
+                isPending ||
+                !prepaidStartDate ||
+                !prepaidEndDate ||
+                !prepaidExpenseAccountId ||
+                !prepaidFundId
+              }
               data-testid="prepaid-prompt-create-btn"
             >
               {isPending ? 'Creating...' : 'Create Schedule'}
