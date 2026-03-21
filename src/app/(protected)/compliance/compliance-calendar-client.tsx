@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Select,
   SelectContent,
@@ -20,12 +20,14 @@ interface ComplianceCalendarClientProps {
   initialDeadlines: ComplianceDeadlineRow[]
   userId: string
   googleCalendarId: string | null
+  autoOpenDeadlineId?: number
 }
 
 export function ComplianceCalendarClient({
   initialDeadlines,
   userId,
   googleCalendarId,
+  autoOpenDeadlineId,
 }: ComplianceCalendarClientProps) {
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('active')
@@ -69,6 +71,15 @@ export function ComplianceCalendarClient({
     context: copilotContext,
     userId,
   })
+
+  useEffect(() => {
+    if (!autoOpenDeadlineId) return
+    const deadline = initialDeadlines.find((d) => d.id === autoOpenDeadlineId)
+    if (deadline) {
+      setSelectedDeadline(deadline)
+      setCopilotOpen(true)
+    }
+  }, [autoOpenDeadlineId, initialDeadlines])
 
   function handleRowClick(row: ComplianceDeadlineRow) {
     setSelectedDeadline(row)

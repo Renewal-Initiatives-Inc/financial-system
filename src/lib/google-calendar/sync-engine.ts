@@ -7,25 +7,54 @@ import type { GoogleCalendarEvent } from './types'
 const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID ?? ''
 const SITE_URL = 'https://finance.renewalinitiatives.org'
 
+function buildDescriptionText(deadline: {
+  legalCitation: string | null
+  referenceUrl: string | null
+  recommendedActions: string | null
+}): string | undefined {
+  const parts: string[] = []
+
+  if (deadline.legalCitation) {
+    parts.push(`Legal Citation: ${deadline.legalCitation}`)
+  }
+
+  if (deadline.referenceUrl) {
+    parts.push(`Reference: ${deadline.referenceUrl}`)
+  }
+
+  if (deadline.recommendedActions) {
+    let actions: string[]
+    try {
+      const parsed = JSON.parse(deadline.recommendedActions)
+      actions = Array.isArray(parsed) ? parsed.map(String) : [deadline.recommendedActions]
+    } catch {
+      actions = deadline.recommendedActions.split('\n').map((l) => l.trim()).filter(Boolean)
+    }
+    const body =
+      actions.length > 1
+        ? actions.map((a) => `• ${a}`).join('\n')
+        : actions[0]
+    parts.push(`Recommended Actions:\n${body}`)
+  }
+
+  return parts.length > 0 ? parts.join('\n\n') : undefined
+}
+
 function buildEvent(deadline: {
+  id: number
   taskName: string
   dueDate: string
   legalCitation: string | null
   referenceUrl: string | null
   recommendedActions: string | null
 }): GoogleCalendarEvent {
-  const descriptionParts = [
-    deadline.legalCitation,
-    deadline.referenceUrl,
-    deadline.recommendedActions,
-  ].filter(Boolean)
-
   return {
     summary: deadline.taskName,
-    description: descriptionParts.length > 0 ? descriptionParts.join('\n') : undefined,
+    description: buildDescriptionText(deadline),
+    location: `${SITE_URL}/compliance?deadline=${deadline.id}`,
     start: { date: deadline.dueDate },
     end: { date: deadline.dueDate },
-    source: { title: 'Compliance Calendar', url: SITE_URL },
+    source: { title: 'Compliance Calendar', url: `${SITE_URL}/compliance?deadline=${deadline.id}` },
   }
 }
 
@@ -165,6 +194,7 @@ export async function generateReminderRows(): Promise<{
     // Create Google Calendar event for reminder and store ID on parent's googleReminderEventId
     if (CALENDAR_ID && inserted) {
       const reminderEvent = buildEvent({
+        id: inserted.id,
         taskName: `REMINDER: ${parent.taskName}`,
         dueDate: reminderDateStr,
         legalCitation: parent.legalCitation,

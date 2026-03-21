@@ -12,6 +12,7 @@ export interface GoogleCalendarEventSource {
 export interface GoogleCalendarEvent {
   summary: string
   description?: string
+  location?: string
   start: GoogleCalendarEventDateTime
   end: GoogleCalendarEventDateTime
   source?: GoogleCalendarEventSource

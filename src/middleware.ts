@@ -11,7 +11,7 @@ export default auth((req) => {
     `img-src 'self' blob: data: https://*.public.blob.vercel-storage.com`,
     `font-src 'self'`,
     `connect-src 'self' https://*.plaid.com https://*.zitadel.cloud https://*.public.blob.vercel-storage.com`,
-    `frame-src https://cdn.plaid.com`,
+    `frame-src https://cdn.plaid.com https://calendar.google.com`,
     `worker-src 'self' blob:`,
     `object-src 'none'`,
     `base-uri 'self'`,
