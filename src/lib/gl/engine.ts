@@ -1,7 +1,7 @@
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 import { db } from '@/lib/db'
-import { transactions, transactionLines } from '@/lib/db/schema'
+import { transactions, transactionLines, bankMatches } from '@/lib/db/schema'
 import {
   insertTransactionSchema,
   editTransactionSchema,
@@ -308,6 +308,22 @@ export async function editTransaction(
         if (!fund) {
           throw new InvalidFundError(`Fund ID ${line.fundId} does not exist`)
         }
+      }
+
+      // Remove bank_matches referencing old lines before deleting them
+      const oldLineIds = await tx
+        .select({ id: transactionLines.id })
+        .from(transactionLines)
+        .where(eq(transactionLines.transactionId, id))
+      if (oldLineIds.length > 0) {
+        await tx
+          .delete(bankMatches)
+          .where(
+            inArray(
+              bankMatches.glTransactionLineId,
+              oldLineIds.map((l) => l.id)
+            )
+          )
       }
 
       // Delete old lines, insert new

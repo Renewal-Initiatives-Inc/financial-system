@@ -53,7 +53,14 @@ export async function executeTool(
   }
 
   try {
-    return await handler(input)
+    const TOOL_TIMEOUT_MS = 30_000
+    const result = await Promise.race([
+      handler(input),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Tool execution timed out after 30s')), TOOL_TIMEOUT_MS)
+      ),
+    ])
+    return result
   } catch (error) {
     console.error(`Tool execution error (${name}):`, error)
     return {

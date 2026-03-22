@@ -95,11 +95,11 @@ async function main() {
   const newVendors = await db
     .insert(vendors)
     .values([
-      { name: 'National Grid', type: 'COMPANY', isActive: true },
-      { name: 'Berkshire Roofing', type: 'COMPANY', isActive: true },
-      { name: 'Pioneer Valley Landscaping', type: 'COMPANY', isActive: true },
-      { name: 'Greenfield Insurance Agency', type: 'COMPANY', isActive: true },
-      { name: 'Turners Falls IT Services', type: 'COMPANY', isActive: true },
+      { name: 'National Grid', isActive: true },
+      { name: 'Berkshire Roofing', isActive: true },
+      { name: 'Pioneer Valley Landscaping', isActive: true },
+      { name: 'Greenfield Insurance Agency', isActive: true },
+      { name: 'Turners Falls IT Services', isActive: true },
     ])
     .returning({ id: vendors.id, name: vendors.name })
 

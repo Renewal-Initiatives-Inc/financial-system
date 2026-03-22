@@ -68,7 +68,7 @@ export function ComplianceCalendarClient({
     [selectedDeadline]
   )
 
-  const { messages, isStreaming, error, sendMessage, clearChat } = useCopilot({
+  const { messages, isStreaming, activeToolName, error, sendMessage, clearChat } = useCopilot({
     context: copilotContext,
     userId,
   })
@@ -179,6 +179,7 @@ export function ComplianceCalendarClient({
         }}
         messages={messages}
         isStreaming={isStreaming}
+        activeToolName={activeToolName}
         error={error}
         onSendMessage={sendMessage}
         onClearChat={clearChat}

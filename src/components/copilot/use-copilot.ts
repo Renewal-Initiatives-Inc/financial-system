@@ -12,6 +12,7 @@ interface UseCopilotOptions {
 interface UseCopilotReturn {
   messages: CopilotMessage[]
   isStreaming: boolean
+  activeToolName: string | null
   error: string | null
   sendMessage: (text: string) => void
   clearChat: () => void
@@ -22,6 +23,7 @@ export function useCopilot({ context, userId }: UseCopilotOptions): UseCopilotRe
     loadConversation(userId, context.pageId)
   )
   const [isStreaming, setIsStreaming] = useState(false)
+  const [activeToolName, setActiveToolName] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
@@ -110,7 +112,12 @@ export function useCopilot({ context, userId }: UseCopilotOptions): UseCopilotRe
                   })
                   break
 
+                case 'tool_start':
+                  setActiveToolName(event.name)
+                  break
+
                 case 'tool_result':
+                  setActiveToolName(null)
                   toolCalls.push({
                     name: event.name,
                     input: {},
@@ -158,6 +165,7 @@ export function useCopilot({ context, userId }: UseCopilotOptions): UseCopilotRe
         }
       } finally {
         setIsStreaming(false)
+        setActiveToolName(null)
         abortRef.current = null
       }
     },
@@ -174,5 +182,5 @@ export function useCopilot({ context, userId }: UseCopilotOptions): UseCopilotRe
     clearConversation(userId, context.pageId)
   }, [userId, context.pageId])
 
-  return { messages, isStreaming, error, sendMessage, clearChat }
+  return { messages, isStreaming, activeToolName, error, sendMessage, clearChat }
 }

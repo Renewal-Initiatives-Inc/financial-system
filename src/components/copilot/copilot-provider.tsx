@@ -41,7 +41,7 @@ export function CopilotProvider({
     getContextForPage(initialPageId)
   )
 
-  const { messages, isStreaming, error, sendMessage, clearChat } = useCopilot({
+  const { messages, isStreaming, activeToolName, error, sendMessage, clearChat } = useCopilot({
     context,
     userId,
   })
@@ -64,6 +64,7 @@ export function CopilotProvider({
         onClose={closePanel}
         messages={messages}
         isStreaming={isStreaming}
+        activeToolName={activeToolName}
         error={error}
         onSendMessage={sendMessage}
         onClearChat={clearChat}

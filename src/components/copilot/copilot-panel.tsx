@@ -1,17 +1,31 @@
 'use client'
 
 import { useRef, useEffect, useState, useCallback } from 'react'
-import { X, MessageSquarePlus, Send, Loader2, AlertCircle } from 'lucide-react'
+import { X, MessageSquarePlus, Send, Loader2, AlertCircle, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { CopilotMessage } from './copilot-message'
 import type { CopilotMessage as CopilotMessageType } from '@/lib/copilot/types'
+
+const TOOL_LABELS: Record<string, string> = {
+  searchTransactions: 'Searching transactions',
+  searchBankTransactions: 'Searching bank transactions',
+  searchAccounts: 'Searching accounts',
+  getAccountBalance: 'Looking up account balance',
+  getFundBalance: 'Looking up fund balance',
+  taxLawSearch: 'Searching tax law',
+  regulationLookup: 'Looking up regulations',
+  nonprofitExplorerLookup: 'Searching nonprofit data',
+  govInfoSearch: 'Searching government info',
+  searchAuditLog: 'Searching audit log',
+}
 
 interface CopilotPanelProps {
   open: boolean
   onClose: () => void
   messages: CopilotMessageType[]
   isStreaming: boolean
+  activeToolName?: string | null
   error: string | null
   onSendMessage: (text: string) => void
   onClearChat: () => void
@@ -27,6 +41,7 @@ export function CopilotPanel({
   error,
   onSendMessage,
   onClearChat,
+  activeToolName,
   workflowContent,
   defaultTab = 'chat',
 }: CopilotPanelProps) {
@@ -141,7 +156,15 @@ export function CopilotPanel({
               {messages.map((msg, i) => (
                 <CopilotMessage key={i} message={msg} />
               ))}
-              {isStreaming && messages[messages.length - 1]?.role !== 'assistant' && (
+              {isStreaming && activeToolName && (
+                <div className="flex items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
+                  <Search className="text-muted-foreground h-4 w-4 animate-pulse" />
+                  <span className="text-muted-foreground text-sm">
+                    {TOOL_LABELS[activeToolName] || 'Working'}…
+                  </span>
+                </div>
+              )}
+              {isStreaming && !activeToolName && messages[messages.length - 1]?.role !== 'assistant' && (
                 <div className="flex items-center gap-2">
                   <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
                   <span className="text-muted-foreground text-sm">Thinking...</span>

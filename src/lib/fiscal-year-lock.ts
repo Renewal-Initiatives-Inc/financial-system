@@ -7,11 +7,16 @@ import { fiscalYearLocks } from '@/lib/db/schema'
  * REOPENED years are NOT included — they are open.
  */
 export async function getLockedYears(): Promise<number[]> {
-  const rows = await db
-    .select({ fiscalYear: fiscalYearLocks.fiscalYear })
-    .from(fiscalYearLocks)
-    .where(eq(fiscalYearLocks.status, 'LOCKED'))
-  return rows.map((r) => r.fiscalYear)
+  try {
+    const rows = await db
+      .select({ fiscalYear: fiscalYearLocks.fiscalYear })
+      .from(fiscalYearLocks)
+      .where(eq(fiscalYearLocks.status, 'LOCKED'))
+    return rows.map((r) => r.fiscalYear)
+  } catch {
+    // Table may not exist yet (migration 0028 not applied)
+    return []
+  }
 }
 
 /**
@@ -19,12 +24,17 @@ export async function getLockedYears(): Promise<number[]> {
  * No record = open. REOPENED = open.
  */
 export async function isYearLocked(year: number): Promise<boolean> {
-  const [row] = await db
-    .select({ status: fiscalYearLocks.status })
-    .from(fiscalYearLocks)
-    .where(eq(fiscalYearLocks.fiscalYear, year))
-  if (!row) return false
-  return row.status === 'LOCKED'
+  try {
+    const [row] = await db
+      .select({ status: fiscalYearLocks.status })
+      .from(fiscalYearLocks)
+      .where(eq(fiscalYearLocks.fiscalYear, year))
+    if (!row) return false
+    return row.status === 'LOCKED'
+  } catch {
+    // Table may not exist yet (migration 0028 not applied) — treat as unlocked
+    return false
+  }
 }
 
 /**
