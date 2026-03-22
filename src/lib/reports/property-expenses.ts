@@ -1,4 +1,4 @@
-import { eq, and, sql, gte, lte } from 'drizzle-orm'
+import { eq, and, sql, gte, lte, ne } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { accounts, transactionLines, transactions, budgetLines, budgets, funds } from '@/lib/db/schema'
 import { calculateVariance, type VarianceResult } from '@/lib/budget/variance'
@@ -99,6 +99,7 @@ export async function getPropertyExpensesData(
     gte(transactions.date, startDate),
     lte(transactions.date, endDate),
     eq(accounts.type, 'EXPENSE'),
+    ne(transactions.sourceType, 'YEAR_END_CLOSE'),
   ]
   if (fundId) {
     conditions.push(eq(transactionLines.fundId, fundId))
@@ -247,4 +248,56 @@ export async function getPropertyExpensesData(
     },
     fundName,
   }
+}
+
+// ---------------------------------------------------------------------------
+// Multi-period property expenses
+// ---------------------------------------------------------------------------
+
+import { generatePeriodColumns, type PeriodColumn } from './activities'
+
+export interface MultiPeriodPropertyExpenseRow {
+  category: string
+  periodValues: number[]
+  total: number
+}
+
+export interface MultiPeriodPropertyExpensesData {
+  periodColumns: PeriodColumn[]
+  rows: MultiPeriodPropertyExpenseRow[]
+  totalValues: number[]
+  grandTotal: number
+  fundName: string | null
+}
+
+export async function getMultiPeriodPropertyExpenses(
+  filters: PropertyExpensesFilters & { periodType: 'monthly' | 'quarterly' | 'annual' }
+): Promise<MultiPeriodPropertyExpensesData> {
+  const { startDate, endDate, fundId, periodType } = filters
+  const periodColumns = generatePeriodColumns(startDate, endDate, periodType)
+
+  const periodResults = await Promise.all(
+    periodColumns.map((col) => getPropertyExpensesData({ startDate: col.startDate, endDate: col.endDate, fundId }))
+  )
+
+  const fundName = periodResults[0]?.fundName ?? null
+
+  // Build rows for each category
+  const categories = PROPERTY_EXPENSE_CATEGORIES
+  const rows: MultiPeriodPropertyExpenseRow[] = categories.map((category) => {
+    const periodValues = periodResults.map((r) => {
+      const row = r.rows.find((row) => row.category === category)
+      return row?.actual ?? 0
+    })
+    return {
+      category,
+      periodValues,
+      total: periodValues.reduce((s, v) => s + v, 0),
+    }
+  }).filter((r) => r.total !== 0 || r.periodValues.some((v) => v !== 0))
+
+  const totalValues = periodColumns.map((_, p) => rows.reduce((s, r) => s + r.periodValues[p], 0))
+  const grandTotal = totalValues.reduce((s, v) => s + v, 0)
+
+  return { periodColumns, rows, totalValues, grandTotal, fundName }
 }

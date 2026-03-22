@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, Fragment } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -26,6 +27,7 @@ export function WizardClient({
   defaults: AllocationDefault[]
   fiscalYear: number
 }) {
+  const router = useRouter()
   const [allocations, setAllocations] = useState<WizardAllocation[]>(
     defaults.map((d) => ({ ...d }))
   )
@@ -105,6 +107,10 @@ export function WizardClient({
         }))
       )
       setIsSaved(true)
+      // Redirect to the saved year's view after a brief moment
+      setTimeout(() => {
+        router.push(`/compliance/functional-allocation?year=${fiscalYear}`)
+      }, 500)
     } finally {
       setIsSaving(false)
     }

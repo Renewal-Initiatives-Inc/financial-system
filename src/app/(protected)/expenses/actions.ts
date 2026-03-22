@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { eq, and, sql, desc, inArray, or, ilike } from 'drizzle-orm'
+import { eq, and, sql, desc, or, ilike } from 'drizzle-orm'
 import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 import { db } from '@/lib/db'
 import {
@@ -350,7 +350,7 @@ export async function createInvoice(
       amount: String(validated.amount),
       invoiceDate: validated.invoiceDate,
       dueDate: validated.dueDate ?? null,
-      paymentStatus: 'PENDING',
+      paymentStatus: 'POSTED',
       createdBy: userId,
     })
     .returning()
@@ -469,42 +469,6 @@ export async function dismissComplianceWarning(
   revalidatePath(`/expenses/purchase-orders/${poId}`)
 }
 
-export async function markPaymentInProcess(
-  invoiceId: number,
-  userId: string
-): Promise<void> {
-  await db.transaction(async (tx) => {
-    const [existing] = await tx
-      .select()
-      .from(invoices)
-      .where(eq(invoices.id, invoiceId))
-
-    if (!existing) throw new Error(`Invoice ${invoiceId} not found`)
-
-    if (existing.paymentStatus !== 'POSTED') {
-      throw new Error(
-        `Cannot mark as payment in process: current status is ${existing.paymentStatus} (must be POSTED)`
-      )
-    }
-
-    await tx
-      .update(invoices)
-      .set({ paymentStatus: 'PAYMENT_IN_PROCESS', updatedAt: new Date() })
-      .where(eq(invoices.id, invoiceId))
-
-    await logAudit(tx as unknown as NeonDatabase<any>, {
-      userId,
-      action: 'updated',
-      entityType: 'invoice',
-      entityId: invoiceId,
-      beforeState: { paymentStatus: 'POSTED' },
-      afterState: { paymentStatus: 'PAYMENT_IN_PROCESS' },
-    })
-  })
-
-  revalidatePath('/expenses/payables')
-}
-
 // --- Outstanding Payables ---
 
 export type PayableItem = {
@@ -529,14 +493,7 @@ export async function getOutstandingPayables(): Promise<PayableItem[]> {
     })
     .from(invoices)
     .innerJoin(vendors, eq(invoices.vendorId, vendors.id))
-    .where(
-      and(
-        inArray(invoices.paymentStatus, [
-          'POSTED',
-          'PAYMENT_IN_PROCESS',
-        ])
-      )
-    )
+    .where(eq(invoices.paymentStatus, 'POSTED'))
     .orderBy(invoices.invoiceDate)
 
   for (const row of unpaidInvoices) {
@@ -673,7 +630,7 @@ export async function getVendorPaymentSummary(
     .where(
       and(
         eq(invoices.vendorId, vendorId),
-        inArray(invoices.paymentStatus, ['MATCHED_TO_PAYMENT', 'PAID']),
+        eq(invoices.paymentStatus, 'PAID'),
         sql`${invoices.invoiceDate} >= ${yearStart}`,
         sql`${invoices.invoiceDate} <= ${yearEnd}`
       )

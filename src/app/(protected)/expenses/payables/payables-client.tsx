@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -15,9 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { HelpTooltip } from '@/components/shared/help-tooltip'
-import { markPaymentInProcess } from '../actions'
 import type { PayableItem } from '../actions'
-import { toast } from 'sonner'
 import { differenceInDays, parseISO } from 'date-fns'
 
 function formatCurrency(amount: string | number): string {
@@ -41,12 +38,10 @@ const typeColors: Record<string, string> = {
 
 const statusColors: Record<string, string> = {
   POSTED: 'bg-yellow-100 text-yellow-800',
-  PAYMENT_IN_PROCESS: 'bg-blue-100 text-blue-800',
 }
 
 const statusLabels: Record<string, string> = {
   POSTED: 'Posted',
-  PAYMENT_IN_PROCESS: 'Payment in Process',
 }
 
 function getAgingBucket(dateStr: string): string {
@@ -70,8 +65,6 @@ interface PayablesClientProps {
 }
 
 export function PayablesClient({ payables }: PayablesClientProps) {
-  const router = useRouter()
-  const [isPending, startTransition] = useTransition()
   const [filter, setFilter] = useState<string>('all')
 
   const filtered =
@@ -89,20 +82,6 @@ export function PayablesClient({ payables }: PayablesClientProps) {
     (sum, p) => sum + parseFloat(p.amount),
     0
   )
-
-  const handleMarkPayment = (invoiceId: number) => {
-    startTransition(async () => {
-      try {
-        await markPaymentInProcess(invoiceId, 'system')
-        toast.success('Invoice marked as payment in process')
-        router.refresh()
-      } catch (err) {
-        toast.error(
-          err instanceof Error ? err.message : 'Failed to update status'
-        )
-      }
-    })
-  }
 
   return (
     <div className="space-y-4">
@@ -218,21 +197,6 @@ export function PayablesClient({ payables }: PayablesClientProps) {
                           )}
                         </TableCell>
                         <TableCell>
-                          {item.type === 'AP' &&
-                            item.paymentStatus === 'POSTED' &&
-                            item.invoiceId && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  handleMarkPayment(item.invoiceId!)
-                                }
-                                disabled={isPending}
-                                data-testid={`mark-payment-${item.invoiceId}`}
-                              >
-                                Mark Payment in Process
-                              </Button>
-                            )}
                         </TableCell>
                       </TableRow>
                     ))}

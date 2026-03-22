@@ -1,4 +1,4 @@
-import { eq, and, sql, lte } from 'drizzle-orm'
+import { eq, and, sql, lte, gte, ne } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import {
   accounts,
@@ -46,7 +46,8 @@ export interface BalanceSheetData {
 
 const CURRENT_ASSET_SUBTYPES = new Set([
   'Cash',
-  'Accounts Receivable',
+  'Receivable',          // actual value in DB (1100–1120)
+  'Accounts Receivable', // legacy/compatibility
   'Prepaid',
   'Short-Term Investment',
 ])
@@ -54,11 +55,15 @@ const CURRENT_ASSET_SUBTYPES = new Set([
 const NONCURRENT_ASSET_SUBTYPES = new Set([
   'Fixed Asset',
   'CIP',
+  'Contra',              // actual value in DB for depreciation accounts (1800–1830)
   'Accumulated Depreciation',
   'Long-Term Investment',
 ])
 
 const CURRENT_LIABILITY_SUBTYPES = new Set([
+  'Current',             // actual value in DB (2000–2060, 2520)
+  'Payroll',             // actual value in DB (2100–2160)
+  // legacy/compatibility
   'Accounts Payable',
   'Accrued',
   'Payroll Payable',
@@ -68,7 +73,7 @@ const CURRENT_LIABILITY_SUBTYPES = new Set([
 ])
 
 const LONG_TERM_LIABILITY_SUBTYPES = new Set([
-  'Long-Term',
+  'Long-Term',           // actual value in DB (2500–2510)
   'Deferred',
 ])
 
@@ -175,9 +180,16 @@ export async function getBalanceSheetData(
     .orderBy(accounts.code)
 
   // Also need REVENUE and EXPENSE to roll into net assets (retained earnings)
+  // Use fiscal year start date to avoid inception-to-date accumulation.
+  // After closing entries post, prior-year rev/exp are zeroed and captured
+  // in retained earnings (NET_ASSET) accounts, so only the current fiscal
+  // year's rev/exp should appear in "Change in Net Assets."
+  const fiscalYearStart = `${endDate.slice(0, 4)}-01-01`
   const revenueExpenseConditions = [
     eq(transactions.isVoided, false),
+    gte(transactions.date, fiscalYearStart),
     lte(transactions.date, endDate),
+    ne(transactions.sourceType, 'YEAR_END_CLOSE'),
   ]
   if (fundId) {
     revenueExpenseConditions.push(eq(transactionLines.fundId, fundId))
@@ -319,7 +331,7 @@ export async function getBalanceSheetData(
     unrestrictedNetAssetRows.push({
       accountId: 0,
       accountCode: '',
-      accountName: 'Change in Net Assets',
+      accountName: 'Change in Retained Earnings',
       subType: null,
       balance: unrestrictedRevenueExpenseNet,
     })
@@ -328,7 +340,7 @@ export async function getBalanceSheetData(
     restrictedNetAssetRows.push({
       accountId: 0,
       accountCode: '',
-      accountName: 'Change in Net Assets',
+      accountName: 'Change in Retained Earnings',
       subType: null,
       balance: restrictedRevenueExpenseNet,
     })

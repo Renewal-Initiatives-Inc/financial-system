@@ -19,6 +19,7 @@ import type { WorkflowClientConfig } from './workflow-actions'
 interface WorkflowPipelineHostProps {
   deadlineId: number
   workflowType: string | null
+  slug?: string
   userId: string
   onComplete?: () => void
 }
@@ -93,6 +94,7 @@ function buildRuntimeConfig(clientConfig: WorkflowClientConfig): WorkflowConfig 
 export function WorkflowPipelineHost({
   deadlineId,
   workflowType,
+  slug,
   userId,
   onComplete,
 }: WorkflowPipelineHostProps) {
@@ -108,7 +110,7 @@ export function WorkflowPipelineHost({
     async function load() {
       const [row, clientConfig] = await Promise.all([
         getDeadlineWithWorkflow(deadlineId),
-        workflowType ? getWorkflowClientConfig(workflowType) : Promise.resolve(null),
+        workflowType ? getWorkflowClientConfig(workflowType, slug) : Promise.resolve(null),
       ])
       if (!cancelled) {
         if (row) {
@@ -122,7 +124,7 @@ export function WorkflowPipelineHost({
     }
     load()
     return () => { cancelled = true }
-  }, [deadlineId, workflowType])
+  }, [deadlineId, workflowType, slug])
 
   async function handleStateChange(change: WorkflowStateChange) {
     setIsSubmitting(true)

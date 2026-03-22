@@ -1,8 +1,6 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
@@ -13,31 +11,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { ReportShell } from '@/components/reports/report-shell'
+import { formatCurrency, formatDate } from '@/lib/reports/types'
+import type { CSVColumnDef } from '@/lib/reports/csv/export-csv'
 import type {
   LoanSummary,
   AmortizationScheduleData,
 } from '@/lib/reports/amortization-schedule'
 
-function formatCurrency(value: number): string {
-  if (value < 0) {
-    return `(${new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(Math.abs(value))})`
-  }
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(value)
-}
+// ---------------------------------------------------------------------------
+// Typed CSV columns
+// ---------------------------------------------------------------------------
 
-function formatDate(value: string | null): string {
+const AMORT_CSV_COLUMNS: CSVColumnDef[] = [
+  { key: 'period', label: 'Period', format: 'count' },
+  { key: 'date', label: 'Date', format: 'date' },
+  { key: 'beginningBalance', label: 'Beginning Balance', format: 'currency' },
+  { key: 'payment', label: 'Payment', format: 'currency' },
+  { key: 'principal', label: 'Principal', format: 'currency' },
+  { key: 'interest', label: 'Interest', format: 'currency' },
+  { key: 'endingBalance', label: 'Ending Balance', format: 'currency' },
+]
+
+/** Null-safe date formatter for display */
+function displayDate(value: string | null): string {
   if (!value) return '-'
-  return new Date(value + 'T00:00:00').toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
+  return formatDate(value)
 }
 
 interface Props {
@@ -67,25 +66,24 @@ export function AmortizationScheduleClient({ loans }: Props) {
     })
   }
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link href="/reports">
-          <Button variant="ghost" size="icon" data-testid="amort-back-btn">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Amortization Schedule
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Projected payment schedule for loan funding sources
-          </p>
-        </div>
-      </div>
+  const exportData = scheduleData?.schedule.map((row) => ({
+    period: row.period,
+    date: row.date,
+    beginningBalance: row.beginningBalance,
+    payment: row.payment,
+    principal: row.principal,
+    interest: row.interest,
+    endingBalance: row.endingBalance,
+  }))
 
+  return (
+    <ReportShell
+      title="Amortization Schedule"
+      reportSlug="amortization-schedule"
+      exportData={exportData}
+      csvColumns={AMORT_CSV_COLUMNS}
+      filters={selectedLoanId ? { fundId: selectedLoanId } : undefined}
+    >
       {/* Loan Selector */}
       <Card>
         <CardHeader>
@@ -167,11 +165,11 @@ export function AmortizationScheduleClient({ loans }: Props) {
             </div>
             <div>
               <Label className="text-muted-foreground">Start Date</Label>
-              <p>{formatDate(selectedLoan.startDate)}</p>
+              <p>{displayDate(selectedLoan.startDate)}</p>
             </div>
             <div>
               <Label className="text-muted-foreground">End Date</Label>
-              <p>{formatDate(selectedLoan.endDate)}</p>
+              <p>{displayDate(selectedLoan.endDate)}</p>
             </div>
           </CardContent>
         </Card>
@@ -242,7 +240,7 @@ export function AmortizationScheduleClient({ loans }: Props) {
                           <td className="py-2 pr-4 text-muted-foreground">
                             {row.period}
                           </td>
-                          <td className="py-2 pr-4">{formatDate(row.date)}</td>
+                          <td className="py-2 pr-4">{displayDate(row.date)}</td>
                           <td className="py-2 pr-4 text-right font-mono">
                             {formatCurrency(row.beginningBalance)}
                           </td>
@@ -268,6 +266,6 @@ export function AmortizationScheduleClient({ loans }: Props) {
           )}
         </>
       )}
-    </div>
+    </ReportShell>
   )
 }

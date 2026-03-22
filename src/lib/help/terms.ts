@@ -5,7 +5,7 @@
  * Terms are keyed by slug (lowercase, hyphenated) for easy lookup.
  */
 export const helpTerms: Record<string, string> = {
-  fund: 'A self-balancing set of accounts used to track resources with specific purposes or restrictions. Per ASC 958, nonprofits must track net assets by restriction class.',
+  fund: 'A self-balancing set of accounts used to track resources with specific purposes or restrictions. Per ASC 958, nonprofits must track retained earnings (called "net assets" in nonprofit GAAP) by restriction class.',
 
   'funding-source':
     'A grant, contract, or loan that provides resources to the organization. Each funding source maps to a fund for GL tracking and may be restricted or unrestricted.',
@@ -14,19 +14,19 @@ export const helpTerms: Record<string, string> = {
     'Classifies a fund as Restricted (donor-imposed purpose or time restrictions per 26 CFR 1.501(c)(3)-1) or Unrestricted (available for general use). Set once at creation and immutable per INV-005.',
 
   'restricted-net-assets':
-    'Net Assets With Donor Restrictions. Resources subject to donor-imposed stipulations that are more specific than the broad limits of the organization\'s purpose (FASB ASC 958).',
+    'Retained Earnings, With Donor Restrictions (called "Net Assets With Donor Restrictions" in nonprofit GAAP). Resources subject to donor-imposed stipulations that are more specific than the broad limits of the organization\'s purpose (FASB ASC 958).',
 
   'unrestricted-net-assets':
-    'Net Assets Without Donor Restrictions. Resources available for the organization\'s general operations, not subject to donor-imposed restrictions.',
+    'Retained Earnings, Without Donor Restrictions (called "Net Assets Without Donor Restrictions" in nonprofit GAAP). Resources available for the organization\'s general operations, not subject to donor-imposed restrictions.',
 
   'net-asset-release':
     'When a restricted fund expense is recorded, a corresponding entry reclassifies net assets from "With Donor Restrictions" to "Without Donor Restrictions" (ASC 958-205, INV-007).',
 
   'normal-balance':
-    'The side of the ledger (Debit or Credit) that increases an account. Assets and Expenses have Debit normal balances; Liabilities, Net Assets, and Revenue have Credit normal balances.',
+    'The side of the ledger (Debit or Credit) that increases an account. Assets and Expenses have Debit normal balances; Liabilities, Retained Earnings, and Revenue have Credit normal balances.',
 
   'account-type':
-    'One of five account categories: Asset, Liability, Net Asset, Revenue, or Expense. Determines the account\'s normal balance and financial statement placement.',
+    'One of five account categories: Asset, Liability, Retained Earnings (Net Asset), Revenue, or Expense. Determines the account\'s normal balance and financial statement placement.',
 
   'system-locked':
     'A system-locked account or fund cannot be deactivated, renamed, or deleted. Used for critical accounts like Cash, General Fund, and core net asset accounts.',
@@ -55,7 +55,7 @@ export const helpTerms: Record<string, string> = {
     'Revenue is recognized when earned and expenses when incurred, regardless of when cash changes hands. Required by GAAP for nonprofit financial statements.',
 
   'double-entry':
-    'Every transaction must have equal total debits and credits (INV-001). This ensures the accounting equation (Assets = Liabilities + Net Assets) always balances.',
+    'Every transaction must have equal total debits and credits (INV-001). This ensures the accounting equation (Assets = Liabilities + Retained Earnings) always balances.',
 
   'contra-account':
     'An account that offsets a related account. For example, Accumulated Depreciation is a contra-asset that reduces the net book value of fixed assets.',
@@ -70,10 +70,10 @@ export const helpTerms: Record<string, string> = {
     'A manual double-entry transaction recording. Every entry must balance: total debits must equal total credits (INV-001).',
 
   debit:
-    'An entry on the left side of a ledger. Debits increase assets and expenses, decrease liabilities, net assets, and revenue.',
+    'An entry on the left side of a ledger. Debits increase assets and expenses, decrease liabilities, retained earnings, and revenue.',
 
   credit:
-    'An entry on the right side of a ledger. Credits increase liabilities, net assets, and revenue, decrease assets and expenses.',
+    'An entry on the right side of a ledger. Credits increase liabilities, retained earnings, and revenue, decrease assets and expenses.',
 
   'source-type':
     'Indicates how a transaction entered the system: MANUAL (user-created), SYSTEM (auto-generated), TIMESHEET, EXPENSE_REPORT, RAMP, BANK_FEED, or FY25_IMPORT.',
@@ -242,6 +242,9 @@ export const helpTerms: Record<string, string> = {
 
   invoice:
     'A vendor\'s bill against a purchase order. Posting an invoice creates a GL entry (DR Expense or CIP, CR Accounts Payable).',
+
+  'ar-invoice':
+    'An accounts receivable invoice issued to a funder (grant or contract). Issuing creates a GL entry (DR Grants Receivable 1110, CR Revenue). When payment is received, it reverses the receivable (DR Cash, CR Grants Receivable).',
 
   'payment-in-process':
     'An invoice payment has been initiated outside the system (e.g., via UMass Five portal). The Plaid bank feed will pick up the debit for reconciliation.',

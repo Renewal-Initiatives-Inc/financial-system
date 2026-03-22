@@ -42,4 +42,5 @@ export type TransactionResult = {
     }>
   }
   releaseTransaction?: TransactionResult['transaction']
+  lockedYearWarning?: { year: number; message: string }
 }

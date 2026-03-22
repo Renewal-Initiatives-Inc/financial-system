@@ -88,8 +88,8 @@ async function generateCoverPage(
 
 // Report slug to title mapping
 const REPORT_TITLES: Record<string, string> = {
-  'balance-sheet': 'Statement of Financial Position',
-  activities: 'Statement of Activities',
+  'balance-sheet': 'Balance Sheet',
+  activities: 'Income Statement',
   'cash-flows': 'Statement of Cash Flows',
   'functional-expenses': 'Statement of Functional Expenses',
   'cash-position': 'Cash Position Summary',
@@ -97,7 +97,6 @@ const REPORT_TITLES: Record<string, string> = {
   'outstanding-payables': 'Outstanding Payables',
   'rent-collection': 'Rent Collection Status',
   'fund-drawdown': 'Fund Draw-Down / Restricted Funding Status',
-  'grant-compliance': 'Funding Compliance Tracking',
   'fund-level': 'Fund-Level P&L and Balance Sheet',
   'property-expenses': 'Property Operating Expense Breakdown',
   'utility-trends': 'Utility Trend Analysis',
@@ -108,7 +107,6 @@ const REPORT_TITLES: Record<string, string> = {
   'transaction-history': 'Transaction History',
   'late-entries': 'Late Entries',
   'form-990-data': 'Form 990 Data',
-  'compliance-calendar': 'Compliance Calendar',
   'capital-budget': 'Capital Budget',
   'payroll-register': 'Payroll Register',
   'payroll-tax-liability': 'Payroll Tax Liability',

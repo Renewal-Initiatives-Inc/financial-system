@@ -6,9 +6,21 @@ import {
   PDFTableHeader,
   PDFTableRow,
   PDFSectionDivider,
+  BrandedTableHeader,
+  BrandedDataRow,
+  BrandedSubtotalRow,
+  BrandedTotalRow,
+  BrandedSectionHeader,
+  BrandedSectionDivider,
 } from '@/lib/reports/pdf/report-document'
-import { formatCurrency, formatPercent } from '@/lib/reports/types'
+import type { PDFColumnDef } from '@/lib/reports/pdf/report-document'
+import { formatCurrency, formatPercent, REPORT_DEFINITIONS } from '@/lib/reports/types'
 import { auth } from '@/lib/auth'
+
+// Slug → readable title mapping (built from REPORT_DEFINITIONS)
+const SLUG_TO_TITLE: Record<string, string> = Object.fromEntries(
+  REPORT_DEFINITIONS.map((r) => [r.slug, r.title])
+)
 
 // Dynamic PDF generation route
 // Accepts: ?report=balance-sheet&startDate=...&endDate=...&fundId=...
@@ -19,6 +31,8 @@ export async function GET(request: NextRequest) {
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  const exportedBy = session.user.name ?? session.user.email ?? 'Unknown'
   const params = request.nextUrl.searchParams
   const reportSlug = params.get('report')
 
@@ -29,13 +43,17 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  const readableTitle = SLUG_TO_TITLE[reportSlug] ?? reportSlug
+  const dateStr = new Date().toISOString().split('T')[0]
+  const filename = `${readableTitle} - ${dateStr}.pdf`
+
   try {
-    const pdfBuffer = await generateReportPDF(reportSlug, params)
+    const pdfBuffer = await generateReportPDF(reportSlug, params, exportedBy)
 
     return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${reportSlug}-${new Date().toISOString().split('T')[0]}.pdf"`,
+        'Content-Disposition': `attachment; filename="${filename}"`,
       },
     })
   } catch (error) {
@@ -55,7 +73,8 @@ const el: (...args: any[]) => any = React.createElement
 
 async function generateReportPDF(
   reportSlug: string,
-  params: URLSearchParams
+  params: URLSearchParams,
+  exportedBy: string
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
   const endDate =
@@ -74,165 +93,69 @@ async function generateReportPDF(
         '@/lib/reports/balance-sheet'
       )
       const data = await getBalanceSheetData({ endDate, fundId })
+      const bsCols: PDFColumnDef[] = [
+        { label: 'Account', flex: 3, align: 'left' },
+        { label: 'Balance', flex: 1, align: 'right', format: 'currency' },
+      ]
+      let rowIdx = 0
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const bsSection = (title: string, section: any, prefix: string) => [
+        el(BrandedSectionHeader, { key: `sh-${prefix}`, title }),
+        ...section.rows.map((r: { accountId: number; accountCode: string; accountName: string; balance: number }) =>
+          el(BrandedDataRow, {
+            key: `${prefix}-${r.accountId}`,
+            cells: [`${r.accountCode} — ${r.accountName}`, formatCurrency(r.balance)],
+            columns: bsCols,
+            rowIndex: rowIdx++,
+            indent: 1,
+          })
+        ),
+        el(BrandedSubtotalRow, {
+          key: `st-${prefix}`,
+          cells: [`Total ${title}`, formatCurrency(section.total)],
+          columns: bsCols,
+        }),
+      ]
       return renderToBuffer(
         el(
           ReportDocument,
           {
-            title: 'Statement of Financial Position',
+            exportedBy,
+            title: 'Balance Sheet',
             dateRange: `As of ${endDate}`,
             fundName: data.fundName,
           },
-          el(PDFTableHeader, {
-            columns: [{ label: 'Account' }, { label: 'Balance' }],
-          }),
-          el(PDFTableRow, {
-            cells: ['ASSETS', ''],
-            isSectionHeader: true,
-          }),
-          el(PDFTableRow, {
-            cells: ['Current Assets', ''],
-            isSectionHeader: true,
-          }),
-          ...data.currentAssets.rows.map((r) =>
-            el(PDFTableRow, {
-              key: `ca-${r.accountId}`,
-              cells: [
-                `  ${r.accountCode} — ${r.accountName}`,
-                formatCurrency(r.balance),
-              ],
-              indent: 1,
-            })
-          ),
-          el(PDFTableRow, {
-            cells: [
-              'Total Current Assets',
-              formatCurrency(data.currentAssets.total),
-            ],
-            isBold: true,
-          }),
-          el(PDFTableRow, {
-            cells: ['Noncurrent Assets', ''],
-            isSectionHeader: true,
-          }),
-          ...data.noncurrentAssets.rows.map((r) =>
-            el(PDFTableRow, {
-              key: `na-${r.accountId}`,
-              cells: [
-                `  ${r.accountCode} — ${r.accountName}`,
-                formatCurrency(r.balance),
-              ],
-              indent: 1,
-            })
-          ),
-          el(PDFTableRow, {
-            cells: [
-              'Total Noncurrent Assets',
-              formatCurrency(data.noncurrentAssets.total),
-            ],
-            isBold: true,
-          }),
-          el(PDFTableRow, {
+          el(BrandedTableHeader, { columns: bsCols }),
+          el(BrandedSectionHeader, { title: 'ASSETS' }),
+          ...bsSection('Current Assets', data.currentAssets, 'ca'),
+          ...bsSection('Noncurrent Assets', data.noncurrentAssets, 'na'),
+          el(BrandedTotalRow, {
+            key: 'total-assets',
             cells: ['TOTAL ASSETS', formatCurrency(data.totalAssets)],
-            isBold: true,
+            columns: bsCols,
           }),
-          el(PDFSectionDivider),
-          el(PDFTableRow, {
-            cells: ['LIABILITIES', ''],
-            isSectionHeader: true,
+          el(BrandedSectionDivider, { key: 'div-1' }),
+          el(BrandedSectionHeader, { title: 'LIABILITIES' }),
+          ...bsSection('Current Liabilities', data.currentLiabilities, 'cl'),
+          ...bsSection('Long-Term Liabilities', data.longTermLiabilities, 'lt'),
+          el(BrandedTotalRow, {
+            key: 'total-liab',
+            cells: ['TOTAL LIABILITIES', formatCurrency(data.totalLiabilities)],
+            columns: bsCols,
           }),
-          ...data.currentLiabilities.rows.map((r) =>
-            el(PDFTableRow, {
-              key: `cl-${r.accountId}`,
-              cells: [
-                `  ${r.accountCode} — ${r.accountName}`,
-                formatCurrency(r.balance),
-              ],
-              indent: 1,
-            })
-          ),
-          el(PDFTableRow, {
-            cells: [
-              'Total Current Liabilities',
-              formatCurrency(data.currentLiabilities.total),
-            ],
-            isBold: true,
+          el(BrandedSectionDivider, { key: 'div-2' }),
+          el(BrandedSectionHeader, { title: 'RETAINED EARNINGS' }),
+          ...bsSection('Without Donor Restrictions', data.netAssetsUnrestricted, 'nu'),
+          ...bsSection('With Donor Restrictions', data.netAssetsRestricted, 'nr'),
+          el(BrandedTotalRow, {
+            key: 'total-re',
+            cells: ['TOTAL RETAINED EARNINGS', formatCurrency(data.totalNetAssets)],
+            columns: bsCols,
           }),
-          ...data.longTermLiabilities.rows.map((r) =>
-            el(PDFTableRow, {
-              key: `lt-${r.accountId}`,
-              cells: [
-                `  ${r.accountCode} — ${r.accountName}`,
-                formatCurrency(r.balance),
-              ],
-              indent: 1,
-            })
-          ),
-          el(PDFTableRow, {
-            cells: [
-              'Total Long-Term Liabilities',
-              formatCurrency(data.longTermLiabilities.total),
-            ],
-            isBold: true,
-          }),
-          el(PDFTableRow, {
-            cells: [
-              'TOTAL LIABILITIES',
-              formatCurrency(data.totalLiabilities),
-            ],
-            isBold: true,
-          }),
-          el(PDFSectionDivider),
-          el(PDFTableRow, {
-            cells: ['NET ASSETS', ''],
-            isSectionHeader: true,
-          }),
-          ...data.netAssetsUnrestricted.rows.map((r) =>
-            el(PDFTableRow, {
-              key: `nu-${r.accountId}`,
-              cells: [
-                `  ${r.accountCode} — ${r.accountName}`,
-                formatCurrency(r.balance),
-              ],
-              indent: 1,
-            })
-          ),
-          el(PDFTableRow, {
-            cells: [
-              'Without Donor Restrictions',
-              formatCurrency(data.netAssetsUnrestricted.total),
-            ],
-            isBold: true,
-          }),
-          ...data.netAssetsRestricted.rows.map((r) =>
-            el(PDFTableRow, {
-              key: `nr-${r.accountId}`,
-              cells: [
-                `  ${r.accountCode} — ${r.accountName}`,
-                formatCurrency(r.balance),
-              ],
-              indent: 1,
-            })
-          ),
-          el(PDFTableRow, {
-            cells: [
-              'With Donor Restrictions',
-              formatCurrency(data.netAssetsRestricted.total),
-            ],
-            isBold: true,
-          }),
-          el(PDFTableRow, {
-            cells: [
-              'TOTAL NET ASSETS',
-              formatCurrency(data.totalNetAssets),
-            ],
-            isBold: true,
-          }),
-          el(PDFTableRow, {
-            cells: [
-              'TOTAL LIABILITIES & NET ASSETS',
-              formatCurrency(data.totalLiabilitiesAndNetAssets),
-            ],
-            isBold: true,
+          el(BrandedTotalRow, {
+            key: 'total-lre',
+            cells: ['TOTAL LIABILITIES & RETAINED EARNINGS', formatCurrency(data.totalLiabilitiesAndNetAssets)],
+            columns: bsCols,
           })
         )
       )
@@ -244,129 +167,97 @@ async function generateReportPDF(
     case 'activities': {
       const { getActivitiesData } = await import('@/lib/reports/activities')
       const data = await getActivitiesData({ startDate, endDate, fundId })
-      const cols = [
-        { label: 'Account' },
-        { label: 'Current Period' },
-        { label: 'YTD' },
-        { label: 'Budget' },
+      const actCols: PDFColumnDef[] = [
+        { label: 'Account', flex: 3, align: 'left' },
+        { label: 'Current Period', flex: 1, align: 'right', format: 'currency' },
+        { label: 'YTD', flex: 1, align: 'right', format: 'currency' },
+        { label: 'Budget', flex: 1, align: 'right', format: 'currency' },
       ]
+      let actIdx = 0
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const actSection = (sections: any[], prefix: string) =>
+        sections.flatMap((s: any) => [
+          el(BrandedSectionHeader, { key: `${prefix}h-${s.title}`, title: s.title }),
+          ...s.rows.map((r: any) =>
+            el(BrandedDataRow, {
+              key: `${prefix}-${r.accountId}`,
+              cells: [
+                `${r.accountCode} — ${r.accountName}`,
+                formatCurrency(r.currentPeriod),
+                formatCurrency(r.yearToDate),
+                r.budget !== null ? formatCurrency(r.budget) : '—',
+              ],
+              columns: actCols,
+              rowIndex: actIdx++,
+              indent: 1,
+            })
+          ),
+          el(BrandedSubtotalRow, {
+            key: `${prefix}t-${s.title}`,
+            cells: [
+              `Total ${s.title}`,
+              formatCurrency(s.total.currentPeriod),
+              formatCurrency(s.total.yearToDate),
+              s.total.budget !== null ? formatCurrency(s.total.budget) : '—',
+            ],
+            columns: actCols,
+          }),
+        ])
       return renderToBuffer(
         el(
           ReportDocument,
           {
-            title: 'Statement of Activities',
+            exportedBy,
+            title: 'Income Statement',
             dateRange: `${startDate} to ${endDate}`,
             fundName: data.fundName,
           },
-          el(PDFTableHeader, { columns: cols }),
-          el(PDFTableRow, {
-            cells: ['REVENUE', '', '', ''],
-            isSectionHeader: true,
-          }),
-          ...data.revenueSections.flatMap((s) => [
-            el(PDFTableRow, {
-              key: `rh-${s.title}`,
-              cells: [s.title, '', '', ''],
-              isSectionHeader: true,
-            }),
-            ...s.rows.map((r) =>
-              el(PDFTableRow, {
-                key: `r-${r.accountId}`,
-                cells: [
-                  `  ${r.accountCode} — ${r.accountName}`,
-                  formatCurrency(r.currentPeriod),
-                  formatCurrency(r.yearToDate),
-                  r.budget !== null ? formatCurrency(r.budget) : '—',
-                ],
-                indent: 1,
-              })
-            ),
-            el(PDFTableRow, {
-              key: `rt-${s.title}`,
-              cells: [
-                `Total ${s.title}`,
-                formatCurrency(s.total.currentPeriod),
-                formatCurrency(s.total.yearToDate),
-                s.total.budget !== null ? formatCurrency(s.total.budget) : '—',
-              ],
-              isBold: true,
-            }),
-          ]),
-          el(PDFTableRow, {
+          el(BrandedTableHeader, { columns: actCols }),
+          el(BrandedSectionHeader, { title: 'REVENUE' }),
+          ...actSection(data.revenueSections, 'r'),
+          el(BrandedTotalRow, {
+            key: 'total-rev',
             cells: [
               'TOTAL REVENUE',
               formatCurrency(data.totalRevenue.currentPeriod),
               formatCurrency(data.totalRevenue.yearToDate),
-              data.totalRevenue.budget !== null
-                ? formatCurrency(data.totalRevenue.budget)
-                : '—',
+              data.totalRevenue.budget !== null ? formatCurrency(data.totalRevenue.budget) : '—',
             ],
-            isBold: true,
+            columns: actCols,
           }),
-          el(PDFSectionDivider),
-          el(PDFTableRow, {
-            cells: ['EXPENSES', '', '', ''],
-            isSectionHeader: true,
-          }),
-          ...data.expenseSections.flatMap((s) => [
-            el(PDFTableRow, {
-              key: `eh-${s.title}`,
-              cells: [s.title, '', '', ''],
-              isSectionHeader: true,
-            }),
-            ...s.rows.map((r) =>
-              el(PDFTableRow, {
-                key: `e-${r.accountId}`,
-                cells: [
-                  `  ${r.accountCode} — ${r.accountName}`,
-                  formatCurrency(r.currentPeriod),
-                  formatCurrency(r.yearToDate),
-                  r.budget !== null ? formatCurrency(r.budget) : '—',
-                ],
-                indent: 1,
-              })
-            ),
-            el(PDFTableRow, {
-              key: `et-${s.title}`,
-              cells: [
-                `Total ${s.title}`,
-                formatCurrency(s.total.currentPeriod),
-                formatCurrency(s.total.yearToDate),
-                s.total.budget !== null ? formatCurrency(s.total.budget) : '—',
-              ],
-              isBold: true,
-            }),
-          ]),
-          el(PDFTableRow, {
+          el(BrandedSectionDivider, { key: 'div-act' }),
+          el(BrandedSectionHeader, { title: 'EXPENSES' }),
+          ...actSection(data.expenseSections, 'e'),
+          el(BrandedTotalRow, {
+            key: 'total-exp',
             cells: [
               'TOTAL EXPENSES',
               formatCurrency(data.totalExpenses.currentPeriod),
               formatCurrency(data.totalExpenses.yearToDate),
-              data.totalExpenses.budget !== null
-                ? formatCurrency(data.totalExpenses.budget)
-                : '—',
+              data.totalExpenses.budget !== null ? formatCurrency(data.totalExpenses.budget) : '—',
             ],
-            isBold: true,
+            columns: actCols,
           }),
-          el(PDFSectionDivider),
-          el(PDFTableRow, {
+          el(BrandedSectionDivider, { key: 'div-act2' }),
+          el(BrandedDataRow, {
             cells: [
               'Net Asset Releases',
               formatCurrency(data.netAssetReleases.currentPeriod),
               formatCurrency(data.netAssetReleases.yearToDate),
               '—',
             ],
+            columns: actCols,
+            rowIndex: 0,
           }),
-          el(PDFTableRow, {
+          el(BrandedTotalRow, {
+            key: 'change-re',
             cells: [
-              'CHANGE IN NET ASSETS',
+              'CHANGE IN RETAINED EARNINGS',
               formatCurrency(data.changeInNetAssets.currentPeriod),
               formatCurrency(data.changeInNetAssets.yearToDate),
-              data.changeInNetAssets.budget !== null
-                ? formatCurrency(data.changeInNetAssets.budget)
-                : '—',
+              data.changeInNetAssets.budget !== null ? formatCurrency(data.changeInNetAssets.budget) : '—',
             ],
-            isBold: true,
+            columns: actCols,
           })
         )
       )
@@ -378,51 +269,59 @@ async function generateReportPDF(
     case 'cash-flows': {
       const { getCashFlows } = await import('@/lib/reports/cash-flows')
       const data = await getCashFlows({ startDate, endDate, fundId })
+      const cfCols: PDFColumnDef[] = [
+        { label: 'Description', flex: 3, align: 'left' },
+        { label: 'Amount', flex: 1, align: 'right', format: 'currency' },
+      ]
+      let cfIdx = 0
       return renderToBuffer(
         el(
           ReportDocument,
           {
+            exportedBy,
             title: 'Statement of Cash Flows',
             dateRange: `${startDate} to ${endDate}`,
             fundName: data.fundName,
           },
-          el(PDFTableHeader, {
-            columns: [{ label: 'Description' }, { label: 'Amount' }],
-          }),
+          el(BrandedTableHeader, { columns: cfCols }),
           ...[data.operating, data.investing, data.financing].flatMap((s) => [
-            el(PDFTableRow, {
-              key: `sh-${s.title}`,
-              cells: [s.title, ''],
-              isSectionHeader: true,
-            }),
+            el(BrandedSectionHeader, { key: `sh-${s.title}`, title: s.title }),
             ...s.lines.map((l, i) =>
-              el(PDFTableRow, {
-                key: `${s.title}-${i}`,
-                cells: [l.label, formatCurrency(l.amount)],
-                indent: l.indent,
-                isBold: l.isSubtotal || l.isTotal,
-              })
+              l.isSubtotal || l.isTotal
+                ? el(BrandedSubtotalRow, {
+                    key: `${s.title}-${i}`,
+                    cells: [l.label, formatCurrency(l.amount)],
+                    columns: cfCols,
+                  })
+                : el(BrandedDataRow, {
+                    key: `${s.title}-${i}`,
+                    cells: [l.label, formatCurrency(l.amount)],
+                    columns: cfCols,
+                    rowIndex: cfIdx++,
+                    indent: l.indent,
+                  })
             ),
-            el(PDFTableRow, {
+            el(BrandedSubtotalRow, {
               key: `st-${s.title}`,
               cells: [`Net Cash from ${s.title}`, formatCurrency(s.subtotal)],
-              isBold: true,
+              columns: cfCols,
             }),
-            el(PDFSectionDivider, { key: `sd-${s.title}` }),
+            el(BrandedSectionDivider, { key: `sd-${s.title}` }),
           ]),
-          el(PDFTableRow, {
-            cells: [
-              'NET CHANGE IN CASH',
-              formatCurrency(data.netChangeInCash),
-            ],
-            isBold: true,
+          el(BrandedTotalRow, {
+            key: 'net-change',
+            cells: ['NET CHANGE IN CASH', formatCurrency(data.netChangeInCash)],
+            columns: cfCols,
           }),
-          el(PDFTableRow, {
+          el(BrandedDataRow, {
             cells: ['Beginning Cash', formatCurrency(data.beginningCash)],
+            columns: cfCols,
+            rowIndex: 0,
           }),
-          el(PDFTableRow, {
+          el(BrandedTotalRow, {
+            key: 'ending-cash',
             cells: ['ENDING CASH', formatCurrency(data.endingCash)],
-            isBold: true,
+            columns: cfCols,
           })
         )
       )
@@ -444,25 +343,44 @@ async function generateReportPDF(
         format,
       })
       const hasFR = data.hasUnallocated
-      const cols = [
-        { label: 'Expense' },
-        { label: 'Total' },
-        { label: 'Program' },
-        { label: 'M&G' },
-        { label: 'Fundraising' },
-        ...(hasFR ? [{ label: 'Unalloc.' }] : []),
+      const feCols: PDFColumnDef[] = [
+        { label: 'Expense', flex: 3, align: 'left' },
+        { label: 'Total', flex: 1, align: 'right', format: 'currency' },
+        { label: 'Program', flex: 1, align: 'right', format: 'currency' },
+        { label: 'M&G', flex: 1, align: 'right', format: 'currency' },
+        { label: 'Fundraising', flex: 1, align: 'right', format: 'currency' },
+        ...(hasFR ? [{ label: 'Unalloc.', flex: 1, align: 'right' as const, format: 'currency' as const }] : []),
       ]
+      let feIdx = 0
       return renderToBuffer(
         el(
           ReportDocument,
           {
+            exportedBy,
             title: `Statement of Functional Expenses (${data.format.toUpperCase()})`,
             dateRange: `${startDate} to ${endDate}`,
             fundName: data.fundName,
           },
-          el(PDFTableHeader, { columns: cols }),
-          ...data.rows.map((r, i) =>
-            el(PDFTableRow, {
+          el(BrandedTableHeader, { columns: feCols }),
+          ...data.rows.map((r, i) => {
+            if (r.isGroupHeader) {
+              return el(BrandedSectionHeader, { key: `fe-${i}`, title: r.label })
+            }
+            if (r.isTotal) {
+              return el(BrandedSubtotalRow, {
+                key: `fe-${i}`,
+                cells: [
+                  r.label,
+                  formatCurrency(r.total),
+                  formatCurrency(r.program),
+                  formatCurrency(r.admin),
+                  formatCurrency(r.fundraising),
+                  ...(hasFR ? [formatCurrency(r.unallocated)] : []),
+                ],
+                columns: feCols,
+              })
+            }
+            return el(BrandedDataRow, {
               key: `fe-${i}`,
               cells: [
                 r.label,
@@ -472,12 +390,13 @@ async function generateReportPDF(
                 formatCurrency(r.fundraising),
                 ...(hasFR ? [formatCurrency(r.unallocated)] : []),
               ],
-              isSectionHeader: r.isGroupHeader,
-              isBold: r.isTotal,
+              columns: feCols,
+              rowIndex: feIdx++,
             })
-          ),
-          el(PDFSectionDivider),
-          el(PDFTableRow, {
+          }),
+          el(BrandedSectionDivider),
+          el(BrandedTotalRow, {
+            key: 'fe-total',
             cells: [
               'TOTAL',
               formatCurrency(data.totals.total),
@@ -486,7 +405,7 @@ async function generateReportPDF(
               formatCurrency(data.totals.fundraising),
               ...(hasFR ? [formatCurrency(data.totals.unallocated)] : []),
             ],
-            isBold: true,
+            columns: feCols,
           })
         )
       )
@@ -505,6 +424,7 @@ async function generateReportPDF(
         el(
           ReportDocument,
           {
+            exportedBy,
             title: 'Cash Position Summary',
             dateRange: `As of ${endDate}`,
           },
@@ -581,7 +501,7 @@ async function generateReportPDF(
       return renderToBuffer(
         el(
           ReportDocument,
-          { title: 'Accounts Receivable Aging', dateRange: `As of ${endDate}` },
+          { exportedBy, title: 'Accounts Receivable Aging', dateRange: `As of ${endDate}` },
           el(PDFTableHeader, { columns: agingCols }),
           // Tenant AR
           el(PDFTableRow, {
@@ -655,6 +575,7 @@ async function generateReportPDF(
         el(
           ReportDocument,
           {
+            exportedBy,
             title: 'Outstanding Payables',
             dateRange: `As of ${endDate}`,
           },
@@ -719,6 +640,7 @@ async function generateReportPDF(
         el(
           ReportDocument,
           {
+            exportedBy,
             title: 'Rent Collection Status',
             dateRange: `Month: ${data.month}`,
           },
@@ -788,6 +710,7 @@ async function generateReportPDF(
         el(
           ReportDocument,
           {
+            exportedBy,
             title: 'Fund Draw-Down / Restricted Funding Status',
             dateRange: `As of ${endDate}`,
           },
@@ -850,58 +773,7 @@ async function generateReportPDF(
       )
     }
 
-    // -----------------------------------------------------------------------
-    // Report #10: Funding Compliance Tracking
-    // -----------------------------------------------------------------------
-    case 'grant-compliance': {
-      const { getFundingComplianceData } = await import(
-        '@/lib/reports/grant-compliance'
-      )
-      const data = await getFundingComplianceData()
-      return renderToBuffer(
-        el(
-          ReportDocument,
-          {
-            title: 'Funding Compliance Tracking',
-            dateRange: `As of ${endDate}`,
-          },
-          el(PDFTableHeader, {
-            columns: [
-              { label: 'Funding Source / Funder' },
-              { label: 'Award' },
-              { label: 'Spent' },
-              { label: 'Remaining' },
-              { label: 'Status' },
-            ],
-          }),
-          ...data.rows.map((r) =>
-            el(PDFTableRow, {
-              key: `gc-${r.fundId}`,
-              cells: [
-                `${r.funderName}${r.isAtRisk ? ' [AT RISK]' : ''}`,
-                formatCurrency(r.awardAmount),
-                formatCurrency(r.amountSpent),
-                formatCurrency(r.amountRemaining),
-                `${r.spentPercent.toFixed(0)}% spent${r.daysRemaining !== null ? ` / ${r.daysRemaining}d left` : ''}`,
-              ],
-            })
-          ),
-          el(PDFSectionDivider),
-          el(PDFTableRow, {
-            cells: [
-              `${data.activeFundingSources} active funding sources (${data.atRiskFundingSources} at risk)`,
-              formatCurrency(data.totalAwards),
-              formatCurrency(data.totalSpent),
-              '',
-              '',
-            ],
-            isBold: true,
-          })
-        )
-      )
-    }
-
-    // -----------------------------------------------------------------------
+// -----------------------------------------------------------------------
     // Report #11: Fund-Level P&L and Balance Sheet
     // -----------------------------------------------------------------------
     case 'fund-level': {
@@ -910,7 +782,7 @@ async function generateReportPDF(
         return renderToBuffer(
           el(
             ReportDocument,
-            { title: 'Fund-Level Report' },
+            { exportedBy, title: 'Fund-Level Report' },
             el(PDFTableRow, {
               cells: ['Please select a fund to generate this report.', ''],
             })
@@ -924,6 +796,7 @@ async function generateReportPDF(
         el(
           ReportDocument,
           {
+            exportedBy,
             title: `Fund-Level Report: ${data.fundName}`,
             dateRange: `As of ${endDate}`,
             fundName: data.fundName,
@@ -948,7 +821,7 @@ async function generateReportPDF(
           }),
           el(PDFTableRow, {
             cells: [
-              'Total Net Assets',
+              'Total Retained Earnings',
               formatCurrency(bs.totalNetAssets),
             ],
             isBold: true,
@@ -983,7 +856,7 @@ async function generateReportPDF(
           }),
           el(PDFTableRow, {
             cells: [
-              'Change in Net Assets',
+              'Change in Retained Earnings',
               formatCurrency(data.activities.changeInNetAssets.currentPeriod),
               formatCurrency(data.activities.changeInNetAssets.yearToDate),
             ],
@@ -1005,6 +878,7 @@ async function generateReportPDF(
         el(
           ReportDocument,
           {
+            exportedBy,
             title: 'Property Operating Expense Breakdown',
             dateRange: `${startDate} to ${endDate}`,
             fundName: data.fundName,
@@ -1063,6 +937,7 @@ async function generateReportPDF(
         el(
           ReportDocument,
           {
+            exportedBy,
             title: 'Utility Trend Analysis',
             dateRange: '12-Month Rolling Window',
           },
@@ -1113,6 +988,7 @@ async function generateReportPDF(
         el(
           ReportDocument,
           {
+            exportedBy,
             title: 'Security Deposit Register',
             dateRange: `As of ${endDate}`,
           },
@@ -1181,7 +1057,7 @@ async function generateReportPDF(
       return renderToBuffer(
         el(
           ReportDocument,
-          { title: 'Donor Giving History', dateRange: `${startDate} to ${endDate}` },
+          { exportedBy, title: 'Donor Giving History', dateRange: `${startDate} to ${endDate}` },
           el(PDFTableHeader, {
             columns: [
               { label: 'Donor' },
@@ -1230,6 +1106,7 @@ async function generateReportPDF(
         el(
           ReportDocument,
           {
+            exportedBy,
             title: 'Cash Projection',
             dateRange: `FY${data.fiscalYear}`,
           },
@@ -1277,7 +1154,7 @@ async function generateReportPDF(
       return renderToBuffer(
         el(
           ReportDocument,
-          { title: 'Audit Log', dateRange: `${startDate} to ${endDate}` },
+          { exportedBy, title: 'Audit Log', dateRange: `${startDate} to ${endDate}` },
           el(PDFTableHeader, {
             columns: [
               { label: 'Timestamp' },
@@ -1323,6 +1200,7 @@ async function generateReportPDF(
         el(
           ReportDocument,
           {
+            exportedBy,
             title: 'Transaction History',
             dateRange: `${startDate} to ${endDate}`,
           },
@@ -1331,25 +1209,41 @@ async function generateReportPDF(
               { label: 'Date' },
               { label: 'Memo' },
               { label: 'Source' },
+              { label: 'Account' },
               { label: 'Debit' },
               { label: 'Credit' },
             ],
           }),
-          ...data.rows.map((r) =>
+          ...data.rows.flatMap((r) => [
             el(PDFTableRow, {
               key: `th-${r.id}`,
               cells: [
                 r.date,
                 r.memo.substring(0, 50),
                 r.sourceType,
-                formatCurrency(r.totalDebit),
-                formatCurrency(r.totalCredit),
+                '',
+                '',
+                '',
               ],
-            })
-          ),
+              isBold: true,
+            }),
+            ...r.lines.map((line, i) =>
+              el(PDFTableRow, {
+                key: `th-${r.id}-ln-${i}`,
+                cells: [
+                  '',
+                  '',
+                  '',
+                  `${line.accountCode} — ${line.accountName}`,
+                  line.debit ? formatCurrency(line.debit) : '',
+                  line.credit ? formatCurrency(line.credit) : '',
+                ],
+              })
+            ),
+          ]),
           el(PDFSectionDivider),
           el(PDFTableRow, {
-            cells: [`${data.totalCount} transactions total`, '', '', '', ''],
+            cells: [`${data.totalCount} transactions total`, '', '', '', '', ''],
             isBold: true,
           })
         )
@@ -1366,6 +1260,7 @@ async function generateReportPDF(
         el(
           ReportDocument,
           {
+            exportedBy,
             title: 'Late Entries Report',
             dateRange: `Period ending ${data.periodEndDate}`,
           },
@@ -1417,7 +1312,7 @@ async function generateReportPDF(
       return renderToBuffer(
         el(
           ReportDocument,
-          { title: 'Form 990 Data Worksheet', dateRange: `FY${data.fiscalYear}` },
+          { exportedBy, title: 'Form 990 Data Worksheet', dateRange: `FY${data.fiscalYear}` },
           el(PDFTableRow, {
             cells: ['Part IX — Functional Expenses', '', '', '', ''],
             isSectionHeader: true,
@@ -1478,74 +1373,7 @@ async function generateReportPDF(
       )
     }
 
-    // -----------------------------------------------------------------------
-    // Report #23: Compliance Calendar
-    // -----------------------------------------------------------------------
-    case 'compliance-calendar': {
-      const { getComplianceCalendarData } = await import(
-        '@/lib/reports/compliance-calendar'
-      )
-      const data = await getComplianceCalendarData({})
-      return renderToBuffer(
-        el(
-          ReportDocument,
-          { title: 'Compliance Calendar', dateRange: `As of ${endDate}` },
-          ...(data.overdue.length > 0
-            ? [
-                el(PDFTableRow, {
-                  key: 'cc-oh',
-                  cells: ['OVERDUE', '', '', ''],
-                  isSectionHeader: true,
-                }),
-                el(PDFTableHeader, {
-                  key: 'cc-ohdr',
-                  columns: [
-                    { label: 'Task' },
-                    { label: 'Due Date' },
-                    { label: 'Category' },
-                    { label: 'Days Overdue' },
-                  ],
-                }),
-                ...data.overdue.map((d) =>
-                  el(PDFTableRow, {
-                    key: `cc-o-${d.id}`,
-                    cells: [d.taskName, d.dueDate, d.category, String(Math.abs(d.daysUntilDue))],
-                  })
-                ),
-              ]
-            : []),
-          el(PDFTableRow, {
-            key: 'cc-uh',
-            cells: ['UPCOMING', '', '', ''],
-            isSectionHeader: true,
-          }),
-          ...data.upcoming.map((d) =>
-            el(PDFTableRow, {
-              key: `cc-u-${d.id}`,
-              cells: [d.taskName, d.dueDate, d.category, `${d.daysUntilDue}d`],
-            })
-          ),
-          el(PDFTableRow, {
-            key: 'cc-fh',
-            cells: ['THIS QUARTER', '', '', ''],
-            isSectionHeader: true,
-          }),
-          ...data.thisQuarter.map((d) =>
-            el(PDFTableRow, {
-              key: `cc-q-${d.id}`,
-              cells: [d.taskName, d.dueDate, d.category, `${d.daysUntilDue}d`],
-            })
-          ),
-          el(PDFSectionDivider),
-          el(PDFTableRow, {
-            cells: [`${data.totalCount} total deadlines (${data.overdueCount} overdue)`, '', '', ''],
-            isBold: true,
-          })
-        )
-      )
-    }
-
-    // -----------------------------------------------------------------------
+// -----------------------------------------------------------------------
     // Report #24: Capital Budget
     // -----------------------------------------------------------------------
     case 'capital-budget': {
@@ -1560,6 +1388,7 @@ async function generateReportPDF(
         el(
           ReportDocument,
           {
+            exportedBy,
             title: 'Capital Budget vs Actual',
             dateRange: `FY${data.year}`,
             fundName: data.fundName,
@@ -1611,7 +1440,7 @@ async function generateReportPDF(
       return renderToBuffer(
         el(
           ReportDocument,
-          { title: 'Payroll Register', dateRange: `${startDate} to ${endDate}` },
+          { exportedBy, title: 'Payroll Register', dateRange: `${startDate} to ${endDate}` },
           ...data.runs.flatMap((run) => [
             el(PDFTableRow, {
               key: `pr-h-${run.runId}`,
@@ -1679,6 +1508,7 @@ async function generateReportPDF(
         el(
           ReportDocument,
           {
+            exportedBy,
             title: 'Payroll Tax Liability Summary',
             dateRange: `${data.periodStart} to ${data.periodEnd}`,
           },
@@ -1732,7 +1562,7 @@ async function generateReportPDF(
       return renderToBuffer(
         el(
           ReportDocument,
-          { title: 'W-2 Verification Report', dateRange: `Tax Year ${data.year}` },
+          { exportedBy, title: 'W-2 Verification Report', dateRange: `Tax Year ${data.year}` },
           el(PDFTableHeader, {
             columns: [
               { label: 'Employee' },
@@ -1786,7 +1616,7 @@ async function generateReportPDF(
       return renderToBuffer(
         el(
           ReportDocument,
-          { title: 'Employer Payroll Cost Analysis', dateRange: `FY${data.year}` },
+          { exportedBy, title: 'Employer Payroll Cost Analysis', dateRange: `FY${data.year}` },
           el(PDFTableHeader, {
             columns: [
               { label: 'Month' },
@@ -1843,6 +1673,7 @@ async function generateReportPDF(
         el(
           ReportDocument,
           {
+            exportedBy,
             title: `Quarterly Tax Prep — ${data.quarterLabel}`,
             dateRange: `${data.periodStart} to ${data.periodEnd}`,
           },
@@ -1881,6 +1712,7 @@ async function generateReportPDF(
         el(
           ReportDocument,
           {
+            exportedBy,
             title: reportSlug
               .replace(/-/g, ' ')
               .replace(/\b\w/g, (c) => c.toUpperCase()),

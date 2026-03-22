@@ -1,4 +1,4 @@
-import { eq, and, sql, notInArray } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import {
   accounts,
@@ -145,7 +145,7 @@ export async function getOutstandingPayablesData(): Promise<OutstandingPayablesD
     .innerJoin(vendors, eq(invoices.vendorId, vendors.id))
     .innerJoin(purchaseOrders, eq(invoices.purchaseOrderId, purchaseOrders.id))
     .where(
-      notInArray(invoices.paymentStatus, ['PAID', 'MATCHED_TO_PAYMENT'])
+      eq(invoices.paymentStatus, 'POSTED')
     )
     .orderBy(invoices.dueDate)
 

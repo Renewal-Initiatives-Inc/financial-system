@@ -21,6 +21,8 @@ const salariedExempt: EmployeePayrollData = {
   isBlind: false,
   spouseIsBlind: false,
   contractorType: 'W2',
+  isOfficer: false,
+  isBoardMember: false,
 }
 
 const salariedNonExempt: EmployeePayrollData = {
@@ -46,6 +48,8 @@ const perTaskNonExempt: EmployeePayrollData = {
   isBlind: false,
   spouseIsBlind: false,
   contractorType: 'W2',
+  isOfficer: false,
+  isBoardMember: false,
 }
 
 function makeRecord(overrides: Partial<StagingRecordForPayroll> = {}): StagingRecordForPayroll {

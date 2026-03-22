@@ -28,7 +28,7 @@ import {
   ContractTermsCard,
   parseMilestones,
 } from '@/components/shared/contract-terms-card'
-import { updatePurchaseOrderStatus, markPaymentInProcess, dismissComplianceWarning } from '../../actions'
+import { updatePurchaseOrderStatus, dismissComplianceWarning } from '../../actions'
 import type { PurchaseOrderDetail } from '../../actions'
 import { toast } from 'sonner'
 
@@ -50,18 +50,12 @@ const statusLabels: Record<string, string> = {
 }
 
 const paymentStatusColors: Record<string, string> = {
-  PENDING: 'bg-gray-100 text-gray-800',
   POSTED: 'bg-blue-100 text-blue-800',
-  PAYMENT_IN_PROCESS: 'bg-yellow-100 text-yellow-800',
-  MATCHED_TO_PAYMENT: 'bg-green-100 text-green-800',
   PAID: 'bg-green-100 text-green-800',
 }
 
 const paymentStatusLabels: Record<string, string> = {
-  PENDING: 'Pending',
   POSTED: 'Posted',
-  PAYMENT_IN_PROCESS: 'Payment in Process',
-  MATCHED_TO_PAYMENT: 'Matched to Payment',
   PAID: 'Paid',
 }
 
@@ -187,22 +181,6 @@ export function PODetailClient({ po }: PODetailClientProps) {
       } catch (err) {
         toast.error(
           err instanceof Error ? err.message : 'Failed to dismiss warning'
-        )
-      }
-    })
-  }
-
-  const handleMarkPaymentInProcess = (invoiceId: number) => {
-    startTransition(async () => {
-      try {
-        await markPaymentInProcess(invoiceId, 'system')
-        toast.success('Invoice marked as payment in process')
-        router.refresh()
-      } catch (err) {
-        toast.error(
-          err instanceof Error
-            ? err.message
-            : 'Failed to mark payment in process'
         )
       }
     })
@@ -410,7 +388,7 @@ export function PODetailClient({ po }: PODetailClientProps) {
                     <TableCell>
                       {inv.glTransactionId ? (
                         <Link
-                          href={`/transactions?id=${inv.glTransactionId}`}
+                          href={`/transactions/${inv.glTransactionId}`}
                           className="text-blue-600 hover:underline text-sm"
                         >
                           GL-{inv.glTransactionId}
@@ -419,22 +397,7 @@ export function PODetailClient({ po }: PODetailClientProps) {
                         <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
-                    {/* 7. Payment Status Actions */}
-                    <TableCell>
-                      {inv.paymentStatus === 'POSTED' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={isPending}
-                          onClick={() =>
-                            handleMarkPaymentInProcess(inv.id)
-                          }
-                          data-testid={`mark-payment-btn-${inv.id}`}
-                        >
-                          Mark Payment in Process
-                        </Button>
-                      )}
-                    </TableCell>
+                    <TableCell />
                   </TableRow>
                 ))}
               </TableBody>

@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { eq, ilike, and, sql, inArray, or } from 'drizzle-orm'
+import { eq, ilike, and, sql, or } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { vendors, accounts, funds, invoices } from '@/lib/db/schema'
 import {
@@ -297,7 +297,7 @@ export async function getVendor1099Summary(
     .where(
       and(
         eq(invoices.vendorId, vendorId),
-        inArray(invoices.paymentStatus, ['MATCHED_TO_PAYMENT', 'PAID']),
+        eq(invoices.paymentStatus, 'PAID'),
         sql`${invoices.invoiceDate} >= ${yearStart}`,
         sql`${invoices.invoiceDate} <= ${yearEnd}`
       )
@@ -336,4 +336,62 @@ export async function getFundOptions(): Promise<
       )
     )
     .orderBy(funds.name)
+}
+
+/**
+ * Get funding sources linked to this vendor (as funder).
+ */
+export async function getVendorFunds(
+  vendorId: number
+): Promise<{ id: number; name: string; fundingCategory: string | null }[]> {
+  return db
+    .select({
+      id: funds.id,
+      name: funds.name,
+      fundingCategory: funds.fundingCategory,
+    })
+    .from(funds)
+    .where(and(eq(funds.funderId, vendorId), eq(funds.isActive, true)))
+    .orderBy(funds.name)
+}
+
+export type VendorArInvoice = {
+  id: number
+  invoiceNumber: string | null
+  amount: string
+  invoiceDate: string
+  dueDate: string | null
+  paymentStatus: string
+  fundId: number | null
+  fundName: string | null
+}
+
+/**
+ * Get AR invoices for a vendor's funding sources.
+ */
+export async function getVendorArInvoices(
+  vendorId: number
+): Promise<VendorArInvoice[]> {
+  const rows = await db
+    .select({
+      id: invoices.id,
+      invoiceNumber: invoices.invoiceNumber,
+      amount: invoices.amount,
+      invoiceDate: invoices.invoiceDate,
+      dueDate: invoices.dueDate,
+      paymentStatus: invoices.paymentStatus,
+      fundId: invoices.fundId,
+      fundName: funds.name,
+    })
+    .from(invoices)
+    .innerJoin(funds, eq(invoices.fundId, funds.id))
+    .where(
+      and(
+        eq(funds.funderId, vendorId),
+        eq(invoices.direction, 'AR')
+      )
+    )
+    .orderBy(sql`${invoices.invoiceDate} DESC`)
+
+  return rows
 }

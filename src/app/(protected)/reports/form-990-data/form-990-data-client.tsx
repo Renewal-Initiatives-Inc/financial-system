@@ -12,8 +12,14 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Tabs,
   TabsContent,
@@ -27,6 +33,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { ReportShell } from '@/components/reports/report-shell'
+import type { CSVColumnDef } from '@/lib/reports/csv/export-csv'
 import type { Form990Data, Form990RevenueSourceRow } from '@/lib/reports/form-990-data'
 import { getForm990Data } from '../actions'
 import { formatCurrency } from '@/lib/reports/types'
@@ -84,37 +91,57 @@ export function Form990DataClient({ initialData, defaultYear }: Form990DataClien
   }, [data.revenueBySource])
 
   // Tab-aware export data
-  const { exportData, exportColumns } = useMemo(() => {
+  const PART_IX_CSV_COLUMNS: CSVColumnDef[] = [
+    { key: 'line', label: 'Line', format: 'text' },
+    { key: 'description', label: 'Description', format: 'text' },
+    { key: 'total', label: 'Total', format: 'currency' },
+    { key: 'program', label: 'Program', format: 'currency' },
+    { key: 'admin', label: 'M&G', format: 'currency' },
+    { key: 'fundraising', label: 'Fundraising', format: 'currency' },
+  ]
+
+  const REVENUE_CSV_COLUMNS: CSVColumnDef[] = [
+    { key: 'form990Line', label: '990 Line', format: 'text' },
+    { key: 'lineDescription', label: 'Line Description', format: 'text' },
+    { key: 'fundingSource', label: 'Funding Source', format: 'text' },
+    { key: 'funder', label: 'Funder', format: 'text' },
+    { key: 'category', label: 'Category', format: 'text' },
+    { key: 'classification', label: 'Classification', format: 'text' },
+    { key: 'amount', label: 'Amount', format: 'currency' },
+    { key: 'rationale', label: 'Rationale', format: 'text' },
+  ]
+
+  const { exportData, csvColumns } = useMemo(() => {
     if (activeTab === 'revenue') {
       const rows = data.revenueBySource.map((r) => ({
-        '990 Line': r.form990Line,
-        'Line Description': r.form990LineLabel,
-        'Funding Source': r.fundName,
-        Funder: r.funderName ?? '',
-        Category: r.fundingCategory ?? '',
-        Classification: r.revenueClassification
+        form990Line: r.form990Line,
+        lineDescription: r.form990LineLabel,
+        fundingSource: r.fundName,
+        funder: r.funderName ?? '',
+        category: r.fundingCategory ?? '',
+        classification: r.revenueClassification
           ? r.revenueClassification === 'GRANT_REVENUE'
             ? 'Grant Revenue (ASC 958-605)'
             : 'Earned Income (ASC 606)'
           : '',
-        Amount: r.amount,
-        Rationale: r.classificationRationale ?? '',
+        amount: r.amount,
+        rationale: r.classificationRationale ?? '',
       }))
       return {
         exportData: rows,
-        exportColumns: ['990 Line', 'Line Description', 'Funding Source', 'Funder', 'Category', 'Classification', 'Amount', 'Rationale'],
+        csvColumns: REVENUE_CSV_COLUMNS,
       }
     }
     return {
       exportData: data.partIXExpenses.map((r) => ({
-        Line: r.form990Line,
-        Description: r.lineLabel,
-        Total: r.total,
-        Program: r.program,
-        'M&G': r.admin,
-        Fundraising: r.fundraising,
+        line: r.form990Line,
+        description: r.lineLabel,
+        total: r.total,
+        program: r.program,
+        admin: r.admin,
+        fundraising: r.fundraising,
       })),
-      exportColumns: ['Line', 'Description', 'Total', 'Program', 'M&G', 'Fundraising'],
+      csvColumns: PART_IX_CSV_COLUMNS,
     }
   }, [activeTab, data])
 
@@ -124,12 +151,23 @@ export function Form990DataClient({ initialData, defaultYear }: Form990DataClien
       generatedAt={data.generatedAt}
       reportSlug="form-990-data"
       exportData={exportData}
-      exportColumns={exportColumns}
+      csvColumns={csvColumns}
+      filters={{ year }}
     >
       <div className="flex items-end gap-3" data-testid="form-990-filter-bar">
         <div className="space-y-1">
           <Label className="text-xs">Fiscal Year</Label>
-          <Input type="number" value={year} onChange={(e) => setYear(e.target.value)} className="w-24 h-8 text-sm" data-testid="form-990-year-input" />
+          <Select value={year} onValueChange={setYear}>
+            <SelectTrigger className="w-28 h-8 text-sm" data-testid="form-990-year-input">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 5 }, (_, i) => {
+                const y = String(new Date().getFullYear() - 2 + i)
+                return <SelectItem key={y} value={y}>{y}</SelectItem>
+              })}
+            </SelectContent>
+          </Select>
         </div>
         <Button size="sm" onClick={handleApply} disabled={isPending} data-testid="form-990-apply-btn">
           {isPending ? 'Loading...' : 'Generate'}

@@ -59,10 +59,7 @@ const VALID_PO_TRANSITIONS: Record<string, string[]> = {
 }
 
 const VALID_INVOICE_TRANSITIONS: Record<string, string[]> = {
-  PENDING: ['POSTED'],
-  POSTED: ['PAYMENT_IN_PROCESS'],
-  PAYMENT_IN_PROCESS: ['MATCHED_TO_PAYMENT'],
-  MATCHED_TO_PAYMENT: ['PAID'],
+  POSTED: ['PAID'],
 }
 
 export function isValidPoTransition(

@@ -6,7 +6,7 @@ import type { CopilotToolDefinition } from '../types'
 export const getFundBalanceDefinition: CopilotToolDefinition = {
   name: 'getFundBalance',
   description:
-    'Calculate the balance of a specific fund, including assets, liabilities, and net assets breakdown.',
+    'Calculate the balance of a specific fund, including assets, liabilities, and retained earnings breakdown.',
   input_schema: {
     type: 'object',
     properties: {

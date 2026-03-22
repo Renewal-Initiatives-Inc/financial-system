@@ -28,7 +28,8 @@ import {
 } from '@/components/ui/select'
 import { HelpTooltip } from '@/components/shared/help-tooltip'
 import { updateVendor, toggleVendorActive } from '../actions'
-import type { VendorDetail } from '../actions'
+import type { VendorDetail, VendorArInvoice } from '../actions'
+import { createArInvoice, recordArInvoicePayment } from '../../revenue/actions'
 import { toast } from 'sonner'
 
 const w9Colors: Record<string, string> = {
@@ -80,6 +81,13 @@ interface VendorDetailClientProps {
     createdAt: Date
   }[]
   summary1099?: { totalPayments: number; threshold: number; isOver: boolean }
+  vendorFunds?: { id: number; name: string; fundingCategory: string | null }[]
+  arInvoices?: VendorArInvoice[]
+}
+
+const arPaymentStatusColors: Record<string, string> = {
+  POSTED: 'bg-amber-100 text-amber-800',
+  PAID: 'bg-green-100 text-green-800',
 }
 
 export function VendorDetailClient({
@@ -88,6 +96,8 @@ export function VendorDetailClient({
   fundOptions,
   purchaseOrders = [],
   summary1099,
+  vendorFunds = [],
+  arInvoices = [],
 }: VendorDetailClientProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -109,6 +119,18 @@ export function VendorDetailClient({
   )
   const [isConfirmDeactivateOpen, setIsConfirmDeactivateOpen] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+
+  // AR invoice form state
+  const [arFundId, setArFundId] = useState('')
+  const [arAmount, setArAmount] = useState('')
+  const [arInvoiceNumber, setArInvoiceNumber] = useState('')
+  const [arInvoiceDate, setArInvoiceDate] = useState(
+    new Date().toISOString().split('T')[0]
+  )
+  const [arDueDate, setArDueDate] = useState('')
+  const [arPaymentDate, setArPaymentDate] = useState(
+    new Date().toISOString().split('T')[0]
+  )
 
   const handleW9Upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -631,6 +653,176 @@ export function VendorDetailClient({
           )}
         </CardContent>
       </Card>
+
+      {/* AR Invoices Card — only shown if vendor has linked funding sources */}
+      {vendorFunds.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-1">
+              AR Invoices <HelpTooltip term="ar-invoice" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Outstanding AR invoices list */}
+            {arInvoices.length > 0 && (
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                <p className="text-sm font-medium">Invoices</p>
+                {arInvoices.map((inv) => (
+                  <div
+                    key={inv.id}
+                    className="flex items-center justify-between rounded-md border p-3 text-sm"
+                    data-testid={`vendor-ar-invoice-${inv.id}`}
+                  >
+                    <div>
+                      <span className="font-medium">
+                        {inv.invoiceNumber || `AR-${inv.id}`}
+                      </span>
+                      <span className="ml-2 text-muted-foreground">
+                        {formatCurrency(inv.amount)}
+                      </span>
+                      <span className="ml-2 text-muted-foreground text-xs">
+                        {inv.fundName}
+                      </span>
+                      {inv.dueDate && (
+                        <span className="ml-2 text-muted-foreground text-xs">
+                          Due {inv.dueDate}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Badge
+                        variant="outline"
+                        className={arPaymentStatusColors[inv.paymentStatus] ?? ''}
+                      >
+                        {inv.paymentStatus}
+                      </Badge>
+                      {inv.paymentStatus !== 'PAID' && (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="date"
+                            className="h-7 rounded border px-2 text-xs"
+                            value={arPaymentDate}
+                            onChange={(e) => setArPaymentDate(e.target.value)}
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={isPending}
+                            onClick={() => {
+                              startTransition(async () => {
+                                try {
+                                  await recordArInvoicePayment(inv.id, arPaymentDate, 'system')
+                                  toast.success('Payment recorded')
+                                  router.refresh()
+                                } catch (err) {
+                                  toast.error(err instanceof Error ? err.message : 'Failed')
+                                }
+                              })
+                            }}
+                            data-testid={`vendor-ar-payment-btn-${inv.id}`}
+                          >
+                            Record Payment
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Issue new AR invoice */}
+            <div>
+              <p className="mb-3 text-sm font-medium">Issue Invoice</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <Label>Funding Source <span className="text-destructive">*</span></Label>
+                  <Select value={arFundId} onValueChange={setArFundId}>
+                    <SelectTrigger data-testid="vendor-ar-fund-select">
+                      <SelectValue placeholder="Select funding source" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {vendorFunds.map((f) => (
+                        <SelectItem key={f.id} value={String(f.id)}>
+                          {f.name}{f.fundingCategory ? ` (${f.fundingCategory})` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Invoice Number <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                  <Input
+                    value={arInvoiceNumber}
+                    onChange={(e) => setArInvoiceNumber(e.target.value)}
+                    placeholder="e.g. INV-2026-001"
+                    data-testid="vendor-ar-invoice-number"
+                  />
+                </div>
+                <div>
+                  <Label>Amount <span className="text-destructive">*</span></Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={arAmount}
+                    onChange={(e) => setArAmount(e.target.value)}
+                    data-testid="vendor-ar-invoice-amount"
+                  />
+                </div>
+                <div>
+                  <Label>Invoice Date <span className="text-destructive">*</span></Label>
+                  <Input
+                    type="date"
+                    value={arInvoiceDate}
+                    onChange={(e) => setArInvoiceDate(e.target.value)}
+                    data-testid="vendor-ar-invoice-date"
+                  />
+                </div>
+                <div>
+                  <Label>Due Date</Label>
+                  <Input
+                    type="date"
+                    value={arDueDate}
+                    onChange={(e) => setArDueDate(e.target.value)}
+                    data-testid="vendor-ar-due-date"
+                  />
+                </div>
+              </div>
+              <Button
+                className="mt-3"
+                disabled={isPending || !arAmount || !arFundId}
+                onClick={() => {
+                  startTransition(async () => {
+                    try {
+                      const result = await createArInvoice(
+                        {
+                          fundId: parseInt(arFundId, 10),
+                          invoiceNumber: arInvoiceNumber.trim() || undefined,
+                          amount: parseFloat(arAmount),
+                          invoiceDate: arInvoiceDate,
+                          dueDate: arDueDate || undefined,
+                        },
+                        'system'
+                      )
+                      toast.success(`AR Invoice issued — GL #${result.glTransactionId}`)
+                      setArAmount('')
+                      setArInvoiceNumber('')
+                      setArDueDate('')
+                      router.refresh()
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : 'Failed to issue invoice')
+                    }
+                  })
+                }}
+                data-testid="vendor-ar-invoice-submit"
+              >
+                {isPending ? 'Issuing...' : 'Issue Invoice'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* 1099 Tracking Card */}
       <Card>

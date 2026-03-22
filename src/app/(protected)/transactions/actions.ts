@@ -261,7 +261,11 @@ export async function createManualTransaction(
       memo?: string | null
     }>
   }
-): Promise<{ transactionId: number; releaseTransactionId?: number }> {
+): Promise<{
+  transactionId: number
+  releaseTransactionId?: number
+  lockedYearWarning?: { year: number; message: string }
+}> {
   const userId = await getUserId()
   const input: InsertTransaction = {
     date: data.date,
@@ -278,19 +282,26 @@ export async function createManualTransaction(
   return {
     transactionId: result.transaction.id,
     releaseTransactionId: result.releaseTransaction?.id,
+    lockedYearWarning: result.lockedYearWarning,
   }
 }
 
 export async function editTransactionAction(
   id: number,
   updates: EditTransaction
-): Promise<{ transactionId: number }> {
+): Promise<{
+  transactionId: number
+  lockedYearWarning?: { year: number; message: string }
+}> {
   const userId = await getUserId()
   const result = await editTransaction(id, updates, userId)
 
   revalidatePath('/transactions')
   revalidatePath(`/transactions/${id}`)
-  return { transactionId: result.transaction.id }
+  return {
+    transactionId: result.transaction.id,
+    lockedYearWarning: result.lockedYearWarning,
+  }
 }
 
 export async function reverseTransactionAction(
@@ -307,12 +318,13 @@ export async function reverseTransactionAction(
 
 export async function voidTransactionAction(
   id: number
-): Promise<void> {
+): Promise<{ lockedYearWarning?: { year: number; message: string } }> {
   const userId = await getUserId()
-  await voidTransaction(id, userId)
+  const result = await voidTransaction(id, userId)
 
   revalidatePath('/transactions')
   revalidatePath(`/transactions/${id}`)
+  return { lockedYearWarning: result.lockedYearWarning }
 }
 
 export async function getAccountsForSelector(): Promise<AccountRow[]> {

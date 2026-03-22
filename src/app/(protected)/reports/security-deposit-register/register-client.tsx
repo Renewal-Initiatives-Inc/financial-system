@@ -12,6 +12,8 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ReportShell } from '@/components/reports/report-shell'
+import type { CSVColumnDef } from '@/lib/reports/csv/export-csv'
 import type { RegisterData } from '@/lib/reports/security-deposit-register'
 
 function fmt(value: number): string {
@@ -46,18 +48,53 @@ function fmtRate(value: number | null): string {
   return `${(capped * 100).toFixed(2)}%`
 }
 
+// ---------------------------------------------------------------------------
+// CSV export
+// ---------------------------------------------------------------------------
+
+const REGISTER_CSV_COLUMNS: CSVColumnDef[] = [
+  { key: 'tenant', label: 'Tenant', format: 'text' },
+  { key: 'unit', label: 'Unit', format: 'text' },
+  { key: 'deposit', label: 'Deposit', format: 'currency' },
+  { key: 'depositDate', label: 'Deposit Date', format: 'date' },
+  { key: 'escrowBank', label: 'Escrow Bank', format: 'text' },
+  { key: 'interestRate', label: 'Interest Rate', format: 'percent' },
+  { key: 'interestAccrued', label: 'Interest Accrued', format: 'currency' },
+  { key: 'interestPaidYtd', label: 'Interest Paid YTD', format: 'currency' },
+  { key: 'anniversary', label: 'Anniversary', format: 'date' },
+  { key: 'nextDue', label: 'Next Due', format: 'date' },
+]
+
+function buildExportData(data: RegisterData): Record<string, unknown>[] {
+  return data.rows.map((row) => ({
+    tenant: row.tenantName,
+    unit: row.unitNumber,
+    deposit: row.depositAmount,
+    depositDate: row.depositDate,
+    escrowBank: row.escrowBankRef ?? '',
+    interestRate: row.interestRate,
+    interestAccrued: row.interestAccrued,
+    interestPaidYtd: row.interestPaidYtd,
+    anniversary: row.tenancyAnniversary,
+    nextDue: row.nextInterestDue,
+  }))
+}
+
 interface RegisterClientProps {
   data: RegisterData
 }
 
 export function RegisterClient({ data }: RegisterClientProps) {
   const router = useRouter()
+  const exportData = buildExportData(data)
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">
-        Security Deposit Register
-      </h1>
+    <ReportShell
+      title="Security Deposit Register"
+      reportSlug="security-deposit-register"
+      exportData={exportData}
+      csvColumns={REGISTER_CSV_COLUMNS}
+    >
 
       {/* Reconciliation Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -179,6 +216,6 @@ export function RegisterClient({ data }: RegisterClientProps) {
           Back to Reports
         </Badge>
       </div>
-    </div>
+    </ReportShell>
   )
 }

@@ -23,6 +23,7 @@ import {
 import { ReportShell } from '@/components/reports/report-shell'
 import type { TransactionHistoryData, TransactionHistoryRow } from '@/lib/reports/transaction-history'
 import { getTransactionHistoryData } from '../actions'
+import type { CSVColumnDef } from '@/lib/reports/csv/export-csv'
 import { formatCurrency, formatDate } from '@/lib/reports/types'
 import { ChevronDown, ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
@@ -180,16 +181,29 @@ export function TransactionHistoryClient({
 
   const handleApply = useCallback(() => fetchPage(1), [fetchPage])
 
-  const exportData = data.rows.map((r) => ({
-    Date: r.date,
-    Memo: r.memo,
-    Source: r.sourceType,
-    Status: r.isVoided ? 'VOIDED' : r.isReversed ? 'REVERSED' : 'Active',
-    Debit: r.totalDebit,
-    Credit: r.totalCredit,
-  }))
+  const TRANSACTION_HISTORY_CSV_COLUMNS: CSVColumnDef[] = [
+    { key: 'date', label: 'Date', format: 'date' },
+    { key: 'memo', label: 'Memo', format: 'text' },
+    { key: 'source', label: 'Source', format: 'text' },
+    { key: 'status', label: 'Status', format: 'text' },
+    { key: 'account', label: 'Account', format: 'text' },
+    { key: 'fund', label: 'Fund', format: 'text' },
+    { key: 'debit', label: 'Debit', format: 'currency' },
+    { key: 'credit', label: 'Credit', format: 'currency' },
+  ]
 
-  const exportColumns = ['Date', 'Memo', 'Source', 'Status', 'Debit', 'Credit']
+  const exportData = data.rows.flatMap((r) =>
+    r.lines.map((line, i) => ({
+      date: i === 0 ? r.date : '',
+      memo: i === 0 ? r.memo : '',
+      source: i === 0 ? r.sourceType : '',
+      status: i === 0 ? (r.isVoided ? 'VOIDED' : r.isReversed ? 'REVERSED' : 'Active') : '',
+      account: `${line.accountCode} — ${line.accountName}`,
+      fund: line.fundName,
+      debit: line.debit || null,
+      credit: line.credit || null,
+    }))
+  )
 
   return (
     <ReportShell
@@ -197,7 +211,15 @@ export function TransactionHistoryClient({
       generatedAt={data.generatedAt}
       reportSlug="transaction-history"
       exportData={exportData}
-      exportColumns={exportColumns}
+      csvColumns={TRANSACTION_HISTORY_CSV_COLUMNS}
+      filters={{
+        startDate,
+        endDate,
+        ...(sourceType ? { sourceType } : {}),
+        ...(accountId ? { accountId: String(accountId) } : {}),
+        ...(fundId ? { fundId: String(fundId) } : {}),
+        ...(memoSearch ? { memoSearch } : {}),
+      }}
     >
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-3" data-testid="transaction-history-filter-bar">

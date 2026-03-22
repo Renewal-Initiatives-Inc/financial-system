@@ -21,11 +21,10 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ReportShell } from '@/components/reports/report-shell'
+import type { CSVColumnDef } from '@/lib/reports/csv/export-csv'
 import { formatCurrency } from '@/lib/reports/types'
-import {
-  getEmployerPayrollCostData,
-  type EmployerPayrollCostData,
-} from '@/lib/reports/employer-payroll-cost'
+import { type EmployerPayrollCostData } from '@/lib/reports/employer-payroll-cost'
+import { getEmployerPayrollCostData } from '../actions'
 import { cn } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------
@@ -40,40 +39,40 @@ interface EmployerPayrollCostClientProps {
 // CSV export
 // ---------------------------------------------------------------------------
 
+const EMPLOYER_PAYROLL_COST_CSV_COLUMNS: CSVColumnDef[] = [
+  { key: 'month', label: 'Month', format: 'text' },
+  { key: 'totalWages', label: 'Total Wages', format: 'currency' },
+  { key: 'employerSS', label: 'Employer SS', format: 'currency' },
+  { key: 'employerMedicare', label: 'Employer Medicare', format: 'currency' },
+  { key: 'totalFICA', label: 'Total FICA', format: 'currency' },
+  { key: 'totalBurden', label: 'Total Burden', format: 'currency' },
+  { key: 'budget', label: 'Budget', format: 'currency' },
+  { key: 'variance', label: 'Variance', format: 'currency' },
+]
+
 function buildExportData(data: EmployerPayrollCostData): Record<string, unknown>[] {
   const rows: Record<string, unknown>[] = data.months.map((m) => ({
-    Month: m.monthLabel,
-    'Total Wages': m.totalWages,
-    'Employer SS': m.employerSS,
-    'Employer Medicare': m.employerMedicare,
-    'Total FICA': m.totalEmployerFICA,
-    'Total Burden': m.totalBurden,
-    Budget: m.budget,
-    Variance: m.variance,
+    month: m.monthLabel,
+    totalWages: m.totalWages,
+    employerSS: m.employerSS,
+    employerMedicare: m.employerMedicare,
+    totalFICA: m.totalEmployerFICA,
+    totalBurden: m.totalBurden,
+    budget: m.budget,
+    variance: m.variance,
   }))
   rows.push({
-    Month: 'YTD TOTAL',
-    'Total Wages': data.ytdWages,
-    'Employer SS': data.ytdEmployerSS,
-    'Employer Medicare': data.ytdEmployerMedicare,
-    'Total FICA': data.ytdTotalFICA,
-    'Total Burden': data.ytdTotalBurden,
-    Budget: data.ytdBudget,
-    Variance: data.ytdVariance,
+    month: 'YTD TOTAL',
+    totalWages: data.ytdWages,
+    employerSS: data.ytdEmployerSS,
+    employerMedicare: data.ytdEmployerMedicare,
+    totalFICA: data.ytdTotalFICA,
+    totalBurden: data.ytdTotalBurden,
+    budget: data.ytdBudget,
+    variance: data.ytdVariance,
   })
   return rows
 }
-
-const exportColumns = [
-  'Month',
-  'Total Wages',
-  'Employer SS',
-  'Employer Medicare',
-  'Total FICA',
-  'Total Burden',
-  'Budget',
-  'Variance',
-]
 
 // ---------------------------------------------------------------------------
 // Variance display
@@ -121,6 +120,7 @@ export function EmployerPayrollCostClient({
   const exportData = buildExportData(data)
   const hasBudget = data.ytdBudget !== null
 
+
   // Compute burden rate (employer FICA as % of wages)
   const burdenRate =
     data.ytdWages > 0
@@ -133,7 +133,8 @@ export function EmployerPayrollCostClient({
       generatedAt={data.generatedAt}
       reportSlug="employer-payroll-cost"
       exportData={exportData}
-      exportColumns={exportColumns}
+      csvColumns={EMPLOYER_PAYROLL_COST_CSV_COLUMNS}
+      filters={{ year: String(year) }}
     >
       {/* Year Selector */}
       <div className="flex flex-wrap items-end gap-4 p-4 bg-muted/50 rounded-lg border" data-testid="employer-payroll-cost-filter-bar">

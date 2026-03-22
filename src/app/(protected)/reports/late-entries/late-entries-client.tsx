@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ReportShell } from '@/components/reports/report-shell'
+import type { CSVColumnDef } from '@/lib/reports/csv/export-csv'
 import type { LateEntriesData } from '@/lib/reports/late-entries'
 import { getLateEntriesData } from '../actions'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/reports/types'
@@ -48,17 +49,25 @@ export function LateEntriesClient({ initialData, defaultPeriodEndDate }: LateEnt
     })
   }, [periodEndDate, lookbackDays])
 
-  const exportData = data.rows.map((r) => ({
-    'Transaction ID': r.transactionId,
-    'Transaction Date': r.date,
-    'Created At': formatDateTime(r.createdAt),
-    Memo: r.memo,
-    Source: r.sourceType,
-    Amount: r.totalAmount,
-    'Days Late': r.daysLate,
-  }))
+  const LATE_ENTRIES_CSV_COLUMNS: CSVColumnDef[] = [
+    { key: 'transactionId', label: 'Transaction ID', format: 'text' },
+    { key: 'transactionDate', label: 'Transaction Date', format: 'date' },
+    { key: 'createdAt', label: 'Created At', format: 'datetime' },
+    { key: 'memo', label: 'Memo', format: 'text' },
+    { key: 'source', label: 'Source', format: 'text' },
+    { key: 'amount', label: 'Amount', format: 'currency' },
+    { key: 'daysLate', label: 'Days Late', format: 'count' },
+  ]
 
-  const exportColumns = ['Transaction ID', 'Transaction Date', 'Created At', 'Memo', 'Source', 'Amount', 'Days Late']
+  const exportData = data.rows.map((r) => ({
+    transactionId: r.transactionId,
+    transactionDate: r.date,
+    createdAt: r.createdAt,
+    memo: r.memo,
+    source: r.sourceType,
+    amount: r.totalAmount,
+    daysLate: r.daysLate,
+  }))
 
   return (
     <ReportShell
@@ -66,7 +75,8 @@ export function LateEntriesClient({ initialData, defaultPeriodEndDate }: LateEnt
       generatedAt={data.generatedAt}
       reportSlug="late-entries"
       exportData={exportData}
-      exportColumns={exportColumns}
+      csvColumns={LATE_ENTRIES_CSV_COLUMNS}
+      filters={{ periodEndDate, lookbackDays }}
     >
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-3" data-testid="late-entries-filter-bar">

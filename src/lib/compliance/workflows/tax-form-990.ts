@@ -1,6 +1,6 @@
-import { eq, and, gte, lte } from 'drizzle-orm'
+import { eq, and, gte, lte, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { transactions, reconciliationSessions } from '@/lib/db/schema'
+import { transactions, reconciliationSessions, functionalAllocations } from '@/lib/db/schema'
 import type { WorkflowConfig } from '../workflow-types'
 
 export const form990Config: WorkflowConfig = {
@@ -42,6 +42,19 @@ export const form990Config: WorkflowConfig = {
               .where(eq(reconciliationSessions.status, 'in_progress'))
               .limit(1)
             return !unreconciled
+          },
+        },
+        {
+          id: 'functional-allocations-complete',
+          label: 'Functional expense allocations set for fiscal year',
+          check: async () => {
+            const currentYear = new Date().getFullYear()
+            const fyYear = currentYear - 1 // 990 is filed for prior fiscal year
+            const [row] = await db
+              .select({ count: sql<number>`count(*)::int` })
+              .from(functionalAllocations)
+              .where(eq(functionalAllocations.fiscalYear, fyYear))
+            return (row?.count ?? 0) > 0
           },
         },
       ],

@@ -1,4 +1,4 @@
-import { eq, and, sql, gte, lte } from 'drizzle-orm'
+import { eq, and, sql, gte, lte, ne } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { accounts, transactionLines, transactions } from '@/lib/db/schema'
 
@@ -123,6 +123,7 @@ export async function getUtilityTrendsData(
     lte(transactions.date, endDate),
     eq(accounts.type, 'EXPENSE'),
     eq(accounts.subType, 'Property Ops'),
+    ne(transactions.sourceType, 'YEAR_END_CLOSE'),
   ]
   if (fundId) {
     conditions.push(eq(transactionLines.fundId, fundId))
@@ -201,6 +202,7 @@ export async function getUtilityTrendsData(
       lte(transactions.date, priorEndDate),
       eq(accounts.type, 'EXPENSE'),
       eq(accounts.subType, 'Property Ops'),
+      ne(transactions.sourceType, 'YEAR_END_CLOSE'),
     ]
     if (fundId) {
       priorConditions.push(eq(transactionLines.fundId, fundId))

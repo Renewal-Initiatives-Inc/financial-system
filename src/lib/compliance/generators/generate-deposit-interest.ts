@@ -17,7 +17,7 @@ export interface DepositInterestResult {
     amount: string
     invoiceDate: string
     dueDate: string
-    paymentStatus: 'PENDING'
+    paymentStatus: 'POSTED'
     createdBy: string
   }
 }
@@ -146,7 +146,7 @@ export async function generateDepositInterest(
       amount: String(interestOwed),
       invoiceDate: today,
       dueDate: today,
-      paymentStatus: 'PENDING',
+      paymentStatus: 'POSTED',
       createdBy,
     },
   }

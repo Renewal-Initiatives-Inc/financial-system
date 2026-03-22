@@ -18,7 +18,7 @@ const typeColors: Record<string, string> = {
 const typeLabels: Record<string, string> = {
   ASSET: 'Asset',
   LIABILITY: 'Liability',
-  NET_ASSET: 'Net Asset',
+  NET_ASSET: 'Retained Earnings',
   REVENUE: 'Revenue',
   EXPENSE: 'Expense',
 }

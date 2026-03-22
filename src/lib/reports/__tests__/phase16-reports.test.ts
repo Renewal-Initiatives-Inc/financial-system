@@ -25,16 +25,6 @@ describe('Phase 16: Audit & Compliance reports', () => {
     expect(typeof mod.getLateEntriesData).toBe('function')
   })
 
-  it('compliance-calendar exports getComplianceCalendarData and CATEGORY_COLORS', async () => {
-    const mod = await import('../compliance-calendar')
-    expect(typeof mod.getComplianceCalendarData).toBe('function')
-    expect(mod.CATEGORY_COLORS).toBeDefined()
-    expect(typeof mod.CATEGORY_COLORS).toBe('object')
-    expect(mod.CATEGORY_COLORS.tax).toBeDefined()
-    expect(mod.CATEGORY_COLORS.tenant).toBeDefined()
-    expect(mod.CATEGORY_COLORS.grant).toBeDefined()
-    expect(mod.CATEGORY_COLORS.budget).toBeDefined()
-  })
 })
 
 describe('Phase 16: Specialized financial reports', () => {
@@ -100,7 +90,6 @@ describe('REPORT_DEFINITIONS Phase 16 coverage', () => {
     'late-entries',
     'donor-giving-history',
     'cash-projection',
-    'compliance-calendar',
     'payroll-register',
     'payroll-tax-liability',
     'w2-verification',
@@ -110,7 +99,7 @@ describe('REPORT_DEFINITIONS Phase 16 coverage', () => {
     'form-990-data',
   ]
 
-  it('all 13 Phase 16 reports are in REPORT_DEFINITIONS', async () => {
+  it('all 12 Phase 16 reports are in REPORT_DEFINITIONS', async () => {
     const { REPORT_DEFINITIONS } = await import('../types')
     const definedSlugs = REPORT_DEFINITIONS.map((r) => r.slug)
     for (const slug of PHASE_16_SLUGS) {
@@ -118,7 +107,7 @@ describe('REPORT_DEFINITIONS Phase 16 coverage', () => {
     }
   })
 
-  it('all 13 Phase 16 reports are marked available', async () => {
+  it('all 12 Phase 16 reports are marked available', async () => {
     const { REPORT_DEFINITIONS } = await import('../types')
     for (const slug of PHASE_16_SLUGS) {
       const def = REPORT_DEFINITIONS.find((r) => r.slug === slug)

@@ -482,7 +482,7 @@ describe('getBalanceSheetData', () => {
 
     // Change in net assets = revenue (100000) - expense (75000) = 25000
     const changeRow = result.netAssetsUnrestricted.rows.find(
-      (r) => r.accountName === 'Change in Net Assets'
+      (r) => r.accountName === 'Change in Retained Earnings'
     )
     expect(changeRow).toBeDefined()
     expect(changeRow!.balance).toBe(25000)

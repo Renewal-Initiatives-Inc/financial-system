@@ -4,45 +4,112 @@ import {
   Page,
   Text,
   View,
+  Image,
   StyleSheet,
 } from '@react-pdf/renderer'
+import path from 'path'
+import { sharedStyles, PDF_COLORS, PDF_FONTS, PDF_SPACING } from './pdf-theme'
 
-const styles = StyleSheet.create({
+// ---------------------------------------------------------------------------
+// Logo path — resolved at render time on the server
+// ---------------------------------------------------------------------------
+const LOGO_PATH = path.join(process.cwd(), 'public', 'images', 'logo.jpeg')
+
+// ---------------------------------------------------------------------------
+// ReportDocument — Branded PDF page wrapper
+// ---------------------------------------------------------------------------
+
+interface ReportDocumentProps {
+  title: string
+  dateRange?: string
+  fundName?: string | null
+  generatedAt?: string
+  exportedBy?: string
+  children: React.ReactNode
+}
+
+export function ReportDocument({
+  title,
+  dateRange,
+  fundName,
+  generatedAt,
+  exportedBy,
+  children,
+}: ReportDocumentProps) {
+  const timestamp = generatedAt ?? new Date().toISOString()
+  const formattedTime = new Date(timestamp).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  })
+  const exportLine = exportedBy
+    ? `Exported ${formattedTime} by ${exportedBy}`
+    : `Exported ${formattedTime}`
+
+  return (
+    <Document>
+      <Page size="LETTER" style={sharedStyles.page} wrap>
+        {/* ── Fixed Header (every page) ── */}
+        <View style={sharedStyles.bannerBar} fixed />
+        <View style={sharedStyles.headerContainer} fixed>
+          <View style={sharedStyles.headerLeft}>
+            <Image style={sharedStyles.headerLogo} src={LOGO_PATH} />
+            <View style={sharedStyles.headerOrgBlock}>
+              <Text style={sharedStyles.orgName}>Renewal Initiatives Inc.</Text>
+              <Text style={sharedStyles.orgSubtitle}>
+                Property Management &amp; Nonprofit Services
+              </Text>
+            </View>
+          </View>
+          <View style={sharedStyles.headerRight}>
+            <Text style={sharedStyles.reportTitle}>{title}</Text>
+            {dateRange && (
+              <Text style={sharedStyles.reportMeta}>{dateRange}</Text>
+            )}
+            <Text style={sharedStyles.reportMeta}>
+              Fund: {fundName ?? 'Consolidated'}
+            </Text>
+          </View>
+        </View>
+        <View style={sharedStyles.headerDivider} fixed />
+
+        {/* ── Report Body ── */}
+        {children}
+
+        {/* ── Fixed Footer (every page) ── */}
+        <View style={sharedStyles.footer} fixed>
+          <View style={sharedStyles.footerDivider} />
+          <View style={sharedStyles.footerRow}>
+            <Text>Renewal Initiatives Inc.{'  |  '}{exportLine}</Text>
+            <Text
+              render={({ pageNumber, totalPages }) =>
+                `Page ${pageNumber} of ${totalPages}`
+              }
+            />
+          </View>
+          <Text style={sharedStyles.footerDisclaimer}>
+            This report is generated deterministically from the general ledger.
+            Data is not AI-generated.
+          </Text>
+        </View>
+      </Page>
+    </Document>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Legacy table components — kept for backward compatibility during migration.
+// New reports should use Branded* components from ./pdf-table.tsx
+// ---------------------------------------------------------------------------
+
+const legacyStyles = StyleSheet.create({
   page: {
     padding: 40,
     fontSize: 9,
     fontFamily: 'Helvetica',
-  },
-  header: {
-    marginBottom: 20,
-  },
-  orgName: {
-    fontSize: 14,
-    fontFamily: 'Helvetica-Bold',
-    marginBottom: 2,
-  },
-  orgAddress: {
-    fontSize: 8,
-    color: '#666',
-    marginBottom: 12,
-  },
-  reportTitle: {
-    fontSize: 12,
-    fontFamily: 'Helvetica-Bold',
-    marginBottom: 4,
-  },
-  reportMeta: {
-    fontSize: 8,
-    color: '#666',
-    marginBottom: 2,
-  },
-  divider: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
-    marginVertical: 8,
-  },
-  table: {
-    marginTop: 8,
   },
   tableHeaderRow: {
     flexDirection: 'row',
@@ -67,6 +134,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
     marginTop: 6,
   },
+  divider: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+    marginVertical: 8,
+  },
   cellLabel: {
     flex: 3,
     paddingRight: 8,
@@ -82,71 +154,7 @@ const styles = StyleSheet.create({
   boldText: {
     fontFamily: 'Helvetica-Bold',
   },
-  indented: {
-    paddingLeft: 16,
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 20,
-    left: 40,
-    right: 40,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    fontSize: 7,
-    color: '#999',
-  },
 })
-
-interface ReportDocumentProps {
-  title: string
-  dateRange?: string
-  fundName?: string | null
-  generatedAt?: string
-  children: React.ReactNode
-}
-
-export function ReportDocument({
-  title,
-  dateRange,
-  fundName,
-  generatedAt,
-  children,
-}: ReportDocumentProps) {
-  const timestamp = generatedAt ?? new Date().toISOString()
-
-  return (
-    <Document>
-      <Page size="LETTER" style={styles.page}>
-        <View style={styles.header}>
-          <Text style={styles.orgName}>Renewal Initiatives Inc.</Text>
-          <Text style={styles.orgAddress}>
-            Property Management &amp; Nonprofit Financial System
-          </Text>
-          <Text style={styles.reportTitle}>{title}</Text>
-          {dateRange && <Text style={styles.reportMeta}>{dateRange}</Text>}
-          <Text style={styles.reportMeta}>
-            Fund: {fundName ?? 'Consolidated'}
-          </Text>
-          <Text style={styles.reportMeta}>
-            Generated: {new Date(timestamp).toLocaleString('en-US')}
-          </Text>
-        </View>
-        <View style={styles.divider} />
-        {children}
-        <View style={styles.footer} fixed>
-          <Text>Renewal Initiatives Inc.</Text>
-          <Text
-            render={({ pageNumber, totalPages }) =>
-              `Page ${pageNumber} of ${totalPages}`
-            }
-          />
-        </View>
-      </Page>
-    </Document>
-  )
-}
-
-// Reusable PDF table components
 
 interface PDFTableHeaderProps {
   columns: { label: string; flex?: number }[]
@@ -154,13 +162,13 @@ interface PDFTableHeaderProps {
 
 export function PDFTableHeader({ columns }: PDFTableHeaderProps) {
   return (
-    <View style={styles.tableHeaderRow}>
+    <View style={legacyStyles.tableHeaderRow}>
       {columns.map((col, i) => (
         <Text
           key={i}
           style={[
-            i === 0 ? styles.cellLabel : styles.cellAmount,
-            styles.headerText,
+            i === 0 ? legacyStyles.cellLabel : legacyStyles.cellAmount,
+            legacyStyles.headerText,
             col.flex ? { flex: col.flex } : {},
           ]}
         >
@@ -178,12 +186,17 @@ interface PDFTableRowProps {
   indent?: number
 }
 
-export function PDFTableRow({ cells, isBold, isSectionHeader, indent }: PDFTableRowProps) {
+export function PDFTableRow({
+  cells,
+  isBold,
+  isSectionHeader,
+  indent,
+}: PDFTableRowProps) {
   const rowStyle = isBold
-    ? styles.tableRowBold
+    ? legacyStyles.tableRowBold
     : isSectionHeader
-      ? styles.sectionHeader
-      : styles.tableRow
+      ? legacyStyles.sectionHeader
+      : legacyStyles.tableRow
 
   return (
     <View style={rowStyle}>
@@ -191,8 +204,8 @@ export function PDFTableRow({ cells, isBold, isSectionHeader, indent }: PDFTable
         <Text
           key={i}
           style={[
-            i === 0 ? styles.cellLabel : styles.cellAmount,
-            isBold || isSectionHeader ? styles.boldText : {},
+            i === 0 ? legacyStyles.cellLabel : legacyStyles.cellAmount,
+            isBold || isSectionHeader ? legacyStyles.boldText : {},
             i === 0 && indent ? { paddingLeft: indent * 16 } : {},
           ]}
         >
@@ -204,7 +217,19 @@ export function PDFTableRow({ cells, isBold, isSectionHeader, indent }: PDFTable
 }
 
 export function PDFSectionDivider() {
-  return <View style={styles.divider} />
+  return <View style={legacyStyles.divider} />
 }
 
-export { styles as pdfStyles }
+export { legacyStyles as pdfStyles }
+
+// Re-export branded components for progressive migration
+export {
+  BrandedTableHeader,
+  BrandedDataRow,
+  BrandedSubtotalRow,
+  BrandedTotalRow,
+  BrandedSectionHeader,
+  BrandedSectionDivider,
+  formatCellValue,
+} from './pdf-table'
+export type { PDFColumnDef } from './pdf-table'

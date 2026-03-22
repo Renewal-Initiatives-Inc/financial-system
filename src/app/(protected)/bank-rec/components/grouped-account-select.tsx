@@ -28,7 +28,7 @@ export type AccountOption = {
 const TYPE_LABELS: Record<string, string> = {
   ASSET: 'Assets',
   LIABILITY: 'Liabilities',
-  NET_ASSET: 'Net Assets',
+  NET_ASSET: 'Retained Earnings',
   REVENUE: 'Revenue',
   EXPENSE: 'Expenses',
 }

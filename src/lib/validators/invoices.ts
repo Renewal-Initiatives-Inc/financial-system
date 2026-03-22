@@ -1,10 +1,7 @@
 import { z } from 'zod'
 
 const invoicePaymentStatuses = [
-  'PENDING',
   'POSTED',
-  'PAYMENT_IN_PROCESS',
-  'MATCHED_TO_PAYMENT',
   'PAID',
 ] as const
 

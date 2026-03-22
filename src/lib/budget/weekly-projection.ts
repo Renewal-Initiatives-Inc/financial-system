@@ -90,7 +90,7 @@ async function getInvoiceInflows(
     .where(
       and(
         eq(invoices.direction, 'AR'),
-        inArray(invoices.paymentStatus, ['PENDING', 'POSTED']),
+        eq(invoices.paymentStatus, 'POSTED'),
         gte(invoices.dueDate, windowStart),
         lte(invoices.dueDate, windowEnd)
       )
@@ -124,7 +124,7 @@ async function getInvoiceOutflows(
     .where(
       and(
         eq(invoices.direction, 'AP'),
-        inArray(invoices.paymentStatus, ['PENDING', 'POSTED', 'PAYMENT_IN_PROCESS']),
+        eq(invoices.paymentStatus, 'POSTED'),
         gte(invoices.dueDate, windowStart),
         lte(invoices.dueDate, windowEnd)
       )

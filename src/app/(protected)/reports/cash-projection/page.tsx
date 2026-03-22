@@ -9,8 +9,10 @@ export default async function CashProjectionPage({
 }) {
   const params = await searchParams
   const view = params.view ?? 'monthly'
-  const monthlyData = await getCashProjectionData()
-  const weeklyData = view === 'weekly' ? await getWeeklyCashProjectionData() : null
+  const [monthlyData, weeklyData] = await Promise.all([
+    getCashProjectionData(),
+    getWeeklyCashProjectionData(),
+  ])
 
   return (
     <CashProjectionClient

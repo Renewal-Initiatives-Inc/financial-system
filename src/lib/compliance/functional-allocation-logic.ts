@@ -2,6 +2,7 @@ import { eq, and } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { functionalAllocations } from '@/lib/db/schema'
 import { logAudit } from '@/lib/audit/logger'
+import { isYearLocked } from '@/lib/fiscal-year-lock'
 import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 
 export interface AllocationInput {
@@ -62,6 +63,14 @@ export async function saveAllocations(
   allocations: AllocationInput[],
   userId: string
 ): Promise<{ saved: number }> {
+  // Prevent edits to locked fiscal years
+  const locked = await isYearLocked(fiscalYear)
+  if (locked) {
+    throw new Error(
+      `Fiscal year ${fiscalYear} is locked. Reopen it in Settings > Fiscal Years before editing allocations.`
+    )
+  }
+
   let saved = 0
 
   await db.transaction(async (tx) => {

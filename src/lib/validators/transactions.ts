@@ -8,6 +8,8 @@ const sourceTypes = [
   'BANK_FEED',
   'SYSTEM',
   'FY25_IMPORT',
+  'YEAR_END_CLOSE',
+  'BANK_MATCH',
 ] as const
 
 const positiveDecimal = z

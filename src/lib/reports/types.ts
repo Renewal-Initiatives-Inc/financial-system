@@ -132,8 +132,8 @@ export interface ReportCardDef {
 
 export const REPORT_DEFINITIONS: ReportCardDef[] = [
   // Core Financial Statements
-  { slug: 'balance-sheet', title: 'Statement of Financial Position', description: 'Assets, liabilities, and net assets with fund drill-down', category: 'core', isAvailable: true },
-  { slug: 'activities', title: 'Statement of Activities', description: 'Revenue, expenses, and changes in net assets by restriction class', category: 'core', isAvailable: true },
+  { slug: 'balance-sheet', title: 'Balance Sheet', description: 'Assets, liabilities, and retained earnings with fund drill-down', category: 'core', isAvailable: true },
+  { slug: 'activities', title: 'Income Statement', description: 'Revenue, expenses, and changes in retained earnings by restriction class', category: 'core', isAvailable: true },
   { slug: 'cash-flows', title: 'Statement of Cash Flows', description: 'Indirect method: operating, investing, and financing activities', category: 'core', isAvailable: true },
   { slug: 'functional-expenses', title: 'Statement of Functional Expenses', description: 'Expense matrix by function (Program/Admin/Fundraising) with GAAP/990 toggle', category: 'core', isAvailable: true },
   // Operational Dashboards
@@ -143,8 +143,7 @@ export const REPORT_DEFINITIONS: ReportCardDef[] = [
   { slug: 'rent-collection', title: 'Rent Collection Status', description: 'Billed vs collected by unit, occupancy, vacancy loss, collection rate', category: 'operational', isAvailable: true },
   // Fund & Grant Reports
   { slug: 'fund-drawdown', title: 'Fund Draw-Down / Restricted Funding Status', description: 'Per-fund awarded, spent, remaining with draw-down progress', category: 'fund', isAvailable: true },
-  { slug: 'grant-compliance', title: 'Funding Compliance Tracking', description: 'Conditional grant progress, matching requirements, milestones', category: 'fund', isAvailable: true },
-  { slug: 'fund-level', title: 'Fund-Level P&L and Balance Sheet', description: 'Single-fund financial position and activities', category: 'fund', isAvailable: true },
+{ slug: 'fund-level', title: 'Fund-Level P&L and Balance Sheet', description: 'Single-fund financial position and activities', category: 'fund', isAvailable: true },
   // Specialized Reports
   { slug: 'property-expenses', title: 'Property Operating Expense Breakdown', description: '13 property expense categories with budget vs actual', category: 'specialized', isAvailable: true },
   { slug: 'utility-trends', title: 'Utility Trend Analysis', description: 'Electric, gas, water trends over time with line charts', category: 'specialized', isAvailable: true },
@@ -153,8 +152,7 @@ export const REPORT_DEFINITIONS: ReportCardDef[] = [
   { slug: 'audit-log', title: 'Audit Log', description: 'System audit trail with action, entity, and user filtering', category: 'compliance', isAvailable: true },
   { slug: 'transaction-history', title: 'Transaction History', description: 'Full transaction journal with multi-field search and export', category: 'core', isAvailable: true },
   { slug: 'late-entries', title: 'Late Entries Report', description: 'Transactions entered after period close with aging analysis', category: 'compliance', isAvailable: true },
-  { slug: 'compliance-calendar', title: 'Compliance Calendar', description: 'Tax, grant, tenant, and budget deadlines with status tracking', category: 'compliance', isAvailable: true },
-  // Phase 16: Specialized Financial
+// Phase 16: Specialized Financial
   { slug: 'donor-giving-history', title: 'Donor Giving History', description: 'Donation trends by donor for stewardship and 990 reporting', category: 'fund', isAvailable: true },
   { slug: 'cash-projection', title: 'Cash Projection', description: '90-day forward cash flow forecast with scenario analysis', category: 'operational', isAvailable: true },
   { slug: 'capital-budget', title: 'Capital Budget', description: 'CIP project budgets, actuals, and remaining authorization', category: 'specialized', isAvailable: true },
@@ -167,13 +165,6 @@ export const REPORT_DEFINITIONS: ReportCardDef[] = [
   { slug: 'quarterly-tax-prep', title: 'Quarterly Tax Prep', description: 'Quarterly 941/M-941 data for tax filing preparation', category: 'payroll', isAvailable: true },
   // Phase 8: Loan Reports
   { slug: 'amortization-schedule', title: 'Amortization Schedule', description: 'Projected payment schedule for loan funding sources with principal and interest breakdown', category: 'fund', isAvailable: true },
-  // Future reports (Coming Soon)
-  { slug: 'trial-balance', title: 'Trial Balance', description: 'Full chart of accounts with debit/credit balances', category: 'core', isAvailable: false },
-  { slug: 'general-ledger-detail', title: 'General Ledger Detail', description: 'Transaction-level detail by account and date range', category: 'core', isAvailable: false },
-  { slug: 'donor-contribution-summary', title: 'Donor Contribution Summary', description: 'Donations by donor for acknowledgement letters and 990', category: 'fund', isAvailable: false },
-  { slug: 'pledge-fulfillment', title: 'Pledge Fulfillment', description: 'Pledge status, expected vs received, aging', category: 'fund', isAvailable: false },
-  { slug: 'vendor-1099-report', title: 'Vendor 1099 Report', description: '1099-eligible vendor payments for tax filing', category: 'specialized', isAvailable: false },
-  { slug: 'payroll-summary', title: 'Payroll Summary', description: 'Payroll costs by employee, functional allocation, employer taxes', category: 'specialized', isAvailable: false },
 ]
 
 export const CATEGORY_LABELS: Record<string, string> = {

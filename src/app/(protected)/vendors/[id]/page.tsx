@@ -4,6 +4,8 @@ import {
   getAccountOptions,
   getFundOptions,
   getVendor1099Summary,
+  getVendorFunds,
+  getVendorArInvoices,
 } from '../actions'
 import {
   getVendorPurchaseOrders,
@@ -24,13 +26,15 @@ export default async function VendorDetailPage({
 
   const currentYear = new Date().getFullYear()
 
-  const [vendor, accountOptions, fundOptions, purchaseOrders, summary1099] =
+  const [vendor, accountOptions, fundOptions, purchaseOrders, summary1099, vendorFunds, arInvoices] =
     await Promise.all([
       getVendorById(vendorId),
       getAccountOptions(),
       getFundOptions(),
       getVendorPurchaseOrders(vendorId),
       getVendor1099Summary(vendorId, currentYear),
+      getVendorFunds(vendorId),
+      getVendorArInvoices(vendorId),
     ])
 
   if (!vendor) notFound()
@@ -42,6 +46,8 @@ export default async function VendorDetailPage({
       fundOptions={fundOptions}
       purchaseOrders={purchaseOrders}
       summary1099={summary1099}
+      vendorFunds={vendorFunds}
+      arInvoices={arInvoices}
     />
   )
 }

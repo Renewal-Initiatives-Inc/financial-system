@@ -16,7 +16,21 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatCurrency, formatPercent } from '@/lib/reports/types'
+import type { CSVColumnDef } from '@/lib/reports/csv/export-csv'
 import type { FundDrawdownData, FundDrawdownRow } from '@/lib/reports/fund-drawdown'
+
+// ---------------------------------------------------------------------------
+// Typed CSV columns
+// ---------------------------------------------------------------------------
+
+const FUND_DRAWDOWN_CSV_COLUMNS: CSVColumnDef[] = [
+  { key: 'fundName', label: 'Fund Name', format: 'text' },
+  { key: 'awarded', label: 'Awarded', format: 'currency' },
+  { key: 'spent', label: 'Spent', format: 'currency' },
+  { key: 'released', label: 'Released', format: 'currency' },
+  { key: 'remaining', label: 'Remaining', format: 'currency' },
+  { key: 'drawdownPercent', label: 'Draw-Down', format: 'percent' },
+]
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -49,12 +63,12 @@ function statusBadgeVariant(
 
 function buildExportData(rows: FundDrawdownRow[]) {
   return rows.map((r) => ({
-    Fund: r.fundName,
-    Awarded: formatCurrency(r.totalAwarded),
-    Spent: formatCurrency(r.totalSpent),
-    Released: formatCurrency(r.totalReleased),
-    Remaining: formatCurrency(r.remaining),
-    'Draw-Down %': formatPercent(r.drawdownPercent),
+    fundName: r.fundName,
+    awarded: r.totalAwarded,
+    spent: r.totalSpent,
+    released: r.totalReleased,
+    remaining: r.remaining,
+    drawdownPercent: r.drawdownPercent,
   }))
 }
 
@@ -81,14 +95,7 @@ export function FundDrawdownClient({ data }: FundDrawdownClientProps) {
       title="Fund Draw-Down / Restricted Funding Status"
       reportSlug="fund-drawdown"
       exportData={exportData}
-      exportColumns={[
-        'Fund',
-        'Awarded',
-        'Spent',
-        'Released',
-        'Remaining',
-        'Draw-Down %',
-      ]}
+      csvColumns={FUND_DRAWDOWN_CSV_COLUMNS}
     >
       {/* Summary cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

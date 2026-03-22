@@ -1,6 +1,6 @@
-import { and, sql, lte, gt, desc, eq } from 'drizzle-orm'
+import { and, sql, lte, gt, desc, eq, ne } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { transactions, transactionLines, accounts } from '@/lib/db/schema'
+import { transactions, transactionLines, accounts, fiscalYearLocks } from '@/lib/db/schema'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -40,11 +40,23 @@ export async function getLateEntriesData(
   const now = new Date().toISOString()
   const { periodEndDate, lookbackDays = 30 } = filters
 
+  // Use actual lock date from fiscal_year_locks if the period's fiscal year
+  // has been locked. This gives us the real close date rather than a heuristic.
+  const fiscalYear = parseInt(periodEndDate.substring(0, 4), 10)
+  let closeDate = periodEndDate
+  const [lockRow] = await db
+    .select({ lockedAt: fiscalYearLocks.lockedAt })
+    .from(fiscalYearLocks)
+    .where(eq(fiscalYearLocks.fiscalYear, fiscalYear))
+  if (lockRow?.lockedAt) {
+    closeDate = lockRow.lockedAt.toISOString().split('T')[0]
+  }
+
   // Find transactions where:
   // - transaction date <= periodEndDate (belongs to the reporting period or earlier)
-  // - createdAt > periodEndDate (was created after the period closed)
-  // - createdAt <= periodEndDate + lookbackDays (within lookback window)
-  const lookbackEnd = new Date(periodEndDate)
+  // - createdAt > closeDate (was created after the period closed)
+  // - createdAt <= closeDate + lookbackDays (within lookback window)
+  const lookbackEnd = new Date(closeDate)
   lookbackEnd.setDate(lookbackEnd.getDate() + lookbackDays)
   const lookbackEndStr = lookbackEnd.toISOString()
 
@@ -60,9 +72,12 @@ export async function getLateEntriesData(
     .where(
       and(
         lte(transactions.date, periodEndDate),
-        gt(transactions.createdAt, new Date(periodEndDate + 'T23:59:59')),
+        gt(transactions.createdAt, new Date(closeDate + 'T23:59:59')),
         lte(transactions.createdAt, new Date(lookbackEndStr)),
-        eq(transactions.isVoided, false)
+        eq(transactions.isVoided, false),
+        // Exclude YEAR_END_CLOSE entries — they are expected post-close
+        // activity, not "late entries."
+        ne(transactions.sourceType, 'YEAR_END_CLOSE'),
       )
     )
     .orderBy(desc(transactions.createdAt))
@@ -98,7 +113,7 @@ export async function getLateEntriesData(
     amountRows.map((r) => [r.transactionId, parseFloat(r.totalDebit)])
   )
 
-  const periodEnd = new Date(periodEndDate + 'T23:59:59')
+  const periodEnd = new Date(closeDate + 'T23:59:59')
 
   const rows: LateEntryRow[] = txnRows.map((t) => {
     const createdAt = t.createdAt

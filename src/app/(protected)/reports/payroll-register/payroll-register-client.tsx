@@ -16,13 +16,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ReportShell } from '@/components/reports/report-shell'
+import type { CSVColumnDef } from '@/lib/reports/csv/export-csv'
 import { formatCurrency, formatDate } from '@/lib/reports/types'
 import {
-  getPayrollRegisterData,
   type PayrollRegisterData,
   type PayrollRunSummary,
   type PayrollRegisterRow,
 } from '@/lib/reports/payroll-register'
+import { getPayrollRegisterData } from '../actions'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -38,22 +39,36 @@ interface PayrollRegisterClientProps {
 // CSV export helpers
 // ---------------------------------------------------------------------------
 
+const PAYROLL_REGISTER_CSV_COLUMNS: CSVColumnDef[] = [
+  { key: 'payPeriod', label: 'Pay Period', format: 'text' },
+  { key: 'runId', label: 'Run ID', format: 'text' },
+  { key: 'employee', label: 'Employee', format: 'text' },
+  { key: 'employeeId', label: 'Employee ID', format: 'text' },
+  { key: 'grossPay', label: 'Gross Pay', format: 'currency' },
+  { key: 'federalWH', label: 'Federal W/H', format: 'currency' },
+  { key: 'stateWH', label: 'State W/H', format: 'currency' },
+  { key: 'ssEE', label: 'SS (EE)', format: 'currency' },
+  { key: 'medicareEE', label: 'Medicare (EE)', format: 'currency' },
+  { key: 'netPay', label: 'Net Pay', format: 'currency' },
+  { key: 'fundAllocations', label: 'Fund Allocations', format: 'text' },
+]
+
 function buildExportData(data: PayrollRegisterData): Record<string, unknown>[] {
   const out: Record<string, unknown>[] = []
   for (const run of data.runs) {
     for (const row of run.rows) {
       out.push({
-        'Pay Period': `${formatDate(run.payPeriodStart)} - ${formatDate(run.payPeriodEnd)}`,
-        'Run ID': run.runId,
-        Employee: row.employeeName,
-        'Employee ID': row.employeeId,
-        'Gross Pay': row.grossPay,
-        'Federal W/H': row.federalWithholding,
-        'State W/H': row.stateWithholding,
-        'SS (EE)': row.socialSecurityEmployee,
-        'Medicare (EE)': row.medicareEmployee,
-        'Net Pay': row.netPay,
-        'Fund Allocations': row.fundAllocations
+        payPeriod: `${formatDate(run.payPeriodStart)} - ${formatDate(run.payPeriodEnd)}`,
+        runId: run.runId,
+        employee: row.employeeName,
+        employeeId: row.employeeId,
+        grossPay: row.grossPay,
+        federalWH: row.federalWithholding,
+        stateWH: row.stateWithholding,
+        ssEE: row.socialSecurityEmployee,
+        medicareEE: row.medicareEmployee,
+        netPay: row.netPay,
+        fundAllocations: row.fundAllocations
           .map((a) => `${a.fundName} (${a.percentage}%)`)
           .join('; '),
       })
@@ -61,20 +76,6 @@ function buildExportData(data: PayrollRegisterData): Record<string, unknown>[] {
   }
   return out
 }
-
-const exportColumns = [
-  'Pay Period',
-  'Run ID',
-  'Employee',
-  'Employee ID',
-  'Gross Pay',
-  'Federal W/H',
-  'State W/H',
-  'SS (EE)',
-  'Medicare (EE)',
-  'Net Pay',
-  'Fund Allocations',
-]
 
 // ---------------------------------------------------------------------------
 // Component
@@ -105,7 +106,8 @@ export function PayrollRegisterClient({
       generatedAt={data.generatedAt}
       reportSlug="payroll-register"
       exportData={exportData}
-      exportColumns={exportColumns}
+      csvColumns={PAYROLL_REGISTER_CSV_COLUMNS}
+      filters={{ startDate, endDate }}
     >
       {/* Date Range Filters */}
       <div className="flex flex-wrap items-end gap-4 p-4 bg-muted/50 rounded-lg border" data-testid="payroll-register-filter-bar">

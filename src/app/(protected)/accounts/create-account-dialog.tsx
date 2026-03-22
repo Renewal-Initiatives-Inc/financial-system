@@ -27,7 +27,7 @@ import { toast } from 'sonner'
 const ACCOUNT_TYPES = [
   { value: 'ASSET', label: 'Asset' },
   { value: 'LIABILITY', label: 'Liability' },
-  { value: 'NET_ASSET', label: 'Net Asset' },
+  { value: 'NET_ASSET', label: 'Retained Earnings' },
   { value: 'REVENUE', label: 'Revenue' },
   { value: 'EXPENSE', label: 'Expense' },
 ] as const

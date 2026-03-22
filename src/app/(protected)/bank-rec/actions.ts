@@ -10,6 +10,11 @@ import {
   matchingRules,
   reconciliationSessions,
   transactionLines,
+  invoices,
+  accounts,
+  vendors,
+  purchaseOrders,
+  funds,
 } from '@/lib/db/schema'
 import {
   findMatchCandidates,
@@ -36,7 +41,10 @@ import {
   type ReconciliationBalance,
 } from '@/lib/bank-rec/reconciliation'
 import { createTransaction } from '@/lib/gl/engine'
+import { logAudit } from '@/lib/audit/logger'
+import { getFiscalYearFromDate, isYearLocked } from '@/lib/fiscal-year-lock'
 import { decrypt } from '@/lib/encryption'
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 import { syncTransactions } from '@/lib/integrations/plaid'
 import { sendPlaidSyncFailureEmail } from '@/lib/integrations/plaid-sync-notification'
 import { auth } from '@/lib/auth'
@@ -413,6 +421,24 @@ export async function startReconciliationSession(
   revalidatePath('/match-transactions/bank')
 }
 
+export async function cancelReconciliationSession(
+  sessionId: number
+): Promise<void> {
+  // Detach any bank matches tied to this session (keep the matches, just unlink)
+  await db
+    .update(bankMatches)
+    .set({ reconciliationSessionId: null })
+    .where(eq(bankMatches.reconciliationSessionId, sessionId))
+
+  // Delete the session
+  await db
+    .delete(reconciliationSessions)
+    .where(eq(reconciliationSessions.id, sessionId))
+
+  revalidatePath('/bank-rec')
+  revalidatePath('/match-transactions/bank')
+}
+
 export async function signOffReconciliation(
   sessionId: number,
   userId: string
@@ -554,6 +580,69 @@ export async function getBatchReviewItems(
   bankAccountId: number
 ): Promise<BatchReviewItem[]> {
   return getBatchReviewCandidates(bankAccountId)
+}
+
+// --- Invoice match suggestions ---
+
+export type InvoiceSuggestionRow = {
+  bankTransactionId: number
+  invoiceId: number
+  invoiceNumber: string | null
+  poNumber: string | null
+  vendorName: string
+  invoiceAmount: string
+  invoiceDate: string
+  confidence: number
+  isPaid: boolean
+  // Bank transaction details
+  bankDate: string
+  bankMerchant: string | null
+  bankAmount: string
+}
+
+export async function getInvoiceSuggestions(
+  bankAccountId: number
+): Promise<InvoiceSuggestionRow[]> {
+  const rows = await db
+    .select({
+      bankTransactionId: bankTransactions.id,
+      invoiceMatchConfidence: bankTransactions.invoiceMatchConfidence,
+      bankDate: bankTransactions.date,
+      bankMerchant: bankTransactions.merchantName,
+      bankAmount: bankTransactions.amount,
+      invoiceId: invoices.id,
+      invoiceNumber: invoices.invoiceNumber,
+      purchaseOrderId: invoices.purchaseOrderId,
+      vendorName: vendors.name,
+      invoiceAmount: invoices.amount,
+      invoiceDate: invoices.invoiceDate,
+      paymentStatus: invoices.paymentStatus,
+    })
+    .from(bankTransactions)
+    .innerJoin(invoices, eq(bankTransactions.suggestedInvoiceId, invoices.id))
+    .leftJoin(vendors, eq(invoices.vendorId, vendors.id))
+    .where(
+      and(
+        eq(bankTransactions.bankAccountId, bankAccountId),
+        sql`${bankTransactions.suggestedInvoiceId} IS NOT NULL`,
+        eq(invoices.paymentStatus, 'POSTED') // Hide once paid
+      )
+    )
+
+  return rows.map((r) => ({
+    bankTransactionId: r.bankTransactionId,
+    invoiceId: r.invoiceId,
+    invoiceNumber: r.invoiceNumber,
+    poNumber: r.purchaseOrderId ? `PO-${r.purchaseOrderId}` : null,
+    vendorName: r.vendorName ?? 'Unknown',
+    invoiceAmount: r.invoiceAmount,
+    invoiceDate: r.invoiceDate,
+    confidence: parseFloat(r.invoiceMatchConfidence ?? '0'),
+    isPaid: r.paymentStatus === 'PAID',
+    bankDate: r.bankDate,
+    bankMerchant: r.bankMerchant,
+    bankAmount: r.bankAmount,
+  }))
 }
 
 export async function getExceptionItems(
@@ -701,4 +790,230 @@ export async function getPastSessions(bankAccountId: number): Promise<PastSessio
     statementDate: String(r.statementDate),
     statementBalance: String(r.statementBalance),
   }))
+}
+
+// --- Invoice Match Confirmation ---
+
+export type ConfirmInvoiceMatchResult = {
+  success: boolean
+  glTransactionId?: number
+  lockedYearWarning?: { year: number; message: string }
+  error?: string
+}
+
+/**
+ * Confirm an invoice match: create clearing JE and update invoice to PAID.
+ * AP invoices: DR AP (2000) / CR Cash
+ * AR invoices: DR Cash / CR AR (1110)
+ */
+export async function confirmInvoiceMatch(
+  bankTransactionId: number,
+  invoiceId: number
+): Promise<ConfirmInvoiceMatchResult> {
+  const user = await getAuthUser()
+
+  // 1. Fetch invoice with PO details and direction
+  const [invoice] = await db
+    .select({
+      id: invoices.id,
+      amount: invoices.amount,
+      paymentStatus: invoices.paymentStatus,
+      fundId: invoices.fundId,
+      purchaseOrderId: invoices.purchaseOrderId,
+      invoiceNumber: invoices.invoiceNumber,
+      vendorId: invoices.vendorId,
+      direction: invoices.direction,
+    })
+    .from(invoices)
+    .where(eq(invoices.id, invoiceId))
+
+  if (!invoice) {
+    return { success: false, error: `Invoice ${invoiceId} not found` }
+  }
+
+  // 2. Validate: must be POSTED (not already paid)
+  if (invoice.paymentStatus !== 'POSTED') {
+    return {
+      success: false,
+      error: `Invoice is already ${invoice.paymentStatus} — cannot confirm match`,
+    }
+  }
+
+  const isAR = invoice.direction === 'AR'
+
+  // 3. Fetch bank transaction
+  const [bankTxn] = await db
+    .select({
+      id: bankTransactions.id,
+      bankAccountId: bankTransactions.bankAccountId,
+      date: bankTransactions.date,
+      amount: bankTransactions.amount,
+    })
+    .from(bankTransactions)
+    .where(eq(bankTransactions.id, bankTransactionId))
+
+  if (!bankTxn) {
+    return { success: false, error: `Bank transaction ${bankTransactionId} not found` }
+  }
+
+  // 4. Fetch bank account → checking GL account
+  const [bankAccount] = await db
+    .select({ glAccountId: bankAccounts.glAccountId })
+    .from(bankAccounts)
+    .where(eq(bankAccounts.id, bankTxn.bankAccountId))
+
+  if (!bankAccount?.glAccountId) {
+    return { success: false, error: 'Bank account has no linked GL account' }
+  }
+
+  // 5. Look up offset account: AP (2000) for AP invoices, AR (1110) for AR invoices
+  const offsetCode = isAR ? '1110' : '2000'
+  const offsetLabel = isAR ? 'Grants Receivable (1110)' : 'Accounts Payable (2000)'
+  const [offsetAccount] = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(eq(accounts.code, offsetCode))
+
+  if (!offsetAccount) {
+    return { success: false, error: `${offsetLabel} account not found` }
+  }
+
+  // Look up counterparty name
+  let counterpartyName: string | null = null
+  if (isAR && invoice.fundId) {
+    const [fund] = await db.select({ name: funds.name }).from(funds).where(eq(funds.id, invoice.fundId))
+    counterpartyName = fund?.name ?? null
+  } else if (invoice.vendorId) {
+    counterpartyName = (await db.select({ name: vendors.name }).from(vendors).where(eq(vendors.id, invoice.vendorId)))[0]?.name ?? null
+  }
+
+  const invoiceRef = invoice.invoiceNumber || (isAR ? `AR-${invoice.id}` : `INV-${invoice.id}`)
+  const poRef = invoice.purchaseOrderId ? `PO-${invoice.purchaseOrderId}` : null
+
+  // 6. Soft lock warning check
+  const fiscalYear = getFiscalYearFromDate(bankTxn.date)
+  const locked = await isYearLocked(fiscalYear)
+  if (locked) {
+    // Surface the warning but proceed — the GL engine will also check
+  }
+
+  // 7. Create clearing GL transaction
+  // AP: DR AP / CR Cash (payment out)
+  // AR: DR Cash / CR AR (payment in)
+  const invoiceAmount = parseFloat(invoice.amount)
+  const fundId = invoice.fundId ?? 1 // Default to unrestricted fund
+
+  const memo = isAR
+    ? `Payment received: ${invoiceRef} — ${counterpartyName ?? 'funder'}`
+    : `Payment: ${invoiceRef}${poRef ? ` / ${poRef}` : ''} — ${counterpartyName ?? 'vendor'}`
+
+  const lines = isAR
+    ? [
+        // AR: DR Cash, CR Grants Receivable
+        { accountId: bankAccount.glAccountId, fundId, debit: invoiceAmount, credit: null },
+        { accountId: offsetAccount.id, fundId, debit: null, credit: invoiceAmount },
+      ]
+    : [
+        // AP: DR Accounts Payable, CR Cash
+        { accountId: offsetAccount.id, fundId, debit: invoiceAmount, credit: null },
+        { accountId: bankAccount.glAccountId, fundId, debit: null, credit: invoiceAmount },
+      ]
+
+  const txnResult = await createTransaction({
+    date: bankTxn.date,
+    memo,
+    sourceType: 'BANK_MATCH',
+    sourceReferenceId: `invoice-match:${invoiceId}:bank:${bankTransactionId}`,
+    isSystemGenerated: true,
+    createdBy: user.id,
+    lines,
+  })
+
+  // 8. Update invoice → PAID with linkage
+  await db
+    .update(invoices)
+    .set({
+      paymentStatus: 'PAID',
+      bankTransactionId,
+      clearingTransactionId: txnResult.transaction.id,
+      paidAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(invoices.id, invoiceId))
+
+  // 8b. Clear the invoice suggestion from the bank transaction
+  await db
+    .update(bankTransactions)
+    .set({
+      suggestedInvoiceId: null,
+      invoiceMatchConfidence: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(bankTransactions.id, bankTransactionId))
+
+  // 9. Create bank match record (cash line from the clearing JE)
+  const cashLine = txnResult.transaction.lines.find(
+    (l) => l.accountId === bankAccount.glAccountId
+  )
+
+  if (cashLine) {
+    await createMatch({
+      bankTransactionId,
+      glTransactionLineId: cashLine.id,
+      matchType: 'manual',
+      userId: user.id,
+    })
+  }
+
+  // 10. Audit log
+  await db.transaction(async (tx) => {
+    await logAudit(tx as unknown as NeonDatabase<any>, {
+      userId: user.id,
+      action: 'updated',
+      entityType: 'invoice',
+      entityId: invoiceId,
+      beforeState: { paymentStatus: 'POSTED' },
+      afterState: {
+        paymentStatus: 'PAID',
+        bankTransactionId,
+        clearingTransactionId: txnResult.transaction.id,
+      },
+    })
+  })
+
+  // 11. Revalidate
+  revalidatePath('/bank-rec')
+  if (isAR && invoice.fundId) {
+    revalidatePath(`/revenue/funding-sources/${invoice.fundId}`)
+    revalidatePath('/revenue/funding-sources')
+  }
+  if (invoice.purchaseOrderId) {
+    revalidatePath(`/expenses/purchase-orders/${invoice.purchaseOrderId}`)
+  }
+  revalidatePath('/expenses/payables')
+
+  return {
+    success: true,
+    glTransactionId: txnResult.transaction.id,
+    lockedYearWarning: txnResult.lockedYearWarning,
+  }
+}
+
+/**
+ * Dismiss an invoice suggestion on a bank transaction.
+ * Clears suggestedInvoiceId without blocking GL matching.
+ */
+export async function dismissInvoiceSuggestion(
+  bankTransactionId: number
+): Promise<void> {
+  await db
+    .update(bankTransactions)
+    .set({
+      suggestedInvoiceId: null,
+      invoiceMatchConfidence: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(bankTransactions.id, bankTransactionId))
+
+  revalidatePath('/bank-rec')
 }

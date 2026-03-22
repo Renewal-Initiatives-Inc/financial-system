@@ -13,10 +13,20 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ReportShell } from '@/components/reports/report-shell'
+import type { CSVColumnDef } from '@/lib/reports/csv/export-csv'
 import type {
   OutstandingPayablesData,
   AgingBucket,
 } from '@/lib/reports/outstanding-payables'
+
+const PAYABLES_CSV_COLUMNS: CSVColumnDef[] = [
+  { key: 'type', label: 'Type', format: 'text' },
+  { key: 'vendor', label: 'Vendor', format: 'text' },
+  { key: 'invoice', label: 'Invoice', format: 'text' },
+  { key: 'dueDate', label: 'Due Date', format: 'date' },
+  { key: 'amount', label: 'Amount', format: 'currency' },
+  { key: 'aging', label: 'Aging', format: 'text' },
+]
 
 // ---------------------------------------------------------------------------
 // Formatters
@@ -73,24 +83,13 @@ export function PayablesClient({ data }: PayablesClientProps) {
 
   // Build CSV export data from invoice detail
   const exportData = data.invoiceDetail.map((row) => ({
-    Vendor: row.vendorName ?? '',
-    'Invoice #': row.invoiceNumber ?? '',
-    'Invoice Date': row.invoiceDate ?? '',
-    'Due Date': row.dueDate ?? '',
-    'PO Ref': row.poNumber ?? '',
-    Amount: row.amount,
-    Aging: AGING_LABELS[row.agingBucket],
+    type: 'AP Invoice',
+    vendor: row.vendorName ?? '',
+    invoice: row.invoiceNumber ?? '',
+    dueDate: row.dueDate ?? '',
+    amount: row.amount,
+    aging: AGING_LABELS[row.agingBucket],
   }))
-
-  const exportColumns = [
-    'Vendor',
-    'Invoice #',
-    'Invoice Date',
-    'Due Date',
-    'PO Ref',
-    'Amount',
-    'Aging',
-  ]
 
   return (
     <ReportShell
@@ -98,7 +97,7 @@ export function PayablesClient({ data }: PayablesClientProps) {
       generatedAt={data.generatedAt}
       reportSlug="outstanding-payables"
       exportData={exportData}
-      exportColumns={exportColumns}
+      csvColumns={PAYABLES_CSV_COLUMNS}
     >
       {/* Aging Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

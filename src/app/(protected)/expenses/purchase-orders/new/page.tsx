@@ -1,15 +1,15 @@
 import {
   getActiveVendors,
-  getExpenseAndCipAccounts,
   getActiveFunds,
   getActiveCipCostCodes,
 } from '../../actions'
+import { getAccountsForSelector } from '@/app/(protected)/transactions/actions'
 import { CreatePOForm } from './create-po-form'
 
 export default async function CreatePurchaseOrderPage() {
   const [vendors, accounts, funds, cipCostCodes] = await Promise.all([
     getActiveVendors(),
-    getExpenseAndCipAccounts(),
+    getAccountsForSelector(),
     getActiveFunds(),
     getActiveCipCostCodes(),
   ])

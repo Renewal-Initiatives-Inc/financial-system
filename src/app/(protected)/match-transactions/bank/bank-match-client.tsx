@@ -53,12 +53,14 @@ import { BankAccountSelector } from '@/app/(protected)/bank-rec/components/bank-
 import { ConfirmMatchDialog } from '@/app/(protected)/bank-rec/components/confirm-match-dialog'
 import { SplitTransactionDialog } from '@/app/(protected)/bank-rec/components/split-transaction-dialog'
 import { InlineGlEntryDialog } from '@/app/(protected)/bank-rec/components/inline-gl-entry-dialog'
+import { InvoiceMatchCard } from '@/app/(protected)/bank-rec/components/invoice-match-card'
 import {
   triggerManualSync,
   getDailyCloseSummary,
   getBatchReviewItems,
   getExceptionItems,
   getRecentAutoMatches,
+  getInvoiceSuggestions,
   bulkApproveMatches,
   createInlineGlEntry,
   createMatchingRuleAction,
@@ -70,6 +72,7 @@ import type {
   BankAccountOption,
   BankTransactionRow,
   DailyCloseSummary,
+  InvoiceSuggestionRow,
 } from '@/app/(protected)/bank-rec/actions'
 import type { MatchCandidate, BatchReviewItem, ExceptionItem } from '@/lib/bank-rec/matcher'
 
@@ -126,6 +129,7 @@ export function BankMatchClient({
   const [reviewItems, setReviewItems] = useState<BatchReviewItem[]>([])
   const [exceptionItems, setExceptionItems] = useState<ExceptionItem[]>([])
   const [autoMatchedTxns, setAutoMatchedTxns] = useState<BankTransactionRow[]>([])
+  const [invoiceSuggestions, setInvoiceSuggestions] = useState<Map<number, InvoiceSuggestionRow>>(new Map())
 
   const [selectedRow, setSelectedRow] = useState<UnifiedRow | null>(null)
   const [matchCandidates, setMatchCandidates] = useState<MatchCandidate[]>([])
@@ -169,14 +173,19 @@ export function BankMatchClient({
   const loadAccountData = useCallback(async (accountId: string) => {
     const id = parseInt(accountId, 10)
     try {
-      const [review, exceptions, autoMatches] = await Promise.all([
+      const [review, exceptions, autoMatches, invSuggestions] = await Promise.all([
         getBatchReviewItems(id),
         getExceptionItems(id),
         getRecentAutoMatches(id),
+        getInvoiceSuggestions(id),
       ])
 
+      // Count invoice suggestions not already in GL review items
+      const reviewBankIds = new Set(review.map((r) => r.bankTransaction.id))
+      const invoiceOnlyCount = invSuggestions.filter((s) => !reviewBankIds.has(s.bankTransactionId)).length
+
       const summary = await getDailyCloseSummary(id, {
-        pendingReview: review.length,
+        pendingReview: review.length + invoiceOnlyCount,
         exceptions: exceptions.length,
       })
 
@@ -184,6 +193,7 @@ export function BankMatchClient({
       setReviewItems(review)
       setExceptionItems(exceptions)
       setAutoMatchedTxns(autoMatches)
+      setInvoiceSuggestions(new Map(invSuggestions.map((s) => [s.bankTransactionId, s])))
     } catch (err) {
       console.error('[bank-match] loadAccountData failed:', err)
     }
@@ -237,6 +247,30 @@ export function BankMatchClient({
       })
     }
 
+    // Add invoice-suggested transactions as pending_review (if not already in another category)
+    const existingIds = new Set([
+      ...reviewItems.map((i) => i.bankTransaction.id),
+      ...exceptionItems.map((i) => i.bankTransaction.id),
+      ...autoMatchedTxns.map((t) => t.id),
+    ])
+    for (const [bankTxnId, inv] of invoiceSuggestions) {
+      if (!existingIds.has(bankTxnId)) {
+        rows.push({
+          id: bankTxnId,
+          date: inv.bankDate,
+          merchantName: inv.bankMerchant,
+          amount: inv.bankAmount,
+          category: null,
+          status: 'pending_review',
+          suggestedGlAccount: `Invoice: ${inv.invoiceNumber ?? `INV-${inv.invoiceId}`}${inv.poNumber ? ` (${inv.poNumber})` : ''}`,
+          confidenceScore: inv.confidence,
+          reason: `Invoice match — ${inv.vendorName}`,
+          bankAccountId: parseInt(selectedAccountId, 10),
+          plaidTransactionId: '',
+        })
+      }
+    }
+
     for (const txn of autoMatchedTxns) {
       rows.push({
         id: txn.id,
@@ -253,7 +287,7 @@ export function BankMatchClient({
     }
 
     return rows
-  }, [exceptionItems, reviewItems, autoMatchedTxns])
+  }, [exceptionItems, reviewItems, autoMatchedTxns, invoiceSuggestions, selectedAccountId])
 
   const filtered = useMemo(() => {
     let data = unifiedRows
@@ -594,6 +628,24 @@ export function BankMatchClient({
         )}
       </div>
 
+      {/* Invoice match suggestions */}
+      {invoiceSuggestions.size > 0 && (
+        <div className="space-y-2" data-testid="invoice-match-suggestions">
+          <p className="text-sm font-medium">
+            Invoice Matches ({invoiceSuggestions.size})
+          </p>
+          {Array.from(invoiceSuggestions.values()).map((s) => (
+            <InvoiceMatchCard
+              key={`inv-${s.bankTransactionId}-${s.invoiceId}`}
+              match={s}
+              onSettled={() => {
+                startTransition(() => loadAccountData(selectedAccountId))
+              }}
+            />
+          ))}
+        </div>
+      )}
+
       {/* Transaction table */}
       <div data-testid="bank-match-table">
         <div className="rounded-md border">
@@ -611,9 +663,9 @@ export function BankMatchClient({
             </TableHeader>
             <TableBody>
               {filtered.length > 0 ? (
-                filtered.map((row) => (
+                filtered.map((row, idx) => (
                   <TableRow
-                    key={row.id}
+                    key={`${row.id}-${idx}`}
                     className={
                       row.status === 'matched'
                         ? row.glTransactionId
@@ -639,15 +691,22 @@ export function BankMatchClient({
                       {formatCurrency(row.amount)}
                     </TableCell>
                     <TableCell>
+                      <div className="flex items-center gap-1">
                       {row.status === 'exception' && (
                         <StatusBadge type="confidence" value="low" label="Exception" />
                       )}
                       {row.status === 'pending_review' && (
                         <StatusBadge type="confidence" value="medium" label="Review" />
                       )}
+                      {invoiceSuggestions.has(row.id) && (
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700 text-xs dark:bg-blue-950 dark:text-blue-300">
+                          Invoice
+                        </Badge>
+                      )}
                       {row.status === 'matched' && (
                         <StatusBadge type="confidence" value="high" label="Matched" />
                       )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-sm truncate max-w-[180px]">
                       {row.suggestedGlAccount ?? (

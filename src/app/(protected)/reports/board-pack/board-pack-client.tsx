@@ -9,8 +9,8 @@ import { Label } from '@/components/ui/label'
 
 const REPORTS = [
   // Core (pre-selected)
-  { slug: 'balance-sheet', title: 'Statement of Financial Position', core: true },
-  { slug: 'activities', title: 'Statement of Activities', core: true },
+  { slug: 'balance-sheet', title: 'Balance Sheet', core: true },
+  { slug: 'activities', title: 'Income Statement', core: true },
   { slug: 'cash-flows', title: 'Statement of Cash Flows', core: true },
   { slug: 'functional-expenses', title: 'Statement of Functional Expenses', core: true },
   // Operational
@@ -20,7 +20,6 @@ const REPORTS = [
   { slug: 'rent-collection', title: 'Rent Collection Status', core: false },
   // Fund
   { slug: 'fund-drawdown', title: 'Fund Draw-Down', core: false },
-  { slug: 'grant-compliance', title: 'Funding Compliance', core: false },
   { slug: 'fund-level', title: 'Fund-Level Report', core: false },
   // Specialized
   { slug: 'property-expenses', title: 'Property Expenses', core: false },
@@ -32,7 +31,6 @@ const REPORTS = [
   { slug: 'transaction-history', title: 'Transaction History', core: false },
   { slug: 'late-entries', title: 'Late Entries', core: false },
   { slug: 'form-990-data', title: 'Form 990 Data', core: false },
-  { slug: 'compliance-calendar', title: 'Compliance Calendar', core: false },
   { slug: 'capital-budget', title: 'Capital Budget', core: false },
   { slug: 'payroll-register', title: 'Payroll Register', core: false },
   { slug: 'payroll-tax-liability', title: 'Payroll Tax Liability', core: false },

@@ -175,6 +175,11 @@ export function JournalEntryForm({
         : `Journal entry #${result.transactionId} created.`
 
       toast.success(msg)
+
+      if (result.lockedYearWarning) {
+        toast.warning(result.lockedYearWarning.message, { duration: 10000 })
+      }
+
       router.push(`/transactions/${result.transactionId}`)
     } catch (error) {
       const message =

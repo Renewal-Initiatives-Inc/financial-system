@@ -17,14 +17,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
+import type { CSVColumnDef } from '@/lib/reports/csv/export-csv'
 import { formatCurrency, formatPercent } from '@/lib/reports/types'
 import { cn } from '@/lib/utils'
 import {
-  getUtilityTrendsData,
   UTILITY_TYPES,
   type UtilityTrendsData,
   type UtilityType,
 } from '@/lib/reports/utility-trends'
+import { getUtilityTrendsData } from '../actions'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -59,17 +60,30 @@ const UTILITY_COLORS: Record<UtilityType, string> = {
 // CSV export
 // ---------------------------------------------------------------------------
 
+const UTILITY_TRENDS_CSV_COLUMNS: CSVColumnDef[] = [
+  { key: 'month', label: 'Month', format: 'text' },
+  { key: 'electric', label: 'Electric', format: 'currency' },
+  { key: 'gas', label: 'Gas', format: 'currency' },
+  { key: 'waterSewer', label: 'Water/Sewer', format: 'currency' },
+  { key: 'internet', label: 'Internet', format: 'currency' },
+  { key: 'securityFireMonitoring', label: 'Security & Fire Monitoring', format: 'currency' },
+  { key: 'trash', label: 'Trash', format: 'currency' },
+  { key: 'total', label: 'Total', format: 'currency' },
+]
+
 function buildExportData(
   data: UtilityTrendsData
 ): Record<string, unknown>[] {
-  return data.months.map((m) => {
-    const row: Record<string, unknown> = { Month: m.month }
-    for (const ut of UTILITY_TYPES) {
-      row[ut] = m.values[ut]
-    }
-    row['Total'] = m.total
-    return row
-  })
+  return data.months.map((m) => ({
+    month: m.month,
+    electric: m.values['Electric'],
+    gas: m.values['Gas'],
+    waterSewer: m.values['Water/Sewer'],
+    internet: m.values['Internet'],
+    securityFireMonitoring: m.values['Security & Fire Monitoring'],
+    trash: m.values['Trash'],
+    total: m.total,
+  }))
 }
 
 // ---------------------------------------------------------------------------
@@ -124,14 +138,14 @@ export function UtilityTrendsClient({
   })
 
   const exportData = buildExportData(data)
-  const exportColumns = ['Month', ...UTILITY_TYPES, 'Total']
 
   return (
     <ReportShell
       title="Utility Trend Analysis"
       reportSlug="utility-trends"
       exportData={exportData}
-      exportColumns={exportColumns}
+      csvColumns={UTILITY_TRENDS_CSV_COLUMNS}
+      filters={fundId ? { fundId: String(fundId) } : {}}
     >
       {/* Filter bar */}
       <div

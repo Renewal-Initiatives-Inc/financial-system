@@ -2,6 +2,7 @@
 
 import { formatDateTime } from '@/lib/reports/types'
 import { ExportButtons } from './export-buttons'
+import type { CSVColumnDef } from '@/lib/reports/csv/export-csv'
 
 interface ReportShellProps {
   title: string
@@ -9,7 +10,12 @@ interface ReportShellProps {
   fundName?: string | null
   reportSlug: string
   exportData?: Record<string, unknown>[]
+  /** Legacy string column names */
   exportColumns?: string[]
+  /** Typed CSV column definitions — takes precedence over exportColumns */
+  csvColumns?: CSVColumnDef[]
+  /** Filters to forward to PDF route */
+  filters?: Record<string, string>
   children: React.ReactNode
 }
 
@@ -20,6 +26,8 @@ export function ReportShell({
   reportSlug,
   exportData,
   exportColumns,
+  csvColumns,
+  filters,
   children,
 }: ReportShellProps) {
   const timestamp = generatedAt ?? new Date().toISOString()
@@ -45,8 +53,11 @@ export function ReportShell({
         </div>
         <ExportButtons
           reportSlug={reportSlug}
+          reportTitle={title}
           data={exportData}
           columns={exportColumns}
+          csvColumns={csvColumns}
+          filters={filters}
         />
       </div>
 

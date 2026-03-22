@@ -16,6 +16,7 @@ import {
   Clock,
   Database,
   Settings,
+  SlidersHorizontal,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -64,6 +65,7 @@ export const navSections: NavSection[] = [
       { label: 'Chart of Accounts', href: '/accounts', icon: ListTree },
       { label: 'Timesheets & ERs', href: '/settings/staging', icon: Database },
       { label: 'Annual Rates', href: '/settings/rates', icon: Settings },
+      { label: 'Allocations', href: '/compliance/functional-allocation', icon: SlidersHorizontal },
       { label: 'Data Retention', href: '/settings/data-retention', icon: Clock },
     ],
   },

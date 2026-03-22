@@ -54,17 +54,17 @@ const extractedTermsSchema = z.object({
   fundingCategory: z.string().default(''),
 })
 
-const EXTRACTION_PROMPT = `You are analyzing a construction/vendor contract for a nonprofit housing organization. Extract the following structured information from the contract:
+const EXTRACTION_PROMPT = `You are analyzing a construction/vendor contract or purchase order for a nonprofit housing organization. Extract the following structured information from the document:
 
 1. **Milestones**: Key dates, deadlines, and project phases. For each milestone, provide:
    - name: Short description
    - date: ISO date string (YYYY-MM-DD) if mentioned, or null
    - description: Detailed description
 
-2. **Payment Terms**: Payment schedule and conditions. For each term:
-   - schedule: Description of when payment is due
+2. **Payment Terms**: This is the MOST IMPORTANT section. Look specifically for sections with headers like "Terms", "Payment Terms", "Terms and Conditions", "Terms & Conditions", "Invoicing", "Billing", "Payment Schedule", "Net 30", or similar. Extract:
+   - schedule: When payment is due (e.g., "Net 30 from invoice date", "Due upon completion of Phase 1", "Monthly on the 1st")
    - amount: Dollar amount or percentage if specified, or null
-   - conditions: Any conditions that must be met
+   - conditions: Required documentation or conditions that must accompany an invoice for payment (e.g., "Must include receipts", "Requires lien waiver", "Progress photos required", "Signed timesheet required", "Certificate of insurance must be current"). This is critical — capture ALL requirements for what must be submitted WITH an invoice to receive payment.
 
 3. **Deliverables**: List of specific deliverables or work products
 

@@ -12,13 +12,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ReportShell } from '@/components/reports/report-shell'
+import type { CSVColumnDef } from '@/lib/reports/csv/export-csv'
 import { formatCurrency, formatDate } from '@/lib/reports/types'
 import {
-  getQuarterlyTaxPrepData,
   type QuarterlyTaxPrepData,
   type Federal941Data,
   type MaM941Data,
 } from '@/lib/reports/quarterly-tax-prep'
+import { getQuarterlyTaxPrepData } from '../actions'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -32,25 +33,30 @@ interface QuarterlyTaxPrepClientProps {
 // CSV export
 // ---------------------------------------------------------------------------
 
+const QUARTERLY_TAX_PREP_CSV_COLUMNS: CSVColumnDef[] = [
+  { key: 'form', label: 'Form', format: 'text' },
+  { key: 'line', label: 'Line', format: 'text' },
+  { key: 'description', label: 'Description', format: 'text' },
+  { key: 'amount', label: 'Amount', format: 'currency' },
+]
+
 function buildExportData(data: QuarterlyTaxPrepData): Record<string, unknown>[] {
   const f = data.federal941
   const m = data.maM941
   return [
-    { Form: 'Federal 941', Line: '1', Description: 'Number of employees who received wages', Amount: f.line1_employeeCount },
-    { Form: 'Federal 941', Line: '2', Description: 'Wages, tips, and other compensation', Amount: f.line2_totalWages },
-    { Form: 'Federal 941', Line: '3', Description: 'Federal income tax withheld', Amount: f.line3_federalTaxWithheld },
-    { Form: 'Federal 941', Line: '5a', Description: 'Taxable social security wages (x 0.124)', Amount: f.line5a_ssWages },
-    { Form: 'Federal 941', Line: '5a Tax', Description: 'Social security tax', Amount: f.line5a_ssTax },
-    { Form: 'Federal 941', Line: '5c', Description: 'Taxable Medicare wages (x 0.029)', Amount: f.line5c_medicareWages },
-    { Form: 'Federal 941', Line: '5c Tax', Description: 'Medicare tax', Amount: f.line5c_medicareTax },
-    { Form: 'Federal 941', Line: '6', Description: 'Total taxes before adjustments', Amount: f.line6_totalTaxBeforeAdjustments },
-    { Form: 'Federal 941', Line: '10', Description: 'Total taxes after adjustments', Amount: f.line10_totalTaxAfterAdjustments },
-    { Form: 'MA M-941', Line: '1', Description: 'Total wages subject to MA withholding', Amount: m.totalWagesSubjectToMA },
-    { Form: 'MA M-941', Line: '2', Description: 'Massachusetts income tax withheld', Amount: m.maIncomeTaxWithheld },
+    { form: 'Federal 941', line: '1', description: 'Number of employees who received wages', amount: f.line1_employeeCount },
+    { form: 'Federal 941', line: '2', description: 'Wages, tips, and other compensation', amount: f.line2_totalWages },
+    { form: 'Federal 941', line: '3', description: 'Federal income tax withheld', amount: f.line3_federalTaxWithheld },
+    { form: 'Federal 941', line: '5a', description: 'Taxable social security wages (x 0.124)', amount: f.line5a_ssWages },
+    { form: 'Federal 941', line: '5a Tax', description: 'Social security tax', amount: f.line5a_ssTax },
+    { form: 'Federal 941', line: '5c', description: 'Taxable Medicare wages (x 0.029)', amount: f.line5c_medicareWages },
+    { form: 'Federal 941', line: '5c Tax', description: 'Medicare tax', amount: f.line5c_medicareTax },
+    { form: 'Federal 941', line: '6', description: 'Total taxes before adjustments', amount: f.line6_totalTaxBeforeAdjustments },
+    { form: 'Federal 941', line: '10', description: 'Total taxes after adjustments', amount: f.line10_totalTaxAfterAdjustments },
+    { form: 'MA M-941', line: '1', description: 'Total wages subject to MA withholding', amount: m.totalWagesSubjectToMA },
+    { form: 'MA M-941', line: '2', description: 'Massachusetts income tax withheld', amount: m.maIncomeTaxWithheld },
   ]
 }
-
-const exportColumns = ['Form', 'Line', 'Description', 'Amount']
 
 // ---------------------------------------------------------------------------
 // Quarter selector helpers
@@ -92,7 +98,8 @@ export function QuarterlyTaxPrepClient({
       generatedAt={data.generatedAt}
       reportSlug="quarterly-tax-prep"
       exportData={exportData}
-      exportColumns={exportColumns}
+      csvColumns={QUARTERLY_TAX_PREP_CSV_COLUMNS}
+      filters={{ year: String(year), quarter: String(quarter) }}
     >
       {/* Year + Quarter Selector */}
       <div className="flex flex-wrap items-end gap-4 p-4 bg-muted/50 rounded-lg border" data-testid="quarterly-tax-filter-bar">

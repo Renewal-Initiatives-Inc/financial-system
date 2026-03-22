@@ -151,33 +151,9 @@ describe('Payment status transitions', () => {
     })
   })
 
-  describe('Invoice payment status transitions', () => {
-    it('PENDING → POSTED is valid', () => {
-      expect(isValidInvoiceTransition('PENDING', 'POSTED')).toBe(true)
-    })
-
-    it('POSTED → PAYMENT_IN_PROCESS is valid', () => {
-      expect(isValidInvoiceTransition('POSTED', 'PAYMENT_IN_PROCESS')).toBe(
-        true
-      )
-    })
-
-    it('PAYMENT_IN_PROCESS → MATCHED_TO_PAYMENT is valid', () => {
-      expect(
-        isValidInvoiceTransition('PAYMENT_IN_PROCESS', 'MATCHED_TO_PAYMENT')
-      ).toBe(true)
-    })
-
-    it('MATCHED_TO_PAYMENT → PAID is valid', () => {
-      expect(isValidInvoiceTransition('MATCHED_TO_PAYMENT', 'PAID')).toBe(true)
-    })
-
-    it('PENDING → PAID is invalid (must go through workflow)', () => {
-      expect(isValidInvoiceTransition('PENDING', 'PAID')).toBe(false)
-    })
-
-    it('POSTED → PAID is invalid (must go through PAYMENT_IN_PROCESS)', () => {
-      expect(isValidInvoiceTransition('POSTED', 'PAID')).toBe(false)
+  describe('Invoice payment status transitions (simplified: POSTED → PAID)', () => {
+    it('POSTED → PAID is valid', () => {
+      expect(isValidInvoiceTransition('POSTED', 'PAID')).toBe(true)
     })
 
     it('PAID → POSTED is invalid (terminal state)', () => {

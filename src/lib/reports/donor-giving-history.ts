@@ -1,4 +1,4 @@
-import { eq, and, sql, gte, lte, desc } from 'drizzle-orm'
+import { eq, and, sql, gte, lte, desc, ne } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { donors, transactions, transactionLines, accounts, funds } from '@/lib/db/schema'
 
@@ -102,6 +102,7 @@ export async function getDonorGivingHistoryData(
       sql`, `
     )})`,
     eq(transactions.isVoided, false),
+    ne(transactions.sourceType, 'YEAR_END_CLOSE'),
   ]
 
   if (filters?.startDate) {

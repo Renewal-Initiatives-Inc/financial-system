@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, BookOpen } from 'lucide-react'
+import { Plus, BookOpen, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -61,6 +61,14 @@ export function AccountsClient({ initialAccounts }: AccountsClientProps) {
             <BookOpen className="mr-2 h-4 w-4" />
             Make Journal Entry
           </Button>
+          <Button
+            variant="outline"
+            onClick={() => router.push('/accounts/close-books')}
+            data-testid="close-books-btn"
+          >
+            <Lock className="mr-2 h-4 w-4" />
+            Close the Books
+          </Button>
           <Button onClick={() => setCreateOpen(true)} data-testid="create-account-btn">
             <Plus className="mr-2 h-4 w-4" />
             Create Account
@@ -91,7 +99,7 @@ export function AccountsClient({ initialAccounts }: AccountsClientProps) {
                 <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="ASSET">Asset</SelectItem>
                 <SelectItem value="LIABILITY">Liability</SelectItem>
-                <SelectItem value="NET_ASSET">Net Asset</SelectItem>
+                <SelectItem value="NET_ASSET">Retained Earnings</SelectItem>
                 <SelectItem value="REVENUE">Revenue</SelectItem>
                 <SelectItem value="EXPENSE">Expense</SelectItem>
               </SelectContent>

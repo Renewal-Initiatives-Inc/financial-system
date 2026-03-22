@@ -11,7 +11,6 @@ import {
   TableFooter,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -23,6 +22,7 @@ import {
 import { ReportShell } from '@/components/reports/report-shell'
 import type { CapitalBudgetData, CapitalBudgetRow } from '@/lib/reports/capital-budget'
 import { getCapitalBudgetData } from '../actions'
+import type { CSVColumnDef } from '@/lib/reports/csv/export-csv'
 import { formatCurrency, formatPercent } from '@/lib/reports/types'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 
@@ -89,16 +89,23 @@ export function CapitalBudgetClient({ initialData, funds, defaultYear }: Capital
     })
   }, [year, fundId])
 
-  const exportData = data.rows.map((r) => ({
-    'Account Code': r.accountCode,
-    Account: r.accountName,
-    Budget: r.budget,
-    Actual: r.actual,
-    Variance: r.variance,
-    'Variance %': r.variancePercent !== null ? `${r.variancePercent.toFixed(1)}%` : '',
-  }))
+  const CAPITAL_BUDGET_CSV_COLUMNS: CSVColumnDef[] = [
+    { key: 'accountCode', label: 'Account Code', format: 'text' },
+    { key: 'account', label: 'Account', format: 'text' },
+    { key: 'budget', label: 'Budget', format: 'currency' },
+    { key: 'actual', label: 'Actual', format: 'currency' },
+    { key: 'variance', label: 'Variance', format: 'currency' },
+    { key: 'variancePercent', label: 'Variance %', format: 'percent' },
+  ]
 
-  const exportColumns = ['Account Code', 'Account', 'Budget', 'Actual', 'Variance', 'Variance %']
+  const exportData = data.rows.map((r) => ({
+    accountCode: r.accountCode,
+    account: r.accountName,
+    budget: r.budget,
+    actual: r.actual,
+    variance: r.variance,
+    variancePercent: r.variancePercent,
+  }))
 
   return (
     <ReportShell
@@ -107,12 +114,23 @@ export function CapitalBudgetClient({ initialData, funds, defaultYear }: Capital
       fundName={data.fundName}
       reportSlug="capital-budget"
       exportData={exportData}
-      exportColumns={exportColumns}
+      csvColumns={CAPITAL_BUDGET_CSV_COLUMNS}
+      filters={{ year, ...(fundId ? { fundId: String(fundId) } : {}) }}
     >
       <div className="flex flex-wrap items-end gap-3" data-testid="capital-budget-filter-bar">
         <div className="space-y-1">
           <Label className="text-xs">Fiscal Year</Label>
-          <Input type="number" value={year} onChange={(e) => setYear(e.target.value)} className="w-24 h-8 text-sm" data-testid="capital-budget-year-input" />
+          <Select value={year} onValueChange={setYear}>
+            <SelectTrigger className="w-28 h-8 text-sm" data-testid="capital-budget-year-input">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 5 }, (_, i) => {
+                const y = String(new Date().getFullYear() - 2 + i)
+                return <SelectItem key={y} value={y}>{y}</SelectItem>
+              })}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Fund</Label>

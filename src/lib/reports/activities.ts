@@ -1,4 +1,4 @@
-import { eq, and, sql, gte, lte, ilike } from 'drizzle-orm'
+import { eq, and, sql, gte, lte, ilike, ne } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import {
   accounts,
@@ -51,6 +51,46 @@ export interface ActivitiesFilters {
   startDate: string
   endDate: string
   fundId?: number | null
+  periodType?: 'monthly' | 'quarterly' | 'ytd' | 'annual'
+}
+
+// ---------------------------------------------------------------------------
+// Multi-period types
+// ---------------------------------------------------------------------------
+
+export interface PeriodColumn {
+  label: string    // "Jan 2026", "Q1 2026", "2026"
+  startDate: string
+  endDate: string
+}
+
+export interface MultiPeriodRow {
+  accountId: number
+  accountCode: string
+  accountName: string
+  subType: string | null
+  /** One value per period column, in the same order as periodColumns */
+  periodValues: number[]
+  total: number
+  budget: number | null
+  variance: VarianceResult | null
+}
+
+export interface MultiPeriodSection {
+  title: string
+  rows: MultiPeriodRow[]
+  total: { periodValues: number[]; total: number; budget: number | null }
+}
+
+export interface MultiPeriodActivitiesData {
+  periodColumns: PeriodColumn[]
+  revenueSections: MultiPeriodSection[]
+  totalRevenue: { periodValues: number[]; total: number; budget: number | null }
+  expenseSections: MultiPeriodSection[]
+  totalExpenses: { periodValues: number[]; total: number; budget: number | null }
+  netAssetReleases: { periodValues: number[]; total: number }
+  changeInNetAssets: { periodValues: number[]; total: number; budget: number | null }
+  fundName: string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -208,6 +248,9 @@ export async function getActivitiesData(filters: ActivitiesFilters): Promise<Act
         // At least one of the ranges must contain the transaction
         gte(transactions.date, ytdStart),
         lte(transactions.date, endDate),
+        // Exclude year-end closing entries — they debit revenue and credit
+        // expense accounts, which would distort the P&L if included.
+        ne(transactions.sourceType, 'YEAR_END_CLOSE'),
       )
     )
     .groupBy(
@@ -468,4 +511,262 @@ function sumSections(sections: ActivitiesSection[]): {
   }
 
   return { currentPeriod, yearToDate, budget: hasBudget ? budget : null }
+}
+
+// ---------------------------------------------------------------------------
+// Multi-period query (monthly / quarterly / annual)
+// ---------------------------------------------------------------------------
+
+/**
+ * Generate period columns from a date range and period type.
+ */
+export function generatePeriodColumns(
+  startDate: string,
+  endDate: string,
+  periodType: 'monthly' | 'quarterly' | 'annual'
+): PeriodColumn[] {
+  const columns: PeriodColumn[] = []
+  const startYear = parseInt(startDate.slice(0, 4), 10)
+  const startMonth = parseInt(startDate.slice(5, 7), 10)
+  const endYear = parseInt(endDate.slice(0, 4), 10)
+  const endMonth = parseInt(endDate.slice(5, 7), 10)
+
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+  if (periodType === 'monthly') {
+    let y = startYear
+    let m = startMonth
+    while (y < endYear || (y === endYear && m <= endMonth)) {
+      const lastDay = new Date(y, m, 0).getDate()
+      columns.push({
+        label: `${monthNames[m - 1]} ${y}`,
+        startDate: `${y}-${String(m).padStart(2, '0')}-01`,
+        endDate: `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`,
+      })
+      m++
+      if (m > 12) { m = 1; y++ }
+    }
+  } else if (periodType === 'quarterly') {
+    const startQ = Math.ceil(startMonth / 3)
+    const endQ = Math.ceil(endMonth / 3)
+    let y = startYear
+    let q = startQ
+    while (y < endYear || (y === endYear && q <= endQ)) {
+      const qStart = (q - 1) * 3 + 1
+      const qEnd = q * 3
+      const lastDay = new Date(y, qEnd, 0).getDate()
+      columns.push({
+        label: `Q${q} ${y}`,
+        startDate: `${y}-${String(qStart).padStart(2, '0')}-01`,
+        endDate: `${y}-${String(qEnd).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`,
+      })
+      q++
+      if (q > 4) { q = 1; y++ }
+    }
+  } else {
+    // annual
+    for (let y = startYear; y <= endYear; y++) {
+      columns.push({
+        label: `${y}`,
+        startDate: `${y}-01-01`,
+        endDate: `${y}-12-31`,
+      })
+    }
+  }
+
+  return columns
+}
+
+/**
+ * Get multi-period activities data. Runs one query per period column,
+ * then assembles results into a columnar structure.
+ */
+export async function getMultiPeriodActivitiesData(
+  filters: ActivitiesFilters
+): Promise<MultiPeriodActivitiesData> {
+  const { startDate, endDate, fundId, periodType = 'monthly' } = filters
+
+  const periodColumns = generatePeriodColumns(startDate, endDate, periodType as 'monthly' | 'quarterly' | 'annual')
+
+  // Run the existing query for each period
+  const periodResults = await Promise.all(
+    periodColumns.map((col) =>
+      getActivitiesData({ startDate: col.startDate, endDate: col.endDate, fundId })
+    )
+  )
+
+  const fundName = periodResults[0]?.fundName ?? null
+
+  // Build a map: accountId → array of period values
+  // Process revenue and expense separately
+
+  type AccountKey = number
+  type AccountMeta = { code: string; name: string; subType: string | null }
+
+  function buildMultiPeriodSections(
+    getSections: (data: ActivitiesData) => ActivitiesSection[],
+    getTotal: (data: ActivitiesData) => { currentPeriod: number; yearToDate: number; budget: number | null },
+    sectionOrder: readonly string[],
+    sectionTitles: Record<string, string>,
+  ): { sections: MultiPeriodSection[]; grandTotal: { periodValues: number[]; total: number; budget: number | null } } {
+    // Collect per-account values across periods
+    const accountValues = new Map<AccountKey, { meta: AccountMeta; values: number[]; section: string }>()
+
+    for (let p = 0; p < periodResults.length; p++) {
+      const sections = getSections(periodResults[p])
+      for (const section of sections) {
+        for (const row of section.rows) {
+          let entry = accountValues.get(row.accountId)
+          if (!entry) {
+            entry = {
+              meta: { code: row.accountCode, name: row.accountName, subType: row.subType },
+              values: new Array(periodColumns.length).fill(0),
+              section: sectionOrder.includes(row.subType ?? '') ? (row.subType as string) : 'Other',
+            }
+            accountValues.set(row.accountId, entry)
+          }
+          entry.values[p] = row.currentPeriod
+        }
+      }
+    }
+
+    // Get budget from the first (or last) period result that has one
+    const budgetMap = new Map<AccountKey, number | null>()
+    // Use the full-range query for budgets — sum across all periods
+    for (const result of periodResults) {
+      for (const section of getSections(result)) {
+        for (const row of section.rows) {
+          if (row.budget != null && !budgetMap.has(row.accountId)) {
+            budgetMap.set(row.accountId, row.budget)
+          }
+        }
+      }
+    }
+    // Actually budget should be the YTD budget from a full-range query
+    // For simplicity, sum individual period budgets
+    const budgetSums = new Map<AccountKey, number>()
+    for (const result of periodResults) {
+      for (const section of getSections(result)) {
+        for (const row of section.rows) {
+          if (row.budget != null) {
+            budgetSums.set(row.accountId, (budgetSums.get(row.accountId) ?? 0) + row.budget)
+          }
+        }
+      }
+    }
+
+    // Group into sections
+    const grouped = new Map<string, MultiPeriodRow[]>()
+    for (const [accountId, entry] of accountValues) {
+      const key = entry.section
+      const total = entry.values.reduce((s, v) => s + v, 0)
+      const budget = budgetSums.get(accountId) ?? null
+      const variance = budget != null ? calculateVariance(total, budget) : null
+
+      const row: MultiPeriodRow = {
+        accountId,
+        accountCode: entry.meta.code,
+        accountName: entry.meta.name,
+        subType: entry.meta.subType,
+        periodValues: entry.values,
+        total,
+        budget,
+        variance,
+      }
+
+      const existing = grouped.get(key) ?? []
+      existing.push(row)
+      grouped.set(key, existing)
+    }
+
+    const sections: MultiPeriodSection[] = []
+    const grandTotalValues = new Array(periodColumns.length).fill(0)
+    let grandTotal = 0
+    let grandBudget: number | null = null
+    let hasBudget = false
+
+    for (const key of sectionOrder) {
+      const sectionRows = grouped.get(key)
+      if (!sectionRows || sectionRows.length === 0) continue
+
+      sectionRows.sort((a, b) => a.accountCode.localeCompare(b.accountCode))
+
+      const totalValues = new Array(periodColumns.length).fill(0)
+      let sectionTotal = 0
+      let sectionBudget: number | null = null
+      let sectionHasBudget = false
+
+      for (const row of sectionRows) {
+        for (let p = 0; p < periodColumns.length; p++) {
+          totalValues[p] += row.periodValues[p]
+          grandTotalValues[p] += row.periodValues[p]
+        }
+        sectionTotal += row.total
+        grandTotal += row.total
+        if (row.budget != null) {
+          sectionHasBudget = true
+          hasBudget = true
+          sectionBudget = (sectionBudget ?? 0) + row.budget
+          grandBudget = (grandBudget ?? 0) + row.budget
+        }
+      }
+
+      sections.push({
+        title: sectionTitles[key] ?? key,
+        rows: sectionRows,
+        total: {
+          periodValues: totalValues,
+          total: sectionTotal,
+          budget: sectionHasBudget ? sectionBudget : null,
+        },
+      })
+    }
+
+    return {
+      sections,
+      grandTotal: {
+        periodValues: grandTotalValues,
+        total: grandTotal,
+        budget: hasBudget ? grandBudget : null,
+      },
+    }
+  }
+
+  const revenue = buildMultiPeriodSections(
+    (d) => d.revenueSections,
+    (d) => d.totalRevenue,
+    REVENUE_SECTION_ORDER as readonly string[],
+    REVENUE_SECTION_TITLES,
+  )
+
+  const expenses = buildMultiPeriodSections(
+    (d) => d.expenseSections,
+    (d) => d.totalExpenses,
+    EXPENSE_SECTION_ORDER as readonly string[],
+    EXPENSE_SECTION_TITLES,
+  )
+
+  // Net asset releases per period
+  const releaseValues = periodResults.map((r) => r.netAssetReleases.currentPeriod)
+  const releaseTotal = releaseValues.reduce((s, v) => s + v, 0)
+
+  // Change in net assets
+  const changeValues = periodColumns.map((_, p) =>
+    revenue.grandTotal.periodValues[p] - expenses.grandTotal.periodValues[p] + releaseValues[p]
+  )
+  const changeTotal = revenue.grandTotal.total - expenses.grandTotal.total + releaseTotal
+  const changeBudget = revenue.grandTotal.budget != null && expenses.grandTotal.budget != null
+    ? revenue.grandTotal.budget - expenses.grandTotal.budget
+    : null
+
+  return {
+    periodColumns,
+    revenueSections: revenue.sections,
+    totalRevenue: revenue.grandTotal,
+    expenseSections: expenses.sections,
+    totalExpenses: expenses.grandTotal,
+    netAssetReleases: { periodValues: releaseValues, total: releaseTotal },
+    changeInNetAssets: { periodValues: changeValues, total: changeTotal, budget: changeBudget },
+    fundName,
+  }
 }

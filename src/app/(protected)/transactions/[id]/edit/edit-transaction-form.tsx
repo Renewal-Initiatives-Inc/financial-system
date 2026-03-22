@@ -154,12 +154,17 @@ export function EditTransactionForm({
         memo: l.memo || null,
       }))
 
-      await editTransactionAction(
+      const result = await editTransactionAction(
         transaction.id,
         { date, memo, lines: txnLines }
       )
 
       toast.success('Transaction updated')
+
+      if (result.lockedYearWarning) {
+        toast.warning(result.lockedYearWarning.message, { duration: 10000 })
+      }
+
       router.push(`/transactions/${transaction.id}`)
     } catch (error) {
       const message =

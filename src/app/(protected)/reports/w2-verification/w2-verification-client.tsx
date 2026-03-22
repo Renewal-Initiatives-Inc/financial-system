@@ -21,11 +21,10 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ReportShell } from '@/components/reports/report-shell'
+import type { CSVColumnDef } from '@/lib/reports/csv/export-csv'
 import { formatCurrency } from '@/lib/reports/types'
-import {
-  getW2VerificationData,
-  type W2VerificationData,
-} from '@/lib/reports/w2-verification'
+import { type W2VerificationData } from '@/lib/reports/w2-verification'
+import { getW2VerificationData } from '../actions'
 import { cn } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------
@@ -40,35 +39,35 @@ interface W2VerificationClientProps {
 // CSV export
 // ---------------------------------------------------------------------------
 
+const W2_VERIFICATION_CSV_COLUMNS: CSVColumnDef[] = [
+  { key: 'employeeId', label: 'Employee ID', format: 'text' },
+  { key: 'employee', label: 'Employee', format: 'text' },
+  { key: 'box1', label: 'Box 1 - Wages', format: 'currency' },
+  { key: 'box2', label: 'Box 2 - Fed W/H', format: 'currency' },
+  { key: 'box3', label: 'Box 3 - SS Wages', format: 'currency' },
+  { key: 'box4', label: 'Box 4 - SS Tax', format: 'currency' },
+  { key: 'box5', label: 'Box 5 - Medicare Wages', format: 'currency' },
+  { key: 'box6', label: 'Box 6 - Medicare Tax', format: 'currency' },
+  { key: 'box16', label: 'Box 16 - State Wages', format: 'currency' },
+  { key: 'box17', label: 'Box 17 - State Tax', format: 'currency' },
+  { key: 'ssWageBaseExceeded', label: 'SS Wage Base Exceeded', format: 'text' },
+]
+
 function buildExportData(data: W2VerificationData): Record<string, unknown>[] {
   return data.rows.map((row) => ({
-    'Employee ID': row.employeeId,
-    Employee: row.employeeName,
-    'Box 1 - Wages': row.box1,
-    'Box 2 - Fed W/H': row.box2,
-    'Box 3 - SS Wages': row.box3,
-    'Box 4 - SS Tax': row.box4,
-    'Box 5 - Medicare Wages': row.box5,
-    'Box 6 - Medicare Tax': row.box6,
-    'Box 16 - State Wages': row.box16,
-    'Box 17 - State Tax': row.box17,
-    'SS Wage Base Exceeded': row.hasWageBaseExceeded ? 'Yes' : 'No',
+    employeeId: row.employeeId,
+    employee: row.employeeName,
+    box1: row.box1,
+    box2: row.box2,
+    box3: row.box3,
+    box4: row.box4,
+    box5: row.box5,
+    box6: row.box6,
+    box16: row.box16,
+    box17: row.box17,
+    ssWageBaseExceeded: row.hasWageBaseExceeded ? 'Yes' : 'No',
   }))
 }
-
-const exportColumns = [
-  'Employee ID',
-  'Employee',
-  'Box 1 - Wages',
-  'Box 2 - Fed W/H',
-  'Box 3 - SS Wages',
-  'Box 4 - SS Tax',
-  'Box 5 - Medicare Wages',
-  'Box 6 - Medicare Tax',
-  'Box 16 - State Wages',
-  'Box 17 - State Tax',
-  'SS Wage Base Exceeded',
-]
 
 // ---------------------------------------------------------------------------
 // Component
@@ -112,7 +111,8 @@ export function W2VerificationClient({ initialData }: W2VerificationClientProps)
       generatedAt={data.generatedAt}
       reportSlug="w2-verification"
       exportData={exportData}
-      exportColumns={exportColumns}
+      csvColumns={W2_VERIFICATION_CSV_COLUMNS}
+      filters={{ year: String(year) }}
     >
       {/* Year Selector */}
       <div className="flex flex-wrap items-end gap-4 p-4 bg-muted/50 rounded-lg border" data-testid="w2-verification-filter-bar">

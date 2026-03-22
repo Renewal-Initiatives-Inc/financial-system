@@ -23,6 +23,8 @@ export const sourceTypeEnum = pgEnum('source_type', [
   'BANK_FEED',
   'SYSTEM',
   'FY25_IMPORT',
+  'YEAR_END_CLOSE', // Closing entries for year-end close; sourceReferenceId pattern: 'year-end-close:{fiscalYear}:{fundId}'
+  'BANK_MATCH', // Clearing JEs created when confirming invoice-to-bank-transaction matches
 ])
 
 export const cipCostCategoryEnum = pgEnum('cip_cost_category', [
@@ -139,10 +141,7 @@ export const poStatusEnum = pgEnum('po_status', [
 ])
 
 export const invoicePaymentStatusEnum = pgEnum('invoice_payment_status', [
-  'PENDING',
   'POSTED',
-  'PAYMENT_IN_PROCESS',
-  'MATCHED_TO_PAYMENT',
   'PAID',
 ])
 
@@ -150,6 +149,7 @@ export const payrollRunStatusEnum = pgEnum('payroll_run_status', [
   'DRAFT',
   'CALCULATED',
   'POSTED',
+  'REVERSED',
 ])
 
 export const complianceDeadlineCategoryEnum = pgEnum('compliance_deadline_category', [

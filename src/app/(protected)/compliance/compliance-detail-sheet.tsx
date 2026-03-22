@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/sheet'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { WorkflowPipelineHost } from './workflow-pipeline-host'
+import { getWorkflowSlug } from '@/lib/compliance/workflow-registry'
 import type { ComplianceDeadlineRow } from './actions'
 
 interface ComplianceDetailSheetProps {
@@ -37,6 +38,7 @@ export function ComplianceDetailSheet({
 }: ComplianceDetailSheetProps) {
   const defaultTab = deadline?.workflowType ? 'workflow' : 'details'
   const actions = parseRecommendedActions(deadline?.recommendedActions ?? null)
+  const workflowSlug = deadline?.taskName ? getWorkflowSlug(deadline.taskName) : undefined
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
@@ -119,6 +121,7 @@ export function ComplianceDetailSheet({
               <WorkflowPipelineHost
                 deadlineId={deadline.id}
                 workflowType={deadline.workflowType ?? null}
+                slug={workflowSlug}
                 userId={userId}
                 onComplete={onClose}
               />

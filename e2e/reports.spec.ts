@@ -97,7 +97,7 @@ test.describe('Report #1 — Balance Sheet', () => {
   })
 })
 
-test.describe('Report #2 — Statement of Activities', () => {
+test.describe('Report #2 — Income Statement', () => {
   test.beforeAll(() => {
     if (!fs.existsSync(AUTH_STATE_PATH)) {
       test.skip()
@@ -109,7 +109,7 @@ test.describe('Report #2 — Statement of Activities', () => {
   test('renders report title', async ({ page }) => {
     await page.goto('/reports/activities')
     await expect(
-      page.getByText('Statement of Activities')
+      page.getByText('Income Statement')
     ).toBeVisible()
   })
 
@@ -235,23 +235,6 @@ test.describe('Report #9 — Fund Draw-Down', () => {
     await page.goto('/reports/fund-drawdown')
     await expect(
       page.getByText('Fund Draw-Down')
-    ).toBeVisible()
-  })
-})
-
-test.describe('Report #10 — Grant Compliance', () => {
-  test.beforeAll(() => {
-    if (!fs.existsSync(AUTH_STATE_PATH)) {
-      test.skip()
-    }
-  })
-
-  test.use({ storageState: AUTH_STATE_PATH })
-
-  test('renders report title', async ({ page }) => {
-    await page.goto('/reports/grant-compliance')
-    await expect(
-      page.getByText('Funding Compliance Tracking')
     ).toBeVisible()
   })
 })

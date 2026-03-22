@@ -14,7 +14,7 @@ import { RecentEntriesTable } from './components/recent-entries-table'
 const revenueCards = [
   {
     label: 'Funding Sources',
-    description: 'Manage funds, cash receipts, revenue recognition',
+    description: 'Manage grants & contracts, issue AR invoices, record payments',
     href: '/revenue/funding-sources',
     icon: FileText,
   },

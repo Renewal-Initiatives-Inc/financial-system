@@ -4,7 +4,14 @@ import { useState, useCallback, useTransition } from 'react'
 import { ReportShell } from '@/components/reports/report-shell'
 import { ReportFilterBar } from '@/components/reports/report-filter-bar'
 import { ReportTable, type ReportRow } from '@/components/reports/report-table'
-import { formatCurrency, formatDate } from '@/lib/reports/types'
+import { formatDate } from '@/lib/reports/types'
+import type { CSVColumnDef } from '@/lib/reports/csv/export-csv'
+
+const BALANCE_SHEET_CSV_COLUMNS: CSVColumnDef[] = [
+  { key: 'accountCode', label: 'Account Code', format: 'text' },
+  { key: 'accountName', label: 'Account Name', format: 'text' },
+  { key: 'balance', label: 'Balance', format: 'currency' },
+]
 import type {
   BalanceSheetData,
   BalanceSheetSection,
@@ -82,21 +89,21 @@ function buildReportRows(data: BalanceSheetData): ReportRow[] {
     yearToDate: data.totalLiabilities,
   })
 
-  // ---- NET ASSETS ----
-  rows.push({ label: 'NET ASSETS', isSectionHeader: true })
+  // ---- RETAINED EARNINGS ----
+  rows.push({ label: 'RETAINED EARNINGS', isSectionHeader: true })
   rows.push({ label: 'Without Donor Restrictions', isSectionHeader: true })
   rows.push(...sectionToRows(data.netAssetsUnrestricted))
   rows.push({ label: 'With Donor Restrictions', isSectionHeader: true })
   rows.push(...sectionToRows(data.netAssetsRestricted))
   rows.push({
-    label: 'TOTAL NET ASSETS',
+    label: 'TOTAL RETAINED EARNINGS',
     isTotal: true,
     yearToDate: data.totalNetAssets,
   })
 
-  // ---- TOTAL L + NA ----
+  // ---- TOTAL L + RE ----
   rows.push({
-    label: 'TOTAL LIABILITIES AND NET ASSETS',
+    label: 'TOTAL LIABILITIES AND RETAINED EARNINGS',
     isTotal: true,
     yearToDate: data.totalLiabilitiesAndNetAssets,
   })
@@ -110,16 +117,20 @@ function buildReportRows(data: BalanceSheetData): ReportRow[] {
 
 function buildExportData(
   rows: ReportRow[]
-): { Account: string; Balance: string }[] {
+): Record<string, unknown>[] {
   return rows
     .filter((r) => !r.isSectionHeader)
-    .map((r) => ({
-      Account: r.label,
-      Balance:
-        r.yearToDate !== undefined
-          ? formatCurrency(r.yearToDate)
-          : '',
-    }))
+    .map((r) => {
+      // Extract account code from label like "1010 — Operating Checking"
+      const parts = r.label.split(' — ')
+      const accountCode = parts.length > 1 ? parts[0].trim() : ''
+      const accountName = parts.length > 1 ? parts[1].trim() : r.label
+      return {
+        accountCode,
+        accountName,
+        balance: r.yearToDate ?? 0,
+      }
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -156,7 +167,8 @@ export function BalanceSheetClient({
       fundName={data.fundName}
       reportSlug="balance-sheet"
       exportData={exportData}
-      exportColumns={['Account', 'Balance']}
+      csvColumns={BALANCE_SHEET_CSV_COLUMNS}
+      filters={{ endDate, ...(fundId ? { fundId: String(fundId) } : {}) }}
     >
       {/* Subtitle */}
       <p className="text-sm text-muted-foreground -mt-4">

@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
 import { accounts, transactions, transactionLines, funds } from '@/lib/db/schema'
-import { eq, and, lte, gte, inArray, isNull, sql } from 'drizzle-orm'
+import { eq, and, lte, gte, inArray, isNull, sql, ne } from 'drizzle-orm'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -164,6 +164,9 @@ async function getChangeInNetAssets(
     gte(transactions.date, startDate),
     lte(transactions.date, endDate),
     eq(transactions.isVoided, false),
+    // Exclude year-end closing entries — they zero revenue/expense accounts
+    // but are balance sheet reclassifications, not income statement events.
+    ne(transactions.sourceType, 'YEAR_END_CLOSE'),
   ]
   if (fundId) {
     conditions.push(eq(transactionLines.fundId, fundId))
@@ -296,7 +299,7 @@ export async function getCashFlows(
   const deferredChange = deferredEnd - deferredBegin
 
   const operatingLines: CashFlowLine[] = [
-    { label: 'Change in Net Assets', amount: changeInNetAssets, indent: 0 },
+    { label: 'Change in Retained Earnings', amount: changeInNetAssets, indent: 0 },
     { label: 'Adjustments to reconcile to net cash:', amount: 0, indent: 0, isSubtotal: false },
     { label: 'Depreciation', amount: depreciation, indent: 1 },
   ]
@@ -394,6 +397,109 @@ export async function getCashFlows(
     netChangeInCash,
     beginningCash,
     endingCash,
+    fundName,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Multi-period cash flows
+// ---------------------------------------------------------------------------
+
+import { generatePeriodColumns, type PeriodColumn } from './activities'
+
+export interface MultiPeriodCashFlowLine {
+  label: string
+  periodValues: number[]
+  total: number
+  indent?: number
+  isSubtotal?: boolean
+  isTotal?: boolean
+}
+
+export interface MultiPeriodCashFlowSection {
+  title: string
+  lines: MultiPeriodCashFlowLine[]
+  subtotalValues: number[]
+  subtotalTotal: number
+}
+
+export interface MultiPeriodCashFlowsData {
+  periodColumns: PeriodColumn[]
+  operating: MultiPeriodCashFlowSection
+  investing: MultiPeriodCashFlowSection
+  financing: MultiPeriodCashFlowSection
+  netChangeValues: number[]
+  netChangeTotal: number
+  fundName: string | null
+}
+
+export async function getMultiPeriodCashFlows(
+  filters: CashFlowsFilters & { periodType: 'monthly' | 'quarterly' | 'annual' }
+): Promise<MultiPeriodCashFlowsData> {
+  const { startDate, endDate, fundId, periodType } = filters
+  const periodColumns = generatePeriodColumns(startDate, endDate, periodType)
+
+  const periodResults = await Promise.all(
+    periodColumns.map((col) => getCashFlows({ startDate: col.startDate, endDate: col.endDate, fundId }))
+  )
+
+  const fundName = periodResults[0]?.fundName ?? null
+
+  function buildMultiSection(
+    getSection: (d: CashFlowsData) => CashFlowSection
+  ): MultiPeriodCashFlowSection {
+    // Collect all unique line labels across periods (in order of first appearance)
+    const labelOrder: string[] = []
+    const labelSet = new Set<string>()
+    for (const result of periodResults) {
+      for (const line of getSection(result).lines) {
+        if (!labelSet.has(line.label)) {
+          labelSet.add(line.label)
+          labelOrder.push(line.label)
+        }
+      }
+    }
+
+    const lines: MultiPeriodCashFlowLine[] = labelOrder.map((label) => {
+      const values = periodResults.map((r) => {
+        const line = getSection(r).lines.find((l) => l.label === label)
+        return line?.amount ?? 0
+      })
+      // Get indent/subtotal/total from any period that has this line
+      const sample = periodResults.map((r) => getSection(r).lines.find((l) => l.label === label)).find(Boolean)
+      return {
+        label,
+        periodValues: values,
+        total: values.reduce((s, v) => s + v, 0),
+        indent: sample?.indent,
+        isSubtotal: sample?.isSubtotal,
+        isTotal: sample?.isTotal,
+      }
+    })
+
+    const subtotalValues = periodResults.map((r) => getSection(r).subtotal)
+    return {
+      title: getSection(periodResults[0]).title,
+      lines,
+      subtotalValues,
+      subtotalTotal: subtotalValues.reduce((s, v) => s + v, 0),
+    }
+  }
+
+  const operating = buildMultiSection((d) => d.operating)
+  const investing = buildMultiSection((d) => d.investing)
+  const financing = buildMultiSection((d) => d.financing)
+
+  const netChangeValues = periodResults.map((r) => r.netChangeInCash)
+  const netChangeTotal = netChangeValues.reduce((s, v) => s + v, 0)
+
+  return {
+    periodColumns,
+    operating,
+    investing,
+    financing,
+    netChangeValues,
+    netChangeTotal,
     fundName,
   }
 }

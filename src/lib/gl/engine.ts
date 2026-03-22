@@ -23,6 +23,7 @@ import {
   TransactionNotFoundError,
 } from './errors'
 import type { TransactionResult } from './types'
+import { isYearLocked, getFiscalYearFromDate } from '@/lib/fiscal-year-lock'
 
 /**
  * Format a transaction + lines into the standard TransactionResult shape.
@@ -65,6 +66,19 @@ export async function createTransaction(
 ): Promise<TransactionResult> {
   // Step 1: Zod validation (INV-001 balance check included)
   const validated = insertTransactionSchema.parse(input)
+
+  // Step 1b: Soft lock check — YEAR_END_CLOSE entries are exempt (they must post to the year being closed)
+  let lockedYearWarning: TransactionResult['lockedYearWarning']
+  if (validated.sourceType !== 'YEAR_END_CLOSE') {
+    const fiscalYear = getFiscalYearFromDate(validated.date)
+    const locked = await isYearLocked(fiscalYear)
+    if (locked) {
+      lockedYearWarning = {
+        year: fiscalYear,
+        message: `This transaction is dated in fiscal year ${fiscalYear}, which has been closed. Posting to a closed period may affect your Balance Sheet, Statement of Activities, donor reports, and grant reports. Confirm to proceed.`,
+      }
+    }
+  }
 
   // Use db.transaction() for atomic multi-table writes
   return await db.transaction(async (tx) => {
@@ -200,6 +214,7 @@ export async function createTransaction(
     return {
       transaction: result,
       releaseTransaction: releaseResult,
+      lockedYearWarning,
     }
   })
 }
@@ -221,6 +236,9 @@ export async function editTransaction(
 ): Promise<TransactionResult> {
   const validated = editTransactionSchema.parse(updates)
 
+  // Soft lock check — use the updated date if provided, otherwise the existing date
+  let lockedYearWarning: TransactionResult['lockedYearWarning']
+
   return await db.transaction(async (tx) => {
     const existing = await getTransactionWithLines(
       tx as unknown as NeonDatabase<any>,
@@ -241,6 +259,17 @@ export async function editTransaction(
       throw new ImmutableTransactionError(
         'Reversed transactions cannot be edited'
       )
+    }
+
+    // Check the date we're editing to (or existing date if date not being changed)
+    const effectiveDate = validated.date ?? existing.date
+    const fiscalYear = getFiscalYearFromDate(effectiveDate)
+    const locked = await isYearLocked(fiscalYear)
+    if (locked) {
+      lockedYearWarning = {
+        year: fiscalYear,
+        message: `This transaction is dated in fiscal year ${fiscalYear}, which has been closed. Editing a transaction in a closed period may affect your Balance Sheet, Statement of Activities, donor reports, and grant reports. Confirm to proceed.`,
+      }
     }
 
     // Capture before state
@@ -328,7 +357,7 @@ export async function editTransaction(
       afterState: afterState as unknown as Record<string, unknown>,
     })
 
-    return { transaction: afterState }
+    return { transaction: afterState, lockedYearWarning }
   })
 }
 
@@ -430,7 +459,9 @@ export async function reverseTransaction(
 export async function voidTransaction(
   id: number,
   userId: string
-): Promise<void> {
+): Promise<{ lockedYearWarning?: TransactionResult['lockedYearWarning'] }> {
+  let lockedYearWarning: TransactionResult['lockedYearWarning']
+
   await db.transaction(async (tx) => {
     const existing = await getTransactionWithLines(
       tx as unknown as NeonDatabase<any>,
@@ -441,6 +472,16 @@ export async function voidTransaction(
     }
     if (existing.isVoided) {
       throw new VoidedTransactionError(id)
+    }
+
+    // Soft lock check
+    const fiscalYear = getFiscalYearFromDate(existing.date)
+    const locked = await isYearLocked(fiscalYear)
+    if (locked) {
+      lockedYearWarning = {
+        year: fiscalYear,
+        message: `This transaction is dated in fiscal year ${fiscalYear}, which has been closed. Voiding a transaction in a closed period may affect your Balance Sheet, Statement of Activities, donor reports, and grant reports. Confirm to proceed.`,
+      }
     }
 
     await tx
@@ -457,4 +498,6 @@ export async function voidTransaction(
       afterState: { isVoided: true },
     })
   })
+
+  return { lockedYearWarning }
 }

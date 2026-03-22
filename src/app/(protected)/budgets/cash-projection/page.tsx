@@ -1,18 +1,5 @@
-import { getLatestProjectionAction, getLatestWeeklyProjectionAction } from './actions'
-import { CashProjectionClient } from './cash-projection-client'
+import { redirect } from 'next/navigation'
 
-export default async function CashProjectionPage() {
-  const currentYear = new Date().getFullYear()
-  const [projection, weeklyProjection] = await Promise.all([
-    getLatestProjectionAction(currentYear),
-    getLatestWeeklyProjectionAction(currentYear),
-  ])
-
-  return (
-    <CashProjectionClient
-      initialProjection={projection}
-      initialWeeklyProjection={weeklyProjection}
-      fiscalYear={currentYear}
-    />
-  )
+export default function CashProjectionPage() {
+  redirect('/reports/cash-projection?view=weekly')
 }

@@ -1,4 +1,4 @@
-import { eq, and, sql, isNotNull } from 'drizzle-orm'
+import { eq, and, sql, isNotNull, ne } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import {
   vendors,
@@ -89,6 +89,7 @@ export async function getFundingComplianceData(): Promise<FundingComplianceData>
           eq(transactions.isVoided, false),
           eq(accounts.type, 'EXPENSE'),
           eq(accounts.normalBalance, 'DEBIT'),
+          ne(transactions.sourceType, 'YEAR_END_CLOSE'),
           sql`${transactionLines.fundId} IN (${sql.join(
             fundIds.map((id) => sql`${id}`),
             sql`, `

@@ -19,6 +19,10 @@ import {
 } from '@/lib/db/schema'
 import { logAudit } from '@/lib/audit/logger'
 import { jaroWinklerSimilarity, normalizeMerchantName } from './string-similarity'
+import {
+  getOutstandingInvoices,
+  matchBankTransactionToInvoices,
+} from './invoice-matcher'
 import type { NeonDatabase } from 'drizzle-orm/neon-serverless'
 
 // --- Types ---
@@ -649,6 +653,42 @@ export async function classifyBankTransactions(
 
   if (unclassified.length === 0) return result
 
+  // Step 1: Invoice pre-check — find outstanding invoices once
+  const outstandingInvoices = await getOutstandingInvoices()
+
+  if (outstandingInvoices.length > 0) {
+    for (const txn of unclassified) {
+      try {
+        const invoiceCandidates = matchBankTransactionToInvoices(
+          {
+            amount: txn.amount,
+            date: txn.date,
+            merchantName: txn.merchantName,
+            category: txn.category,
+          },
+          outstandingInvoices
+        )
+
+        if (invoiceCandidates.length > 0) {
+          const best = invoiceCandidates[0]
+          await db
+            .update(bankTransactions)
+            .set({
+              suggestedInvoiceId: best.invoiceId,
+              invoiceMatchConfidence: String(best.confidenceScore),
+              suggestedReason: `Matches Invoice #${best.invoiceAmount} on ${best.poNumber ?? 'N/A'} (vendor: ${best.vendorName})`,
+              updatedAt: new Date(),
+            })
+            .where(eq(bankTransactions.id, txn.id))
+        }
+      } catch {
+        // Invoice matching is best-effort — don't block GL matching
+      }
+    }
+  }
+
+  // Step 2: Normal GL matching (runs for ALL transactions, including those with invoice suggestions)
+
   // Load rules once
   const rules = await db
     .select()
@@ -769,6 +809,8 @@ export async function reclassifyUnmatched(
         suggestedConfidence: null,
         suggestedReason: null,
         suggestedRuleId: null,
+        suggestedInvoiceId: null,
+        invoiceMatchConfidence: null,
         updatedAt: new Date(),
       })
       .where(inArray(bankTransactions.id, unmatchedIds))

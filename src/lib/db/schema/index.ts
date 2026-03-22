@@ -42,6 +42,7 @@ export * from './funding-source-rate-history'
 export * from './recurring-expectations'
 export * from './app-settings'
 export * from './weekly-cash-projection-lines'
+export * from './fiscal-year-locks'
 
 // Re-import for relations definitions
 import { accounts } from './accounts'
@@ -399,6 +400,14 @@ export const invoicesRelations = relations(invoices, ({ one }) => ({
   }),
   glTransaction: one(transactions, {
     fields: [invoices.glTransactionId],
+    references: [transactions.id],
+  }),
+  bankTransaction: one(bankTransactions, {
+    fields: [invoices.bankTransactionId],
+    references: [bankTransactions.id],
+  }),
+  clearingTransaction: one(transactions, {
+    fields: [invoices.clearingTransactionId],
     references: [transactions.id],
   }),
 }))

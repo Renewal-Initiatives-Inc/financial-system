@@ -21,11 +21,10 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ReportShell } from '@/components/reports/report-shell'
+import type { CSVColumnDef } from '@/lib/reports/csv/export-csv'
 import { formatCurrency, formatDate, getQuarterRange, getMonthRange } from '@/lib/reports/types'
-import {
-  getPayrollTaxLiabilityData,
-  type PayrollTaxLiabilityData,
-} from '@/lib/reports/payroll-tax-liability'
+import { type PayrollTaxLiabilityData } from '@/lib/reports/payroll-tax-liability'
+import { getPayrollTaxLiabilityData } from '../actions'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -81,28 +80,28 @@ const MONTH_LABELS: Record<number, string> = {
 // CSV export
 // ---------------------------------------------------------------------------
 
+const PAYROLL_TAX_LIABILITY_CSV_COLUMNS: CSVColumnDef[] = [
+  { key: 'taxType', label: 'Tax Type', format: 'text' },
+  { key: 'employeeAmount', label: 'Employee Amount', format: 'currency' },
+  { key: 'employerAmount', label: 'Employer Amount', format: 'currency' },
+  { key: 'totalAmount', label: 'Total Amount', format: 'currency' },
+]
+
 function buildExportData(data: PayrollTaxLiabilityData): Record<string, unknown>[] {
   const out: Record<string, unknown>[] = data.rows.map((row) => ({
-    'Tax Type': row.taxType,
-    'Employee Amount': row.employeeAmount,
-    'Employer Amount': row.employerAmount,
-    'Total Amount': row.totalAmount,
+    taxType: row.taxType,
+    employeeAmount: row.employeeAmount,
+    employerAmount: row.employerAmount,
+    totalAmount: row.totalAmount,
   }))
   out.push({
-    'Tax Type': 'TOTAL',
-    'Employee Amount': data.totalEmployeeWithholding,
-    'Employer Amount': data.totalEmployerContribution,
-    'Total Amount': data.grandTotal,
+    taxType: 'TOTAL',
+    employeeAmount: data.totalEmployeeWithholding,
+    employerAmount: data.totalEmployerContribution,
+    totalAmount: data.grandTotal,
   })
   return out
 }
-
-const exportColumns = [
-  'Tax Type',
-  'Employee Amount',
-  'Employer Amount',
-  'Total Amount',
-]
 
 // ---------------------------------------------------------------------------
 // Component
@@ -151,7 +150,12 @@ export function PayrollTaxLiabilityClient({
       generatedAt={data.generatedAt}
       reportSlug="payroll-tax-liability"
       exportData={exportData}
-      exportColumns={exportColumns}
+      csvColumns={PAYROLL_TAX_LIABILITY_CSV_COLUMNS}
+      filters={{
+        periodMode,
+        year: String(year),
+        ...(periodMode === 'quarterly' ? { quarter: String(quarter) } : { month: String(month) }),
+      }}
     >
       {/* Period Selector */}
       <div className="flex flex-wrap items-end gap-4 p-4 bg-muted/50 rounded-lg border" data-testid="payroll-tax-filter-bar">

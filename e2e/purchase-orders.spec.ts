@@ -122,25 +122,12 @@ test.describe('Purchase Order workflow', () => {
     await expect(page.getByText('$20,000.00')).toBeVisible()
   })
 
-  test('mark invoice as payment in process', async ({ page }) => {
-    test.skip(!poId, 'No PO created in previous test')
-
-    await page.goto(`/expenses/purchase-orders/${poId}`)
-
-    // Find and click the mark payment button for the invoice
-    const markPaymentBtn = page.locator('[data-testid^="mark-payment-btn-"]').first()
-    await markPaymentBtn.click()
-
-    // Status should update
-    await expect(page.getByText('PAYMENT_IN_PROCESS')).toBeVisible()
-  })
-
   test('verify outstanding payables page shows the payable', async ({ page }) => {
     await page.goto('/expenses/payables')
 
-    // Should show the AP payable from our invoice
+    // Should show the AP payable from our invoice with Posted status
     await expect(page.getByText('E2E-INV-001')).toBeVisible()
-    await expect(page.getByText('PAYMENT_IN_PROCESS')).toBeVisible()
+    await expect(page.getByText('Posted')).toBeVisible()
   })
 
   test('filter payables by type', async ({ page }) => {

@@ -47,6 +47,13 @@ export const bankTransactions = pgTable(
     suggestedRuleId: integer('suggested_rule_id').references(
       () => matchingRules.id
     ),
+    // Invoice match suggestion (written alongside GL suggestions)
+    // FK to invoices.id enforced at DB level (migration 0030); no TS import to avoid circular dep
+    suggestedInvoiceId: integer('suggested_invoice_id'),
+    invoiceMatchConfidence: numeric('invoice_match_confidence', {
+      precision: 5,
+      scale: 2,
+    }),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },

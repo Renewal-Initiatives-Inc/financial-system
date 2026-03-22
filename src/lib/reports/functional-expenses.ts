@@ -1,4 +1,4 @@
-import { eq, and, sql, gte, lte } from 'drizzle-orm'
+import { eq, and, sql, gte, lte, ne, inArray } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import {
   accounts,
@@ -6,6 +6,8 @@ import {
   transactions,
   funds,
   functionalAllocations,
+  payrollEntries,
+  payrollRuns,
 } from '@/lib/db/schema'
 
 // ---------------------------------------------------------------------------
@@ -186,6 +188,7 @@ export async function getFunctionalExpensesData(
     gte(transactions.date, startDate),
     lte(transactions.date, endDate),
     eq(accounts.type, 'EXPENSE'),
+    ne(transactions.sourceType, 'YEAR_END_CLOSE'),
   ]
   if (fundId) {
     conditions.push(eq(transactionLines.fundId, fundId))
@@ -289,6 +292,91 @@ export async function getFunctionalExpensesData(
       fundraising,
       unallocated,
     })
+  }
+
+  // ---------------------------------------------------------------------------
+  // For 990 format: reclassify officer/board member compensation to Line 5
+  // IRS Form 990 requires ALL compensation to officers, directors, trustees,
+  // and key employees to appear on Line 5, regardless of which GL account it
+  // hits (5000 Salaries & Wages, 5420 Management Fees, etc.)
+  // ---------------------------------------------------------------------------
+  if (format === '990') {
+    const { getActiveEmployees } = await import('@/lib/integrations/people')
+    const employees = await getActiveEmployees()
+    const officerIds = employees
+      .filter((e) => e.isOfficer || e.isBoardMember)
+      .map((e) => e.id)
+
+    if (officerIds.length > 0) {
+      // Query officer/board member payroll amounts per expense account
+      const officerComp = await db
+        .select({
+          accountId: transactionLines.accountId,
+          amount: sql<string>`COALESCE(SUM(CAST(${transactionLines.debit} AS numeric)), 0)`,
+        })
+        .from(payrollEntries)
+        .innerJoin(payrollRuns, eq(payrollEntries.payrollRunId, payrollRuns.id))
+        .innerJoin(transactions, eq(payrollEntries.glTransactionId, transactions.id))
+        .innerJoin(transactionLines, eq(transactionLines.transactionId, transactions.id))
+        .innerJoin(accounts, eq(transactionLines.accountId, accounts.id))
+        .where(
+          and(
+            eq(payrollRuns.status, 'POSTED'),
+            gte(payrollRuns.payPeriodStart, startDate),
+            lte(payrollRuns.payPeriodEnd, endDate),
+            eq(accounts.type, 'EXPENSE'),
+            eq(transactions.isVoided, false),
+            sql`${payrollEntries.employeeId} IN (${sql.join(officerIds.map((id) => sql`${id}`), sql`, `)})`,
+            ...(fundId ? [eq(transactionLines.fundId, fundId)] : []),
+          )
+        )
+        .groupBy(transactionLines.accountId)
+
+      const officerCompByAccount = new Map(
+        officerComp.map((r) => [r.accountId, parseFloat(r.amount)])
+      )
+
+      // Reclassify: for accounts not already on Line 5, split officer
+      // compensation out and move it to Line 5
+      for (const row of accountRows) {
+        const officerAmount = officerCompByAccount.get(row.accountId) ?? 0
+        if (officerAmount > 0 && row.form990Line !== '5') {
+          row.form990Line = row.total === officerAmount ? '5' : row.form990Line
+          // If only part of the account is officer comp, split into two rows
+          if (row.total !== officerAmount) {
+            const origTotal = row.total
+            const origProgram = row.program
+            const origAdmin = row.admin
+            const origFundraising = row.fundraising
+            const origUnallocated = row.unallocated
+
+            const officerRatio = officerAmount / origTotal
+            const nonOfficerRatio = 1 - officerRatio
+
+            // Create a new row for the officer portion on Line 5
+            accountRows.push({
+              accountId: row.accountId,
+              accountCode: row.accountCode,
+              accountName: `${row.accountName} (Officer/Director)`,
+              subType: row.subType,
+              form990Line: '5',
+              total: officerAmount,
+              program: origProgram * officerRatio,
+              admin: origAdmin * officerRatio,
+              fundraising: origFundraising * officerRatio,
+              unallocated: origUnallocated * officerRatio,
+            })
+
+            // Reduce the original row to non-officer portion
+            row.total = origTotal * nonOfficerRatio
+            row.program = origProgram * nonOfficerRatio
+            row.admin = origAdmin * nonOfficerRatio
+            row.fundraising = origFundraising * nonOfficerRatio
+            row.unallocated = origUnallocated * nonOfficerRatio
+          }
+        }
+      }
+    }
   }
 
   // Build grouped rows based on format
@@ -463,4 +551,138 @@ export async function getFunctionalExpensesData(
     hasUnallocated,
     fundName,
   }
+}
+
+// ---------------------------------------------------------------------------
+// Multi-period functional expenses
+// ---------------------------------------------------------------------------
+
+import { generatePeriodColumns, type PeriodColumn } from './activities'
+
+export interface MultiPeriodFunctionalExpenseRow {
+  label: string
+  accountId?: number
+  /** Per-period totals (sum of program+admin+fundraising+unallocated) */
+  periodValues: number[]
+  total: number
+  /** Per-period program amounts */
+  programValues: number[]
+  programTotal: number
+  adminValues: number[]
+  adminTotal: number
+  fundraisingValues: number[]
+  fundraisingTotal: number
+  unallocatedValues: number[]
+  unallocatedTotal: number
+  isGroupHeader?: boolean
+  isTotal?: boolean
+}
+
+export interface MultiPeriodFunctionalExpensesData {
+  periodColumns: PeriodColumn[]
+  format: FunctionalExpenseFormat
+  rows: MultiPeriodFunctionalExpenseRow[]
+  totals: {
+    periodValues: number[]
+    total: number
+    programValues: number[]
+    programTotal: number
+    adminValues: number[]
+    adminTotal: number
+    fundraisingValues: number[]
+    fundraisingTotal: number
+    unallocatedValues: number[]
+    unallocatedTotal: number
+  }
+  hasUnallocated: boolean
+  fundName: string | null
+}
+
+export async function getMultiPeriodFunctionalExpenses(
+  filters: FunctionalExpensesFilters & { periodType: 'monthly' | 'quarterly' | 'annual' }
+): Promise<MultiPeriodFunctionalExpensesData> {
+  const { startDate, endDate, fundId, format = 'gaap', periodType } = filters
+  const periodColumns = generatePeriodColumns(startDate, endDate, periodType)
+
+  const periodResults = await Promise.all(
+    periodColumns.map((col) =>
+      getFunctionalExpensesData({ startDate: col.startDate, endDate: col.endDate, fundId, format })
+    )
+  )
+
+  const fundName = periodResults[0]?.fundName ?? null
+  const hasUnallocated = periodResults.some((r) => r.hasUnallocated)
+
+  // Build unified row list (preserving group headers and order from first period)
+  const labelOrder: { label: string; accountId?: number; isGroupHeader?: boolean; isTotal?: boolean }[] = []
+  const labelSet = new Set<string>()
+
+  for (const result of periodResults) {
+    for (const row of result.rows) {
+      const key = row.isGroupHeader ? `__group__${row.label}` : row.label
+      if (!labelSet.has(key)) {
+        labelSet.add(key)
+        labelOrder.push({ label: row.label, accountId: row.accountId, isGroupHeader: row.isGroupHeader, isTotal: row.isTotal })
+      }
+    }
+  }
+
+  const rows: MultiPeriodFunctionalExpenseRow[] = labelOrder.map((meta) => {
+    if (meta.isGroupHeader) {
+      return {
+        label: meta.label,
+        isGroupHeader: true,
+        periodValues: [],
+        total: 0,
+        programValues: [],
+        programTotal: 0,
+        adminValues: [],
+        adminTotal: 0,
+        fundraisingValues: [],
+        fundraisingTotal: 0,
+        unallocatedValues: [],
+        unallocatedTotal: 0,
+      }
+    }
+
+    const periodValues = periodResults.map((r) => {
+      const match = r.rows.find((row) => row.label === meta.label && !row.isGroupHeader)
+      return match?.total ?? 0
+    })
+    const programValues = periodResults.map((r) => r.rows.find((row) => row.label === meta.label && !row.isGroupHeader)?.program ?? 0)
+    const adminValues = periodResults.map((r) => r.rows.find((row) => row.label === meta.label && !row.isGroupHeader)?.admin ?? 0)
+    const fundraisingValues = periodResults.map((r) => r.rows.find((row) => row.label === meta.label && !row.isGroupHeader)?.fundraising ?? 0)
+    const unallocatedValues = periodResults.map((r) => r.rows.find((row) => row.label === meta.label && !row.isGroupHeader)?.unallocated ?? 0)
+
+    return {
+      label: meta.label,
+      accountId: meta.accountId,
+      isTotal: meta.isTotal,
+      periodValues,
+      total: periodValues.reduce((s, v) => s + v, 0),
+      programValues,
+      programTotal: programValues.reduce((s, v) => s + v, 0),
+      adminValues,
+      adminTotal: adminValues.reduce((s, v) => s + v, 0),
+      fundraisingValues,
+      fundraisingTotal: fundraisingValues.reduce((s, v) => s + v, 0),
+      unallocatedValues,
+      unallocatedTotal: unallocatedValues.reduce((s, v) => s + v, 0),
+    }
+  })
+
+  const totals = {
+    periodValues: periodResults.map((r) => r.totals.total),
+    total: periodResults.reduce((s, r) => s + r.totals.total, 0),
+    programValues: periodResults.map((r) => r.totals.program),
+    programTotal: periodResults.reduce((s, r) => s + r.totals.program, 0),
+    adminValues: periodResults.map((r) => r.totals.admin),
+    adminTotal: periodResults.reduce((s, r) => s + r.totals.admin, 0),
+    fundraisingValues: periodResults.map((r) => r.totals.fundraising),
+    fundraisingTotal: periodResults.reduce((s, r) => s + r.totals.fundraising, 0),
+    unallocatedValues: periodResults.map((r) => r.totals.unallocated),
+    unallocatedTotal: periodResults.reduce((s, r) => s + r.totals.unallocated, 0),
+  }
+
+  return { periodColumns, format: format as FunctionalExpenseFormat, rows, totals, hasUnallocated, fundName }
 }

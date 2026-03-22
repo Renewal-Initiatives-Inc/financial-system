@@ -147,10 +147,7 @@ describe('Update Invoice validation', () => {
 
   it('accepts all valid payment statuses', () => {
     for (const status of [
-      'PENDING',
       'POSTED',
-      'PAYMENT_IN_PROCESS',
-      'MATCHED_TO_PAYMENT',
       'PAID',
     ] as const) {
       const result = updateInvoiceSchema.safeParse({ paymentStatus: status })

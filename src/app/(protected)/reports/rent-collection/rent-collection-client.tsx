@@ -16,8 +16,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ReportShell } from '@/components/reports/report-shell'
+import type { CSVColumnDef } from '@/lib/reports/csv/export-csv'
 import type { RentCollectionData } from '@/lib/reports/rent-collection'
 import { getRentCollectionData } from '../actions'
+
+const RENT_COLLECTION_CSV_COLUMNS: CSVColumnDef[] = [
+  { key: 'tenant', label: 'Tenant', format: 'text' },
+  { key: 'unit', label: 'Unit', format: 'text' },
+  { key: 'monthlyRent', label: 'Monthly Rent', format: 'currency' },
+  { key: 'billed', label: 'Billed', format: 'currency' },
+  { key: 'collected', label: 'Collected', format: 'currency' },
+  { key: 'outstanding', label: 'Outstanding', format: 'currency' },
+  { key: 'collectionRate', label: 'Collection Rate', format: 'percent' },
+]
 
 // ---------------------------------------------------------------------------
 // Formatters
@@ -103,26 +114,14 @@ export function RentCollectionClient({ initialData }: RentCollectionClientProps)
 
   // Build CSV export data
   const exportData = data.rows.map((row) => ({
-    Unit: row.unitNumber,
-    Tenant: row.tenantName,
-    'Funding Source': FUNDING_LABELS[row.fundingSourceType] ?? row.fundingSourceType,
-    'Monthly Rent': row.monthlyRent,
-    Billed: row.billed,
-    Collected: row.collected,
-    Outstanding: row.outstanding,
-    'Collection %': `${row.collectionRate.toFixed(1)}%`,
+    tenant: row.tenantName,
+    unit: row.unitNumber,
+    monthlyRent: row.monthlyRent,
+    billed: row.billed,
+    collected: row.collected,
+    outstanding: row.outstanding,
+    collectionRate: row.collectionRate,
   }))
-
-  const exportColumns = [
-    'Unit',
-    'Tenant',
-    'Funding Source',
-    'Monthly Rent',
-    'Billed',
-    'Collected',
-    'Outstanding',
-    'Collection %',
-  ]
 
   return (
     <ReportShell
@@ -130,7 +129,8 @@ export function RentCollectionClient({ initialData }: RentCollectionClientProps)
       generatedAt={data.generatedAt}
       reportSlug="rent-collection"
       exportData={exportData}
-      exportColumns={exportColumns}
+      csvColumns={RENT_COLLECTION_CSV_COLUMNS}
+      filters={{ month: selectedMonth }}
     >
       {/* Month Selector */}
       <div className="flex items-end gap-4">

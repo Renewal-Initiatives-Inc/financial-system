@@ -11,7 +11,23 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatDate } from '@/lib/reports/types'
+import type { CSVColumnDef } from '@/lib/reports/csv/export-csv'
 import type { FundLevelData } from '@/lib/reports/fund-level'
+
+// ---------------------------------------------------------------------------
+// Typed CSV columns
+// ---------------------------------------------------------------------------
+
+const FUND_LEVEL_CSV_COLUMNS: CSVColumnDef[] = [
+  { key: 'tab', label: 'Tab', format: 'text' },
+  { key: 'account', label: 'Account', format: 'text' },
+  { key: 'balance', label: 'Balance', format: 'currency' },
+  { key: 'currentPeriod', label: 'Current Period', format: 'currency' },
+  { key: 'yearToDate', label: 'Year-to-Date', format: 'currency' },
+  { key: 'budget', label: 'Budget', format: 'currency' },
+  { key: 'varianceDollar', label: 'Variance $', format: 'currency' },
+  { key: 'variancePercent', label: 'Variance %', format: 'percent' },
+]
 import { getFundLevelData } from '../actions'
 import type {
   BalanceSheetData,
@@ -86,19 +102,19 @@ function buildBalanceSheetRows(data: BalanceSheetData): ReportRow[] {
     yearToDate: data.totalLiabilities,
   })
 
-  rows.push({ label: 'NET ASSETS', isSectionHeader: true })
+  rows.push({ label: 'RETAINED EARNINGS', isSectionHeader: true })
   rows.push({ label: 'Without Donor Restrictions', isSectionHeader: true })
   rows.push(...bsSectionToRows(data.netAssetsUnrestricted))
   rows.push({ label: 'With Donor Restrictions', isSectionHeader: true })
   rows.push(...bsSectionToRows(data.netAssetsRestricted))
   rows.push({
-    label: 'TOTAL NET ASSETS',
+    label: 'TOTAL RETAINED EARNINGS',
     isTotal: true,
     yearToDate: data.totalNetAssets,
   })
 
   rows.push({
-    label: 'TOTAL LIABILITIES AND NET ASSETS',
+    label: 'TOTAL LIABILITIES AND RETAINED EARNINGS',
     isTotal: true,
     yearToDate: data.totalLiabilitiesAndNetAssets,
   })
@@ -178,7 +194,7 @@ function buildActivitiesRows(data: ActivitiesData): ReportRow[] {
   }
 
   rows.push({
-    label: 'Change in Net Assets',
+    label: 'Change in Retained Earnings',
     isTotal: true,
     currentPeriod: data.changeInNetAssets.currentPeriod,
     yearToDate: data.changeInNetAssets.yearToDate,
@@ -200,9 +216,9 @@ function buildExportData(data: FundLevelData): Record<string, unknown>[] {
   for (const row of bsRows) {
     if (row.isSectionHeader) continue
     out.push({
-      Tab: 'Balance Sheet',
-      Account: row.label,
-      Balance: row.yearToDate !== undefined ? formatCurrency(row.yearToDate) : '',
+      tab: 'Balance Sheet',
+      account: row.label,
+      balance: row.yearToDate ?? null,
     })
   }
 
@@ -210,26 +226,26 @@ function buildExportData(data: FundLevelData): Record<string, unknown>[] {
   for (const section of data.activities.revenueSections) {
     for (const row of section.rows) {
       out.push({
-        Tab: 'Activities',
-        Account: `${row.accountCode} - ${row.accountName}`,
-        'Current Period': row.currentPeriod,
-        'Year-to-Date': row.yearToDate,
-        Budget: row.budget,
-        'Variance $': row.variance?.dollarVariance ?? null,
-        'Variance %': row.variance?.percentVariance ?? null,
+        tab: 'Activities',
+        account: `${row.accountCode} - ${row.accountName}`,
+        currentPeriod: row.currentPeriod,
+        yearToDate: row.yearToDate,
+        budget: row.budget,
+        varianceDollar: row.variance?.dollarVariance ?? null,
+        variancePercent: row.variance?.percentVariance ?? null,
       })
     }
   }
   for (const section of data.activities.expenseSections) {
     for (const row of section.rows) {
       out.push({
-        Tab: 'Activities',
-        Account: `${row.accountCode} - ${row.accountName}`,
-        'Current Period': row.currentPeriod,
-        'Year-to-Date': row.yearToDate,
-        Budget: row.budget,
-        'Variance $': row.variance?.dollarVariance ?? null,
-        'Variance %': row.variance?.percentVariance ?? null,
+        tab: 'Activities',
+        account: `${row.accountCode} - ${row.accountName}`,
+        currentPeriod: row.currentPeriod,
+        yearToDate: row.yearToDate,
+        budget: row.budget,
+        varianceDollar: row.variance?.dollarVariance ?? null,
+        variancePercent: row.variance?.percentVariance ?? null,
       })
     }
   }
@@ -256,16 +272,6 @@ export function FundLevelClient({ funds }: FundLevelClientProps) {
   }
 
   const exportData = data ? buildExportData(data) : undefined
-  const exportColumns = [
-    'Tab',
-    'Account',
-    'Balance',
-    'Current Period',
-    'Year-to-Date',
-    'Budget',
-    'Variance $',
-    'Variance %',
-  ]
 
   return (
     <ReportShell
@@ -273,7 +279,8 @@ export function FundLevelClient({ funds }: FundLevelClientProps) {
       fundName={data?.fundName}
       reportSlug="fund-level"
       exportData={exportData}
-      exportColumns={exportColumns}
+      csvColumns={FUND_LEVEL_CSV_COLUMNS}
+      filters={{ endDate, ...(fundId ? { fundId: String(fundId) } : {}) }}
     >
       {/* Filter bar */}
       <div
@@ -319,7 +326,7 @@ export function FundLevelClient({ funds }: FundLevelClientProps) {
           </div>
           <p className="text-sm text-muted-foreground max-w-md">
             Choose a fund from the selector above to view its combined Balance Sheet
-            and Statement of Activities.
+            and Income Statement.
           </p>
         </div>
       )}

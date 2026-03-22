@@ -31,8 +31,13 @@ export function VoidTransactionDialog({
   const handleVoid = async () => {
     setPending(true)
     try {
-      await voidTransactionAction(transactionId)
+      const result = await voidTransactionAction(transactionId)
       toast.success('Transaction voided')
+
+      if (result.lockedYearWarning) {
+        toast.warning(result.lockedYearWarning.message, { duration: 10000 })
+      }
+
       onOpenChange(false)
       router.refresh()
     } catch (error) {

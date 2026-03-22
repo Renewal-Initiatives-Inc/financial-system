@@ -10,6 +10,7 @@ import {
   TrendingDown,
   TrendingUp,
   AlertCircle,
+  XCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -29,6 +30,7 @@ import { SignOffDialog } from './components/sign-off-dialog'
 import {
   getReconciliationSession,
   startReconciliationSession,
+  cancelReconciliationSession,
   getPastSessions,
 } from './actions'
 import { toast } from 'sonner'
@@ -110,6 +112,21 @@ export function BankReconcileClient({ bankAccounts }: BankReconcileClientProps) 
     startTransition(() => loadAccountData(selectedAccountId))
   }
 
+  const handleCancelSession = () => {
+    if (!session?.id) return
+    if (!confirm('Cancel this reconciliation session? Matched transactions will be preserved.')) return
+    startTransition(async () => {
+      try {
+        await cancelReconciliationSession(session.id)
+        toast.success('Reconciliation session cancelled')
+        await loadAccountData(selectedAccountId)
+        router.refresh()
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Failed to cancel session')
+      }
+    })
+  }
+
   const { balance, session } = sessionData
   const hasActiveSession = !!session && session.status === 'in_progress'
 
@@ -164,15 +181,27 @@ export function BankReconcileClient({ bankAccounts }: BankReconcileClientProps) 
                 <span className="font-medium text-foreground">{session.statementDate}</span>
               </p>
             </div>
-            <Button
-              size="sm"
-              onClick={() => setSignOffDialogOpen(true)}
-              disabled={!balance.isReconciled}
-              data-testid="bank-rec-sign-off-btn"
-            >
-              <CheckCircle2 className="mr-1 h-3 w-3" />
-              Sign Off Reconciliation
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCancelSession}
+                disabled={isPending}
+                data-testid="bank-rec-cancel-btn"
+              >
+                <XCircle className="mr-1 h-3 w-3" />
+                Cancel Reconciliation
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => setSignOffDialogOpen(true)}
+                disabled={!balance.isReconciled}
+                data-testid="bank-rec-sign-off-btn"
+              >
+                <CheckCircle2 className="mr-1 h-3 w-3" />
+                Sign Off Reconciliation
+              </Button>
+            </div>
           </div>
 
           {/* Balance breakdown */}

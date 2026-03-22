@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowRight, Clock, Database, Settings, ListTree } from 'lucide-react'
+import { ArrowRight, Clock, Database, Settings, ListTree, Lock } from 'lucide-react'
 import {
   Card,
   CardDescription,
@@ -74,6 +74,21 @@ export default function SettingsPage() {
               <CardTitle className="text-base">Data Retention</CardTitle>
               <CardDescription>
                 Review record age by category for annual retention compliance.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
+
+        <Link href="/settings/fiscal-years" data-testid="settings-fiscal-years-link">
+          <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <Lock className="text-muted-foreground h-5 w-5" />
+                <ArrowRight className="text-muted-foreground h-4 w-4" />
+              </div>
+              <CardTitle className="text-base">Fiscal Years</CardTitle>
+              <CardDescription>
+                View locked fiscal years and reopen periods for adjustments.
               </CardDescription>
             </CardHeader>
           </Card>

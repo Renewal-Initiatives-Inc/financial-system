@@ -1437,7 +1437,7 @@ export async function createArInvoice(
       amount: String(validated.amount),
       invoiceDate: validated.invoiceDate,
       dueDate: validated.dueDate ?? null,
-      paymentStatus: 'PENDING',
+      paymentStatus: 'POSTED',
       createdBy: userId,
     })
     .returning()

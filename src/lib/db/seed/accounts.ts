@@ -52,8 +52,8 @@ export const seedAccounts: SeedAccount[] = [
   { code: '2520', name: 'Accrued Interest Payable', type: 'LIABILITY', subType: 'Current', normalBalance: 'CREDIT', isSystemLocked: true },
 
   // ── Net Assets (2) ──
-  { code: '3000', name: 'Net Assets Without Donor Restrictions', type: 'NET_ASSET', subType: 'Unrestricted', normalBalance: 'CREDIT', isSystemLocked: true },
-  { code: '3100', name: 'Net Assets With Donor Restrictions', type: 'NET_ASSET', subType: 'Restricted', normalBalance: 'CREDIT', isSystemLocked: true },
+  { code: '3000', name: 'Retained Earnings, Without Donor Restrictions', type: 'NET_ASSET', subType: 'Unrestricted', normalBalance: 'CREDIT', isSystemLocked: true },
+  { code: '3100', name: 'Retained Earnings, With Donor Restrictions', type: 'NET_ASSET', subType: 'Restricted', normalBalance: 'CREDIT', isSystemLocked: true },
 
   // ── Revenue (12) ──
   { code: '4000', name: 'Rental Income', type: 'REVENUE', subType: 'Operating', normalBalance: 'CREDIT', isSystemLocked: true, form990Line: '2' },

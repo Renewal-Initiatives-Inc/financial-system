@@ -7,6 +7,7 @@ import { tax941Config } from './workflows/tax-941'
 import { taxM941Config } from './workflows/tax-m941'
 import { annualReviewOfficerCompConfig } from './workflows/annual-review-officer-comp'
 import { annualReviewCOIConfig } from './workflows/annual-review-coi'
+import { annualAttestationMASosConfig } from './workflows/annual-attestation-ma-sos'
 import { annualReviewInKindConfig } from './workflows/annual-review-in-kind'
 import { annualReviewUBITConfig } from './workflows/annual-review-ubit'
 import { annualReviewPublicSupportConfig } from './workflows/annual-review-public-support'
@@ -52,6 +53,7 @@ const extendedRegistry: Record<string, WorkflowConfig> = {
   // Named entries for configs that share a workflowType enum value
   'annual_review:officer-comp': annualReviewOfficerCompConfig,
   'annual_review:coi': annualReviewCOIConfig,
+  'annual_attestation:ma-sos': annualAttestationMASosConfig,
   'annual_review:in-kind': annualReviewInKindConfig,
   'annual_review:ubit': annualReviewUBITConfig,
   'annual_review:public-support': annualReviewPublicSupportConfig,
@@ -84,4 +86,34 @@ export function getWorkflowConfig(
 /** List all registered configs (useful for admin/debug). */
 export function listAllConfigs(): WorkflowConfig[] {
   return Object.values(extendedRegistry)
+}
+
+/**
+ * Derive a disambiguation slug from the task name so the correct config is
+ * resolved even though the DB only stores the base workflowType enum value.
+ */
+const TASK_NAME_SLUG_MAP: { pattern: RegExp; slug: string }[] = [
+  // annual_attestation variants
+  { pattern: /secretary of state/i, slug: 'ma-sos' },
+  // annual_review variants
+  { pattern: /in.kind/i, slug: 'in-kind' },
+  { pattern: /officer comp/i, slug: 'officer-comp' },
+  { pattern: /tax rate/i, slug: 'tax-rates' },
+  { pattern: /functional allocation/i, slug: 'functional-allocation' },
+  { pattern: /public support/i, slug: 'public-support' },
+  { pattern: /ubit/i, slug: 'ubit' },
+  // budget_cycle variants
+  { pattern: /budget draft/i, slug: 'draft' },
+  { pattern: /board circulation/i, slug: 'circulation' },
+  { pattern: /board approval/i, slug: 'approval' },
+  { pattern: /quarterly board prep/i, slug: 'quarterly-board-prep' },
+  // grant_report variants
+  { pattern: /annual grant/i, slug: 'annual-review' },
+]
+
+export function getWorkflowSlug(taskName: string): string | undefined {
+  for (const { pattern, slug } of TASK_NAME_SLUG_MAP) {
+    if (pattern.test(taskName)) return slug
+  }
+  return undefined
 }

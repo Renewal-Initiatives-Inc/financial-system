@@ -19,6 +19,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { HelpTooltip } from '@/components/shared/help-tooltip'
 import { ContractTermsCard } from '@/components/shared/contract-terms-card'
 import {
@@ -73,6 +80,13 @@ export function FundingSourceDetailClient({ source, transactions, arInvoices, ra
   const [isEditing, setIsEditing] = useState(false)
   const [name, setName] = useState(source.name)
   const [description, setDescription] = useState(source.description ?? '')
+  const [amount, setAmount] = useState(source.amount ?? '')
+  const [status, setStatus] = useState<string>(source.status ?? 'ACTIVE')
+  const [startDate, setStartDate] = useState(source.startDate ?? '')
+  const [endDate, setEndDate] = useState(source.endDate ?? '')
+  const [reportingFrequency, setReportingFrequency] = useState(source.reportingFrequency ?? '')
+  const [matchRequirementPercent, setMatchRequirementPercent] = useState(source.matchRequirementPercent ?? '')
+  const [retainagePercent, setRetainagePercent] = useState(source.retainagePercent ?? '')
   const [isConfirmDeactivateOpen, setIsConfirmDeactivateOpen] = useState(false)
 
   // Cash receipt state
@@ -162,16 +176,26 @@ export function FundingSourceDetailClient({ source, transactions, arInvoices, ra
   const handleSave = () => {
     startTransition(async () => {
       try {
-        await updateFund(
-          source.id,
-          {
-            ...(name !== source.name ? { name } : {}),
-            ...(description !== (source.description ?? '')
-              ? { description: description || null }
-              : {}),
-          },
-          'system'
-        )
+        const updates: Record<string, unknown> = {}
+        if (name !== source.name) updates.name = name
+        if (description !== (source.description ?? ''))
+          updates.description = description || null
+        if (amount !== (source.amount ?? ''))
+          updates.amount = amount || null
+        if (status !== (source.status ?? 'ACTIVE'))
+          updates.status = status
+        if (startDate !== (source.startDate ?? ''))
+          updates.startDate = startDate || null
+        if (endDate !== (source.endDate ?? ''))
+          updates.endDate = endDate || null
+        if (reportingFrequency !== (source.reportingFrequency ?? ''))
+          updates.reportingFrequency = reportingFrequency || null
+        if (matchRequirementPercent !== (source.matchRequirementPercent ?? ''))
+          updates.matchRequirementPercent = matchRequirementPercent || null
+        if (retainagePercent !== (source.retainagePercent ?? ''))
+          updates.retainagePercent = retainagePercent || null
+
+        await updateFund(source.id, updates, 'system')
         setIsEditing(false)
         toast.success('Funding source updated')
         router.refresh()
@@ -413,7 +437,7 @@ export function FundingSourceDetailClient({ source, transactions, arInvoices, ra
               <p className="font-mono text-sm">{formatCurrency(source.liabilityTotal)}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Net Assets</p>
+              <p className="text-sm text-muted-foreground">Retained Earnings</p>
               <p className="font-mono text-sm">{formatCurrency(source.netAssetTotal)}</p>
             </div>
             <div>
@@ -628,8 +652,8 @@ export function FundingSourceDetailClient({ source, transactions, arInvoices, ra
       )}
 
       {/* Fund Details (editable) */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+      <Card className="max-h-[600px] overflow-y-auto">
+        <CardHeader className="flex flex-row items-center justify-between sticky top-0 bg-card z-10">
           <CardTitle>Details</CardTitle>
           {!source.isSystemLocked && !isEditing && (
             <Button
@@ -684,6 +708,150 @@ export function FundingSourceDetailClient({ source, transactions, arInvoices, ra
             )}
           </div>
 
+          {/* Read-only fields (shown always) */}
+          {!isEditing && (
+            <div className="grid grid-cols-2 gap-4">
+              {source.fundingCategory && (
+                <div>
+                  <Label className="text-muted-foreground">Category</Label>
+                  <p>{source.fundingCategory}</p>
+                </div>
+              )}
+              {source.funderName && (
+                <div>
+                  <Label className="text-muted-foreground">Funder</Label>
+                  <p>{source.funderName}</p>
+                </div>
+              )}
+              <div>
+                <Label className="text-muted-foreground">Award Amount</Label>
+                <p>{source.amount ? formatCurrency(source.amount) : '-'}</p>
+              </div>
+              <div>
+                <Label className="text-muted-foreground">Status</Label>
+                <p>{source.status ?? '-'}</p>
+              </div>
+              {(source.startDate || source.endDate) && (
+                <>
+                  <div>
+                    <Label className="text-muted-foreground">Start Date</Label>
+                    <p>{formatDate(source.startDate)}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">End Date</Label>
+                    <p>{formatDate(source.endDate)}</p>
+                  </div>
+                </>
+              )}
+              {source.reportingFrequency && (
+                <div>
+                  <Label className="text-muted-foreground">Reporting Frequency</Label>
+                  <p>{source.reportingFrequency}</p>
+                </div>
+              )}
+              {source.matchRequirementPercent && (
+                <div>
+                  <Label className="text-muted-foreground">Match Requirement</Label>
+                  <p>{source.matchRequirementPercent}%</p>
+                </div>
+              )}
+              {source.retainagePercent && (
+                <div>
+                  <Label className="text-muted-foreground">Retainage</Label>
+                  <p>{source.retainagePercent}%</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Editable fields (shown in edit mode) */}
+          {isEditing && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-muted-foreground">Award Amount</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="0.00"
+                  data-testid="edit-funding-source-amount"
+                />
+              </div>
+              <div>
+                <Label className="text-muted-foreground">Status</Label>
+                <Select value={status} onValueChange={setStatus}>
+                  <SelectTrigger data-testid="edit-funding-source-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ACTIVE">Active</SelectItem>
+                    <SelectItem value="COMPLETED">Completed</SelectItem>
+                    <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-muted-foreground">Start Date</Label>
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  data-testid="edit-funding-source-start-date"
+                />
+              </div>
+              <div>
+                <Label className="text-muted-foreground">End Date</Label>
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  data-testid="edit-funding-source-end-date"
+                />
+              </div>
+              <div>
+                <Label className="text-muted-foreground">Reporting Frequency</Label>
+                <Input
+                  value={reportingFrequency}
+                  onChange={(e) => setReportingFrequency(e.target.value)}
+                  placeholder="e.g. Monthly, Quarterly"
+                  data-testid="edit-funding-source-reporting-freq"
+                />
+              </div>
+              {isGrantOrContract && (
+                <>
+                  <div>
+                    <Label className="text-muted-foreground">Match Requirement %</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      value={matchRequirementPercent}
+                      onChange={(e) => setMatchRequirementPercent(e.target.value)}
+                      placeholder="0.00"
+                      data-testid="edit-funding-source-match-pct"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Retainage %</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      value={retainagePercent}
+                      onChange={(e) => setRetainagePercent(e.target.value)}
+                      placeholder="0.00"
+                      data-testid="edit-funding-source-retainage-pct"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           {isEditing && (
             <div className="flex gap-2">
               <Button onClick={handleSave} disabled={isPending} data-testid="save-funding-source-btn">
@@ -696,6 +864,13 @@ export function FundingSourceDetailClient({ source, transactions, arInvoices, ra
                   setIsEditing(false)
                   setName(source.name)
                   setDescription(source.description ?? '')
+                  setAmount(source.amount ?? '')
+                  setStatus(source.status ?? 'ACTIVE')
+                  setStartDate(source.startDate ?? '')
+                  setEndDate(source.endDate ?? '')
+                  setReportingFrequency(source.reportingFrequency ?? '')
+                  setMatchRequirementPercent(source.matchRequirementPercent ?? '')
+                  setRetainagePercent(source.retainagePercent ?? '')
                 }}
               >
                 <X className="mr-2 h-4 w-4" />

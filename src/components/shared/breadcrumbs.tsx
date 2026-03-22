@@ -66,7 +66,7 @@ const ROUTE_NAMES: Record<string, string> = {
   runs: 'Payroll Runs',
   // Reports (common)
   'balance-sheet': 'Balance Sheet',
-  activities: 'Statement of Activities',
+  activities: 'Income Statement',
   'cash-flows': 'Cash Flows',
   'cash-position': 'Cash Position',
   'functional-expenses': 'Functional Expenses',
@@ -81,8 +81,6 @@ const ROUTE_NAMES: Record<string, string> = {
   'employer-payroll-cost': 'Employer Payroll Cost',
   'quarterly-tax-prep': 'Quarterly Tax Prep',
   'w2-verification': 'W-2 Verification',
-  'grant-compliance': 'Funding Compliance',
-  'compliance-calendar': 'Compliance Calendar',
   'audit-log': 'Audit Log',
   'late-entries': 'Late Entries',
   'transaction-history': 'Transaction History',
@@ -92,6 +90,8 @@ const ROUTE_NAMES: Record<string, string> = {
   'board-pack': 'Board Pack',
   'form-990-data': 'Form 990 Data',
   'capital-budget': 'Capital Budget',
+  // Accounts sub-routes
+  'close-books': 'Close the Books',
   // Settings sub-routes
   rates: 'Rates',
   staging: 'Staging',

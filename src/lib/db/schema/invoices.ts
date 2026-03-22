@@ -13,6 +13,7 @@ import { purchaseOrders } from './purchase-orders'
 import { vendors } from './vendors'
 import { transactions } from './transactions'
 import { funds } from './funds'
+import { bankTransactions } from './bank-transactions'
 
 export const invoices = pgTable(
   'invoices',
@@ -35,7 +36,15 @@ export const invoices = pgTable(
     ),
     paymentStatus: invoicePaymentStatusEnum('payment_status')
       .notNull()
-      .default('PENDING'),
+      .default('POSTED'),
+    // Bank linkage — populated when invoice is matched to a bank transaction
+    bankTransactionId: integer('bank_transaction_id').references(
+      () => bankTransactions.id
+    ),
+    clearingTransactionId: integer('clearing_transaction_id').references(
+      () => transactions.id
+    ),
+    paidAt: timestamp('paid_at'),
     createdBy: varchar('created_by', { length: 255 }).notNull(),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),

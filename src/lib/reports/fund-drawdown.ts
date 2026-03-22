@@ -1,4 +1,4 @@
-import { eq, and, sql } from 'drizzle-orm'
+import { eq, and, sql, ne } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import {
   funds,
@@ -84,7 +84,8 @@ export async function getFundDrawdownData(): Promise<FundDrawdownData> {
         and(
           eq(transactionLines.fundId, fund.id),
           eq(transactions.isVoided, false),
-          eq(accounts.type, 'REVENUE')
+          eq(accounts.type, 'REVENUE'),
+          ne(transactions.sourceType, 'YEAR_END_CLOSE'),
         )
       )
 
@@ -110,7 +111,8 @@ export async function getFundDrawdownData(): Promise<FundDrawdownData> {
         and(
           eq(transactionLines.fundId, fund.id),
           eq(transactions.isVoided, false),
-          eq(accounts.type, 'EXPENSE')
+          eq(accounts.type, 'EXPENSE'),
+          ne(transactions.sourceType, 'YEAR_END_CLOSE'),
         )
       )
 

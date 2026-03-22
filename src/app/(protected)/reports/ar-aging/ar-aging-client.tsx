@@ -12,7 +12,17 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { ReportShell } from '@/components/reports/report-shell'
 import { formatCurrency } from '@/lib/reports/types'
+import type { CSVColumnDef } from '@/lib/reports/csv/export-csv'
 import type { ARAgingData, AgingBuckets } from '@/lib/reports/ar-aging'
+
+const AR_AGING_CSV_COLUMNS: CSVColumnDef[] = [
+  { key: 'tenant', label: 'Tenant', format: 'text' },
+  { key: 'total', label: 'Total', format: 'currency' },
+  { key: 'current', label: 'Current', format: 'currency' },
+  { key: 'days31to60', label: '31-60', format: 'currency' },
+  { key: 'days61to90', label: '61-90', format: 'currency' },
+  { key: 'days90plus', label: '90+', format: 'currency' },
+]
 
 interface ARAgingClientProps {
   data: ARAgingData
@@ -62,52 +72,31 @@ export function ARAgingClient({ data }: ARAgingClientProps) {
   const exportData = [
     // Tenant rows
     ...data.tenantAR.rows.map((r) => ({
-      Section: 'Tenant AR',
-      Name: r.tenantName,
-      Unit: r.unitNumber,
-      'Funding Source': r.fundingSourceType,
-      Current: r.aging.current,
-      '31-60': r.aging.days31to60,
-      '61-90': r.aging.days61to90,
-      '90+': r.aging.days90plus,
-      Total: r.aging.total,
+      tenant: `[Tenant AR] ${r.tenantName} (${r.unitNumber})`,
+      total: r.aging.total,
+      current: r.aging.current,
+      days31to60: r.aging.days31to60,
+      days61to90: r.aging.days61to90,
+      days90plus: r.aging.days90plus,
     })),
     // Grant rows
     ...data.fundingSourceAR.rows.map((r) => ({
-      Section: 'Funding Source AR',
-      Name: r.funderName,
-      Unit: '',
-      'Funding Source': '',
-      Current: r.aging.current,
-      '31-60': r.aging.days31to60,
-      '61-90': r.aging.days61to90,
-      '90+': r.aging.days90plus,
-      Total: r.aging.total,
+      tenant: `[Funding Source AR] ${r.funderName}`,
+      total: r.aging.total,
+      current: r.aging.current,
+      days31to60: r.aging.days31to60,
+      days61to90: r.aging.days61to90,
+      days90plus: r.aging.days90plus,
     })),
     // Pledge rows
     ...data.pledgeAR.rows.map((r) => ({
-      Section: 'Pledge AR',
-      Name: r.donorName,
-      Unit: '',
-      'Funding Source': '',
-      Current: r.aging.current,
-      '31-60': r.aging.days31to60,
-      '61-90': r.aging.days61to90,
-      '90+': r.aging.days90plus,
-      Total: r.aging.total,
+      tenant: `[Pledge AR] ${r.donorName}`,
+      total: r.aging.total,
+      current: r.aging.current,
+      days31to60: r.aging.days31to60,
+      days61to90: r.aging.days61to90,
+      days90plus: r.aging.days90plus,
     })),
-  ]
-
-  const exportColumns = [
-    'Section',
-    'Name',
-    'Unit',
-    'Funding Source',
-    'Current',
-    '31-60',
-    '61-90',
-    '90+',
-    'Total',
   ]
 
   return (
@@ -115,7 +104,7 @@ export function ARAgingClient({ data }: ARAgingClientProps) {
       title="AR Aging Report"
       reportSlug="ar-aging"
       exportData={exportData}
-      exportColumns={exportColumns}
+      csvColumns={AR_AGING_CSV_COLUMNS}
     >
       <div className="space-y-8">
         {/* --- Tenant AR Section --- */}

@@ -26,7 +26,23 @@ import { ReportShell } from '@/components/reports/report-shell'
 import type { DonorGivingHistoryData, DonorSummaryRow } from '@/lib/reports/donor-giving-history'
 import { getDonorGivingHistoryData } from '../actions'
 import { formatCurrency, formatDate } from '@/lib/reports/types'
+import type { CSVColumnDef } from '@/lib/reports/csv/export-csv'
 import { ChevronDown, ChevronRight } from 'lucide-react'
+
+// ---------------------------------------------------------------------------
+// Typed CSV columns
+// ---------------------------------------------------------------------------
+
+const DONOR_GIVING_CSV_COLUMNS: CSVColumnDef[] = [
+  { key: 'donor', label: 'Donor Name', format: 'text' },
+  { key: 'type', label: 'Type', format: 'text' },
+  { key: 'totalGiven', label: 'Total Given', format: 'currency' },
+  { key: 'restricted', label: 'Restricted', format: 'currency' },
+  { key: 'unrestricted', label: 'Unrestricted', format: 'currency' },
+  { key: 'giftCount', label: 'Gift Count', format: 'count' },
+  { key: 'firstGift', label: 'First Gift', format: 'date' },
+  { key: 'lastGift', label: 'Last Gift', format: 'date' },
+]
 
 type FundRow = { id: number; name: string; restrictionType: string; isActive: boolean }
 
@@ -107,17 +123,15 @@ export function DonorGivingHistoryClient({
   }, [startDate, endDate, fundId])
 
   const exportData = data.rows.map((r) => ({
-    Donor: r.donorName,
-    Type: r.donorType,
-    'Total Given': r.totalGiven,
-    Restricted: r.restrictedAmount,
-    Unrestricted: r.unrestrictedAmount,
-    'Gift Count': r.giftCount,
-    'First Gift': r.firstGift ?? '',
-    'Last Gift': r.lastGift ?? '',
+    donor: r.donorName,
+    type: r.donorType,
+    totalGiven: r.totalGiven,
+    restricted: r.restrictedAmount,
+    unrestricted: r.unrestrictedAmount,
+    giftCount: r.giftCount,
+    firstGift: r.firstGift ?? null,
+    lastGift: r.lastGift ?? null,
   }))
-
-  const exportColumns = ['Donor', 'Type', 'Total Given', 'Restricted', 'Unrestricted', 'Gift Count', 'First Gift', 'Last Gift']
 
   return (
     <ReportShell
@@ -125,7 +139,8 @@ export function DonorGivingHistoryClient({
       generatedAt={data.generatedAt}
       reportSlug="donor-giving-history"
       exportData={exportData}
-      exportColumns={exportColumns}
+      csvColumns={DONOR_GIVING_CSV_COLUMNS}
+      filters={{ startDate, endDate, ...(fundId ? { fundId: String(fundId) } : {}) }}
     >
       <div className="flex flex-wrap items-end gap-3" data-testid="donor-giving-history-filter-bar">
         <div className="space-y-1">

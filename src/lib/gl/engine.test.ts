@@ -230,6 +230,14 @@ vi.mock('@/lib/audit/logger', () => ({
   }),
 }))
 
+// Mock fiscal year lock helpers — default: no years locked
+vi.mock('@/lib/fiscal-year-lock', () => ({
+  isYearLocked: vi.fn().mockResolvedValue(false),
+  getFiscalYearFromDate: vi.fn().mockImplementation((date: string) => {
+    return parseInt(date.substring(0, 4), 10)
+  }),
+}))
+
 // Import after mocks
 import {
   createTransaction,

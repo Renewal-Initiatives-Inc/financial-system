@@ -39,7 +39,8 @@ import {
   ContractUploadExtract,
   type ContractExtractionData,
 } from '@/components/shared/contract-upload-extract'
-import { GroupedAccountSelect } from '@/app/(protected)/bank-rec/components/grouped-account-select'
+import { AccountSelector } from '@/components/shared/account-selector'
+import type { AccountRow } from '@/app/(protected)/accounts/actions'
 import { createPurchaseOrder } from '../../actions'
 import { toast } from 'sonner'
 
@@ -47,7 +48,7 @@ import { toast } from 'sonner'
 
 interface CreatePOFormProps {
   vendors: { id: number; name: string }[]
-  accounts: { id: number; code: string; name: string; type: string; subType: string | null }[]
+  accounts: AccountRow[]
   funds: { id: number; name: string; restrictionType: string }[]
   cipCostCodes: { id: number; code: string; name: string; category: string }[]
 }
@@ -68,7 +69,7 @@ export function CreatePOForm({
   const [vendorOpen, setVendorOpen] = useState(false)
   const [description, setDescription] = useState('')
   const [totalAmount, setTotalAmount] = useState('')
-  const [glAccountId, setGlAccountId] = useState<string>('')
+  const [glAccountId, setGlAccountId] = useState<number | null>(null)
   const [fundId, setFundId] = useState<string>('')
   const [cipCostCodeId, setCipCostCodeId] = useState<string>('')
 
@@ -87,7 +88,7 @@ export function CreatePOForm({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   // Derived: does the selected GL account have CIP subType?
-  const selectedAccount = accounts.find((a) => a.id === Number(glAccountId))
+  const selectedAccount = accounts.find((a) => a.id === glAccountId)
   const showCipCostCode = selectedAccount?.subType?.includes('CIP') ?? false
 
   // --- Handlers ---
@@ -115,6 +116,7 @@ export function CreatePOForm({
       errors.totalAmount = 'Enter a valid amount greater than zero'
     }
     if (!glAccountId) errors.glAccount = 'GL destination account is required'
+
     if (!fundId) errors.fund = 'Fund is required'
     if (showCipCostCode && !cipCostCodeId) {
       errors.cipCostCode = 'CIP cost code is required for CIP accounts'
@@ -156,7 +158,7 @@ export function CreatePOForm({
             description: description.trim(),
             contractPdfUrl: contractData.contractPdfUrl,
             totalAmount: parseAmount(totalAmount),
-            glDestinationAccountId: parseInt(glAccountId, 10),
+            glDestinationAccountId: glAccountId!,
             fundId: parseInt(fundId, 10),
             cipCostCodeId: showCipCostCode && cipCostCodeId
               ? parseInt(cipCostCodeId, 10)
@@ -311,14 +313,14 @@ export function CreatePOForm({
               GL Destination Account{' '}
               <span className="text-destructive">*</span>
             </Label>
-            <GroupedAccountSelect
+            <AccountSelector
               accounts={accounts}
               value={glAccountId}
-              onValueChange={(v) => {
-                setGlAccountId(v)
+              onSelect={(id) => {
+                setGlAccountId(id)
                 setFieldErrors((prev) => ({ ...prev, glAccount: '' }))
                 // Reset CIP cost code when account changes
-                const acct = accounts.find((a) => a.id === Number(v))
+                const acct = accounts.find((a) => a.id === id)
                 if (!acct?.subType?.includes('CIP')) {
                   setCipCostCodeId('')
                 }

@@ -15,6 +15,7 @@ import { complianceColumns } from './columns'
 import { type ComplianceDeadlineRow } from './actions'
 import { CopilotPanel, useCopilot } from '@/components/copilot'
 import { WorkflowPipelineHost } from './workflow-pipeline-host'
+import { getWorkflowSlug } from '@/lib/compliance/workflow-registry'
 
 interface ComplianceCalendarClientProps {
   initialDeadlines: ComplianceDeadlineRow[]
@@ -187,6 +188,7 @@ export function ComplianceCalendarClient({
               <WorkflowPipelineHost
                 deadlineId={selectedDeadline.id}
                 workflowType={selectedDeadline.workflowType ?? null}
+                slug={getWorkflowSlug(selectedDeadline.taskName)}
                 userId={userId}
                 onComplete={() => setSelectedDeadline(null)}
               />

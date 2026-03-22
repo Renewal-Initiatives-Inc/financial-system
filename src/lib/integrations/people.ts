@@ -24,6 +24,10 @@ export interface EmployeePayrollData {
    * 'W2'   = W-2 employee (full federal/state/FICA withholding)
    */
   contractorType: 'W2' | '1099'
+  /** True if this person is an officer of the organization (e.g. ED, Treasurer) */
+  isOfficer: boolean
+  /** True if this person is a board member / director / trustee */
+  isBoardMember: boolean
 }
 
 // Mock employees for development (used when PEOPLE_DATABASE_URL is not set)
@@ -45,6 +49,8 @@ const MOCK_EMPLOYEES: EmployeePayrollData[] = [
     isBlind: false,
     spouseIsBlind: false,
     contractorType: 'W2',
+    isOfficer: true,
+    isBoardMember: false,
   },
   {
     id: 'emp-002',
@@ -63,6 +69,8 @@ const MOCK_EMPLOYEES: EmployeePayrollData[] = [
     isBlind: false,
     spouseIsBlind: false,
     contractorType: 'W2',
+    isOfficer: false,
+    isBoardMember: false,
   },
   {
     id: 'emp-003',
@@ -81,6 +89,8 @@ const MOCK_EMPLOYEES: EmployeePayrollData[] = [
     isBlind: false,
     spouseIsBlind: false,
     contractorType: 'W2',
+    isOfficer: false,
+    isBoardMember: false,
   },
 ]
 
@@ -109,7 +119,7 @@ export async function getActiveEmployees(): Promise<EmployeePayrollData[]> {
         expected_annual_hours, exempt_status, worker_type, federal_filing_status,
         federal_allowances, state_allowances, additional_federal_withholding,
         additional_state_withholding, is_head_of_household, is_blind,
-        spouse_is_blind
+        spouse_is_blind, is_officer, board_member
         FROM employees WHERE is_active = true`
   )
 
@@ -133,6 +143,8 @@ export async function getActiveEmployees(): Promise<EmployeePayrollData[]> {
     spouseIsBlind: row.spouse_is_blind as boolean,
     // worker_type '1099' → no withholdings; 'W-2' → full payroll withholdings
     contractorType: row.worker_type === '1099' ? '1099' : 'W2',
+    isOfficer: row.is_officer === true,
+    isBoardMember: row.board_member === true,
   }))
 }
 

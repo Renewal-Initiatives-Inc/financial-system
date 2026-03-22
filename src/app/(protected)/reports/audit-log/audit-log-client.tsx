@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ReportShell } from '@/components/reports/report-shell'
+import type { CSVColumnDef } from '@/lib/reports/csv/export-csv'
 import type { AuditLogData } from '@/lib/reports/audit-log'
 import { getAuditLogData } from '../actions'
 
@@ -103,9 +104,9 @@ export function AuditLogClient({ initialData }: AuditLogClientProps) {
         const result = await getAuditLogData({
           startDate: startDate || undefined,
           endDate: endDate || undefined,
-          userId: userId || undefined,
-          action: action || undefined,
-          entityType: entityType || undefined,
+          userId: (userId && userId !== 'all') ? userId : undefined,
+          action: (action && action !== 'all') ? action : undefined,
+          entityType: (entityType && entityType !== 'all') ? entityType : undefined,
           page,
           pageSize,
         })
@@ -130,15 +131,21 @@ export function AuditLogClient({ initialData }: AuditLogClientProps) {
   }, [pageSize])
 
   // Export data
-  const exportData = data.entries.map((e) => ({
-    Timestamp: formatDateTime(e.timestamp),
-    User: e.userId,
-    Action: e.action,
-    'Entity Type': e.entityType,
-    'Entity ID': e.entityId,
-  }))
+  const AUDIT_LOG_CSV_COLUMNS: CSVColumnDef[] = [
+    { key: 'timestamp', label: 'Timestamp', format: 'datetime' },
+    { key: 'user', label: 'User', format: 'text' },
+    { key: 'action', label: 'Action', format: 'text' },
+    { key: 'entityType', label: 'Entity Type', format: 'text' },
+    { key: 'entityId', label: 'Entity ID', format: 'text' },
+  ]
 
-  const exportColumns = ['Timestamp', 'User', 'Action', 'Entity Type', 'Entity ID']
+  const exportData = data.entries.map((e) => ({
+    timestamp: e.timestamp,
+    user: data.userNames[e.userId] ?? e.userId,
+    action: e.action,
+    entityType: e.entityType,
+    entityId: e.entityId,
+  }))
 
   return (
     <ReportShell
@@ -146,7 +153,14 @@ export function AuditLogClient({ initialData }: AuditLogClientProps) {
       generatedAt={data.generatedAt}
       reportSlug="audit-log"
       exportData={exportData}
-      exportColumns={exportColumns}
+      csvColumns={AUDIT_LOG_CSV_COLUMNS}
+      filters={{
+        ...(startDate ? { startDate } : {}),
+        ...(endDate ? { endDate } : {}),
+        ...((userId && userId !== 'all') ? { userId } : {}),
+        ...((action && action !== 'all') ? { action } : {}),
+        ...((entityType && entityType !== 'all') ? { entityType } : {}),
+      }}
     >
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-3" data-testid="audit-log-filter-bar">
@@ -171,14 +185,22 @@ export function AuditLogClient({ initialData }: AuditLogClientProps) {
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">User ID</Label>
-          <Input
-            placeholder="Filter by user..."
-            value={userId}
-            onChange={(e) => setUserId(e.target.value)}
-            className="w-40 h-8 text-sm"
-            data-testid="audit-log-user-id-input"
-          />
+          <Label className="text-xs">User</Label>
+          <Select value={userId} onValueChange={setUserId}>
+            <SelectTrigger className="w-44 h-8 text-sm" data-testid="audit-log-user-select">
+              <SelectValue placeholder="All users" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All users</SelectItem>
+              {Object.entries(data.userNames)
+                .sort(([, a], [, b]) => a.localeCompare(b))
+                .map(([id, name]) => (
+                  <SelectItem key={id} value={id}>
+                    {name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Action</Label>
@@ -252,7 +274,9 @@ export function AuditLogClient({ initialData }: AuditLogClientProps) {
                   <TableCell className="text-xs tabular-nums">
                     {formatDateTime(entry.timestamp)}
                   </TableCell>
-                  <TableCell className="text-sm">{entry.userId}</TableCell>
+                  <TableCell className="text-sm" title={entry.userId}>
+                    {data.userNames[entry.userId] ?? entry.userId}
+                  </TableCell>
                   <TableCell>
                     <Badge
                       variant="outline"

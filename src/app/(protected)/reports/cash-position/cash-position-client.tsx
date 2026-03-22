@@ -3,10 +3,16 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ReportShell } from '@/components/reports/report-shell'
 import { formatCurrency } from '@/lib/reports/types'
+import type { CSVColumnDef } from '@/lib/reports/csv/export-csv'
 import type {
   CashPositionData,
   CashPositionSection,
 } from '@/lib/reports/cash-position'
+
+const CASH_POSITION_CSV_COLUMNS: CSVColumnDef[] = [
+  { key: 'component', label: 'Component', format: 'text' },
+  { key: 'balance', label: 'Balance', format: 'currency' },
+]
 
 interface CashPositionClientProps {
   data: CashPositionData
@@ -103,10 +109,31 @@ function NetAvailableCard({
 }
 
 export function CashPositionClient({ data }: CashPositionClientProps) {
+  const exportData = [
+    ...data.cashSection.accounts.map((a) => ({
+      component: `${a.accountCode} ${a.accountName}`,
+      balance: a.balance,
+    })),
+    { component: `Total ${data.cashSection.title}`, balance: data.cashSection.total },
+    ...data.payablesSection.accounts.map((a) => ({
+      component: `${a.accountCode} ${a.accountName}`,
+      balance: a.balance,
+    })),
+    { component: `Total ${data.payablesSection.title}`, balance: data.payablesSection.total },
+    ...data.receivablesSection.accounts.map((a) => ({
+      component: `${a.accountCode} ${a.accountName}`,
+      balance: a.balance,
+    })),
+    { component: `Total ${data.receivablesSection.title}`, balance: data.receivablesSection.total },
+    { component: 'Net Available Cash', balance: data.netAvailableCash },
+  ]
+
   return (
     <ReportShell
       title="Cash Position Summary"
       reportSlug="cash-position"
+      exportData={exportData}
+      csvColumns={CASH_POSITION_CSV_COLUMNS}
     >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" data-testid="cash-position-grid">
         {/* Cash & Cash Equivalents */}

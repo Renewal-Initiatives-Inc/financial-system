@@ -1,4 +1,4 @@
-import { eq, and, sql, gte, lte } from 'drizzle-orm'
+import { eq, and, sql, gte, lte, ne } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import {
   accounts,
@@ -49,7 +49,8 @@ export interface Form990OfficerRow {
   employeeId: string
   employeeName: string
   totalCompensation: number
-  isOfficer: boolean // placeholder — for now always false
+  /** True if this person is an officer, director, trustee, or key employee */
+  isOfficer: boolean
 }
 
 export interface Form990ScheduleData {
@@ -160,10 +161,11 @@ export async function getForm990Data(
       )
     )
 
-  // Get functional allocations
+  // Get functional allocations for the requested fiscal year
   const allocations = await db
     .select()
     .from(functionalAllocations)
+    .where(eq(functionalAllocations.fiscalYear, fiscalYear))
 
   const allocMap = new Map(
     allocations.map((a) => [
@@ -193,7 +195,8 @@ export async function getForm990Data(
           sql`${transactionLines.accountId} IN (${sql.join(expenseAccountIds.map((id) => sql`${id}`), sql`, `)})`,
           eq(transactions.isVoided, false),
           gte(transactions.date, startDate),
-          lte(transactions.date, endDate)
+          lte(transactions.date, endDate),
+          ne(transactions.sourceType, 'YEAR_END_CLOSE'),
         )
       )
       .groupBy(transactionLines.accountId)
@@ -273,7 +276,8 @@ export async function getForm990Data(
           sql`${transactionLines.accountId} IN (${sql.join(revenueAccountIds.map((id) => sql`${id}`), sql`, `)})`,
           eq(transactions.isVoided, false),
           gte(transactions.date, startDate),
-          lte(transactions.date, endDate)
+          lte(transactions.date, endDate),
+          ne(transactions.sourceType, 'YEAR_END_CLOSE'),
         )
       )
       .groupBy(transactionLines.accountId)
@@ -334,7 +338,8 @@ export async function getForm990Data(
           sql`${transactionLines.accountId} IN (${sql.join(revenueAccountIds.map((id) => sql`${id}`), sql`, `)})`,
           eq(transactions.isVoided, false),
           gte(transactions.date, startDate),
-          lte(transactions.date, endDate)
+          lte(transactions.date, endDate),
+          ne(transactions.sourceType, 'YEAR_END_CLOSE'),
         )
       )
       .groupBy(
@@ -373,7 +378,7 @@ export async function getForm990Data(
       return a.fundName.localeCompare(b.fundName)
     })
 
-  // 3. Officer compensation — list all employees
+  // 3. Officer compensation — cross-reference payroll with app-portal flags
   const officers: Form990OfficerRow[] = []
   const payrollData = await db
     .select({
@@ -393,12 +398,21 @@ export async function getForm990Data(
     .groupBy(payrollEntries.employeeId, payrollEntries.employeeName)
     .orderBy(payrollEntries.employeeName)
 
+  // Build officer/board member lookup from app-portal
+  const { getActiveEmployees } = await import('@/lib/integrations/people')
+  const employees = await getActiveEmployees()
+  const officerIds = new Set(
+    employees
+      .filter((e) => e.isOfficer || e.isBoardMember)
+      .map((e) => e.id)
+  )
+
   for (const p of payrollData) {
     officers.push({
       employeeId: p.employeeId,
       employeeName: p.employeeName,
       totalCompensation: Math.round(parseFloat(p.totalComp ?? '0') * 100) / 100,
-      isOfficer: false, // manual designation needed
+      isOfficer: officerIds.has(p.employeeId),
     })
   }
 
