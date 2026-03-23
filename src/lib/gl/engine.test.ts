@@ -172,6 +172,10 @@ vi.mock('@/lib/db/schema', () => ({
     transactionId: 'transaction_id',
   },
   auditLog: { _name: 'audit_log' },
+  bankMatches: {
+    _name: 'bank_matches',
+    glTransactionLineId: 'gl_transaction_line_id',
+  },
 }))
 
 // Mock drizzle-orm operators

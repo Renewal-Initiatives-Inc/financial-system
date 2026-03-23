@@ -55,15 +55,20 @@ export function InlineGlEntryDialog({
   const [showWarning, setShowWarning] = useState(false)
 
   // Sync form state when bankTransaction changes (dialog is always mounted)
+  const txnId = bankTransaction?.id
+  const txnDate = bankTransaction?.date ?? ''
+  const txnMerchant = bankTransaction?.merchantName ?? ''
+  /* eslint-disable react-hooks/set-state-in-effect -- prop-sync for always-mounted dialog */
   useEffect(() => {
-    if (bankTransaction && open) {
-      setDate(bankTransaction.date ?? '')
-      setMemo(bankTransaction.merchantName ?? '')
+    if (txnId != null && open) {
+      setDate(txnDate)
+      setMemo(txnMerchant)
       setAccountId('')
       setFundId('')
       setShowWarning(false)
     }
-  }, [bankTransaction?.id, open])
+  }, [txnId, open, txnDate, txnMerchant])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const amount = bankTransaction ? Math.abs(parseFloat(bankTransaction.amount)) : 0
   const isOverThreshold = amount > THRESHOLD

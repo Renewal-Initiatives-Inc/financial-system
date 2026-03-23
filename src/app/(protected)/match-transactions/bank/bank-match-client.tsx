@@ -164,11 +164,12 @@ export function BankMatchClient({
     [fundOptions]
   )
 
+  const candidate = matchDialogRow?.candidate ?? null
   const userOverrodeAccount = useMemo(() => {
-    if (!matchDialogRow?.candidate) return true
-    const suggestedAcct = accountOptions.find((a) => a.name === matchDialogRow.candidate!.accountName)
+    if (!candidate) return true
+    const suggestedAcct = accountOptions.find((a) => a.name === candidate.accountName)
     return matchGlAccountId != null && suggestedAcct?.id !== matchGlAccountId
-  }, [matchDialogRow?.candidate, matchGlAccountId, accountOptions])
+  }, [candidate, matchGlAccountId, accountOptions])
 
   const loadAccountData = useCallback(async (accountId: string) => {
     const id = parseInt(accountId, 10)

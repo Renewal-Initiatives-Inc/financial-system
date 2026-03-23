@@ -71,14 +71,17 @@ export function SplitTransactionDialog({
   const remaining = Math.round((bankAmount - splitSum) * 100) / 100
 
   // Reset when transaction changes
+  const txnId = bankTransaction?.id
+  /* eslint-disable react-hooks/set-state-in-effect -- prop-sync for always-mounted dialog */
   useEffect(() => {
-    if (bankTransaction && open) {
+    if (txnId != null && open) {
       setSplits([
         { accountId: null, fundId: defaultFundId, amount: '', showFund: false },
         { accountId: null, fundId: defaultFundId, amount: '', showFund: false },
       ])
     }
-  }, [bankTransaction?.id, open, defaultFundId])
+  }, [txnId, open, defaultFundId])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const addSplit = () => {
     setSplits([...splits, { accountId: null, fundId: defaultFundId, amount: '', showFund: false }])

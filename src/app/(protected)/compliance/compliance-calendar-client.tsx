@@ -73,6 +73,8 @@ export function ComplianceCalendarClient({
     userId,
   })
 
+  // Auto-open deadline from URL param
+  /* eslint-disable react-hooks/set-state-in-effect -- one-time init from URL param, not a cascading update */
   useEffect(() => {
     if (!autoOpenDeadlineId) return
     const deadline = initialDeadlines.find((d) => d.id === autoOpenDeadlineId)
@@ -81,6 +83,7 @@ export function ComplianceCalendarClient({
       setCopilotOpen(true)
     }
   }, [autoOpenDeadlineId, initialDeadlines])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   function handleRowClick(row: ComplianceDeadlineRow) {
     setSelectedDeadline(row)
