@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Banknote, ClipboardList, ArrowDownToLine, Shield } from 'lucide-react'
+import { Banknote, ClipboardList, ArrowDownToLine, Receipt, Shield } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { db } from '@/lib/db'
 import { transactions, transactionLines, accounts } from '@/lib/db/schema'
@@ -7,6 +7,12 @@ import { eq, and, desc, sql } from 'drizzle-orm'
 import { RecentEntriesTable } from '../revenue/components/recent-entries-table'
 
 const liabilityCards = [
+  {
+    label: 'Accounts Payable',
+    description: 'All unpaid amounts — AP, reimbursements, and credit card balances.',
+    href: '/liabilities/payables',
+    icon: Receipt,
+  },
   {
     label: 'Notes Payable / Loans',
     description: 'Outstanding loan balances and payment schedules.',

@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { eq, ilike, and, sql, or } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { vendors, accounts, funds, invoices } from '@/lib/db/schema'
+import { vendors, accounts, funds, invoices, fundVendors } from '@/lib/db/schema'
 import {
   insertVendorSchema,
   updateVendorSchema,
@@ -394,4 +394,105 @@ export async function getVendorArInvoices(
     .orderBy(sql`${invoices.invoiceDate} DESC`)
 
   return rows
+}
+
+// --- Fund-Vendor Assignment (from vendor context) ---
+
+export type VendorFundAssignment = {
+  id: number
+  fundId: number
+  fundName: string
+  restrictionType: string
+  isActive: boolean
+  createdAt: Date
+}
+
+/**
+ * Get active fund assignments for a vendor (funds this vendor can draw from).
+ */
+export async function getVendorFundAssignments(
+  vendorId: number
+): Promise<VendorFundAssignment[]> {
+  const rows = await db
+    .select({
+      id: fundVendors.id,
+      fundId: fundVendors.fundId,
+      fundName: funds.name,
+      restrictionType: funds.restrictionType,
+      isActive: fundVendors.isActive,
+      createdAt: fundVendors.createdAt,
+    })
+    .from(fundVendors)
+    .innerJoin(funds, eq(fundVendors.fundId, funds.id))
+    .where(
+      and(eq(fundVendors.vendorId, vendorId), eq(fundVendors.isActive, true))
+    )
+    .orderBy(funds.name)
+
+  return rows
+}
+
+/**
+ * Assign a vendor to a fund (from vendor context).
+ */
+export async function assignVendorToFundFromVendor(
+  vendorId: number,
+  fundId: number
+): Promise<void> {
+  const [existing] = await db
+    .select()
+    .from(fundVendors)
+    .where(
+      and(eq(fundVendors.fundId, fundId), eq(fundVendors.vendorId, vendorId))
+    )
+    .limit(1)
+
+  if (existing) {
+    if (!existing.isActive) {
+      await db
+        .update(fundVendors)
+        .set({ isActive: true, updatedAt: new Date() })
+        .where(eq(fundVendors.id, existing.id))
+    }
+  } else {
+    await db.insert(fundVendors).values({ fundId, vendorId })
+  }
+
+  revalidatePath(`/vendors/${vendorId}`)
+  revalidatePath(`/revenue/funding-sources/${fundId}`)
+}
+
+/**
+ * Remove a vendor from a fund (from vendor context).
+ */
+export async function removeVendorFromFundFromVendor(
+  vendorId: number,
+  fundId: number
+): Promise<void> {
+  await db
+    .update(fundVendors)
+    .set({ isActive: false, updatedAt: new Date() })
+    .where(
+      and(eq(fundVendors.fundId, fundId), eq(fundVendors.vendorId, vendorId))
+    )
+
+  revalidatePath(`/vendors/${vendorId}`)
+  revalidatePath(`/revenue/funding-sources/${fundId}`)
+}
+
+/**
+ * Get all active funds (for assignment picker on vendor detail page).
+ */
+export async function getActiveFundsForAssignment(): Promise<
+  { id: number; name: string; restrictionType: string }[]
+> {
+  return db
+    .select({
+      id: funds.id,
+      name: funds.name,
+      restrictionType: funds.restrictionType,
+    })
+    .from(funds)
+    .where(eq(funds.isActive, true))
+    .orderBy(funds.name)
 }

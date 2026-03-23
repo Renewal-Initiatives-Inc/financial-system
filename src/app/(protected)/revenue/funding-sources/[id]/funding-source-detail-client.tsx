@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { AlertTriangle, ArrowLeft, Clock, Lock, Pencil, Save, X } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Clock, Lock, Pencil, Plus, Save, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -39,8 +39,10 @@ import {
   recordLoanRepaymentAction,
   recordLoanInterestPaymentAction,
   recordLoanRateChange,
+  assignVendorToFund,
+  removeVendorFromFund,
 } from '../../actions'
-import type { FundDetail, ArInvoiceRow, RateHistoryRow } from '../../actions'
+import type { FundDetail, ArInvoiceRow, RateHistoryRow, FundVendorRow } from '../../actions'
 import { toast } from 'sonner'
 
 function formatCurrency(value: string | null): string {
@@ -72,9 +74,11 @@ interface Props {
   }>
   arInvoices: ArInvoiceRow[]
   rateHistory: RateHistoryRow[]
+  fundVendors: FundVendorRow[]
+  allActiveVendors: { id: number; name: string }[]
 }
 
-export function FundingSourceDetailClient({ source, transactions, arInvoices, rateHistory }: Props) {
+export function FundingSourceDetailClient({ source, transactions, arInvoices, rateHistory, fundVendors, allActiveVendors }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [isEditing, setIsEditing] = useState(false)
@@ -133,6 +137,48 @@ export function FundingSourceDetailClient({ source, transactions, arInvoices, ra
     new Date().toISOString().split('T')[0]
   )
   const [rateReason, setRateReason] = useState('')
+
+  // Vendor assignment state
+  const [isAddVendorOpen, setIsAddVendorOpen] = useState(false)
+  const [isRemoveVendorOpen, setIsRemoveVendorOpen] = useState(false)
+  const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null)
+  const [vendorToRemove, setVendorToRemove] = useState<FundVendorRow | null>(null)
+
+  // Filter out already-assigned vendors from the picker
+  const assignedVendorIds = new Set(fundVendors.map((fv) => fv.vendorId))
+  const availableVendors = allActiveVendors.filter(
+    (v) => !assignedVendorIds.has(v.id)
+  )
+
+  function handleAddVendor() {
+    if (!selectedVendorId) return
+    startTransition(async () => {
+      try {
+        await assignVendorToFund(source.id, parseInt(selectedVendorId, 10))
+        toast.success('Vendor assigned to funding source')
+        setIsAddVendorOpen(false)
+        setSelectedVendorId(null)
+        router.refresh()
+      } catch {
+        toast.error('Failed to assign vendor')
+      }
+    })
+  }
+
+  function handleRemoveVendor() {
+    if (!vendorToRemove) return
+    startTransition(async () => {
+      try {
+        await removeVendorFromFund(source.id, vendorToRemove.vendorId)
+        toast.success('Vendor removed from funding source')
+        setIsRemoveVendorOpen(false)
+        setVendorToRemove(null)
+        router.refresh()
+      } catch {
+        toast.error('Failed to remove vendor')
+      }
+    })
+  }
 
   const balance = parseFloat(source.balance)
   const hasNonZeroBalance = Math.abs(balance) >= 0.005
@@ -997,6 +1043,137 @@ export function FundingSourceDetailClient({ source, transactions, arInvoices, ra
           )}
         </div>
       )}
+
+      {/* Assigned Vendors (Payees) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>Assigned Vendors (Payees)</span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsAddVendorOpen(true)}
+              data-testid="funding-source-add-vendor-btn"
+            >
+              <Plus className="mr-1 h-4 w-4" />
+              Add Vendor
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {fundVendors.length === 0 ? (
+            <p className="text-sm text-muted-foreground" data-testid="funding-source-no-vendors">
+              No vendors assigned to this funding source.
+            </p>
+          ) : (
+            <div className="space-y-2" data-testid="funding-source-vendor-list">
+              {fundVendors.map((fv) => (
+                <div
+                  key={fv.id}
+                  className="flex items-center justify-between rounded-lg border p-3 text-sm"
+                  data-testid={`funding-source-vendor-row-${fv.vendorId}`}
+                >
+                  <div>
+                    <Link
+                      href={`/vendors/${fv.vendorId}`}
+                      className="font-medium hover:underline"
+                    >
+                      {fv.vendorName}
+                    </Link>
+                    <span className="ml-2 text-muted-foreground">
+                      Assigned {formatDate(fv.createdAt instanceof Date ? fv.createdAt.toISOString() : String(fv.createdAt))}
+                    </span>
+                  </div>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => {
+                      setVendorToRemove(fv)
+                      setIsRemoveVendorOpen(true)
+                    }}
+                    data-testid={`funding-source-remove-vendor-${fv.vendorId}-btn`}
+                  >
+                    <Trash2 className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Add Vendor Dialog */}
+      <Dialog open={isAddVendorOpen} onOpenChange={setIsAddVendorOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Vendor to Funding Source</DialogTitle>
+            <DialogDescription>
+              Select a vendor to authorize as a payee for this funding source.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="vendor-select">Vendor</Label>
+            <Select
+              value={selectedVendorId ?? ''}
+              onValueChange={(val) => setSelectedVendorId(val)}
+            >
+              <SelectTrigger data-testid="funding-source-vendor-select">
+                <SelectValue placeholder="Select a vendor..." />
+              </SelectTrigger>
+              <SelectContent>
+                {availableVendors.map((v) => (
+                  <SelectItem key={v.id} value={String(v.id)}>
+                    {v.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {availableVendors.length === 0 && (
+              <p className="mt-2 text-sm text-muted-foreground">
+                All active vendors are already assigned.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddVendorOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddVendor}
+              disabled={!selectedVendorId || isPending}
+              data-testid="funding-source-confirm-add-vendor-btn"
+            >
+              Add
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove Vendor Confirmation Dialog */}
+      <Dialog open={isRemoveVendorOpen} onOpenChange={setIsRemoveVendorOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove Vendor Assignment</DialogTitle>
+            <DialogDescription>
+              Remove <strong>{vendorToRemove?.vendorName}</strong> from this funding source?
+              Existing POs and invoices will not be affected.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsRemoveVendorOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleRemoveVendor}
+              disabled={isPending}
+              data-testid="funding-source-confirm-remove-vendor-btn"
+            >
+              Remove
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* AR Invoices (GRANT + CONTRACT) */}
       {isGrantOrContract && (

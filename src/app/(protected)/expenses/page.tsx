@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { FileText, CreditCard, Receipt, Scale } from 'lucide-react'
+import { FileText, CreditCard, Scale } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getRecentExpenseEntries } from './actions'
 import { RecentEntriesTable } from '../revenue/components/recent-entries-table'
@@ -12,7 +12,7 @@ export default async function ExpensesPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Expenses</h1>
         <p className="text-muted-foreground mt-1">
-          Manage purchase orders, invoices, and payables.
+          Manage purchase orders, invoices, and credit card transactions.
         </p>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -26,20 +26,6 @@ export default async function ExpensesPage() {
               <p className="text-sm text-muted-foreground">
                 Create and manage vendor contracts, track invoices and budget
                 capacity.
-              </p>
-            </CardContent>
-          </Card>
-        </Link>
-        <Link href="/expenses/payables">
-          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
-            <CardHeader className="flex flex-row items-center gap-3 pb-2">
-              <Receipt className="h-5 w-5 text-muted-foreground" />
-              <CardTitle className="text-base">Outstanding Payables</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                View all unpaid amounts — AP, reimbursements, and credit card
-                balances.
               </p>
             </CardContent>
           </Card>

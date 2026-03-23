@@ -2,6 +2,7 @@ import {
   boolean,
   date,
   index,
+  integer,
   numeric,
   pgTable,
   serial,
@@ -9,6 +10,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core'
 import { fundingSourceTypeEnum } from './enums'
+import { vendors } from './vendors'
 
 export const tenants = pgTable(
   'tenants',
@@ -27,6 +29,9 @@ export const tenants = pgTable(
     interestRate: numeric('interest_rate', { precision: 5, scale: 4 }),
     statementOfConditionDate: date('statement_of_condition_date'),
     tenancyAnniversary: date('tenancy_anniversary'),
+    // Optional link to vendors table — enables AP aging for tenant payables
+    // (e.g., security deposit interest). Set via tenant management UI.
+    vendorId: integer('vendor_id').references(() => vendors.id),
     isActive: boolean('is_active').notNull().default(true),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),

@@ -408,7 +408,7 @@ export async function createInvoice(
 
   revalidatePath('/expenses/purchase-orders')
   revalidatePath(`/expenses/purchase-orders/${po.id}`)
-  revalidatePath('/expenses/payables')
+  revalidatePath('/liabilities/payables')
 
   return { id: newInvoice.id, glTransactionId: txnResult.transaction.id }
 }

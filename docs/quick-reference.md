@@ -9,7 +9,7 @@
 | Chart of Accounts | `/accounts` | 69 GL accounts, codes, types, 990 mappings |
 | Funds | `/funds` | 5 funds (1 unrestricted, 4 restricted) |
 | Revenue | `/revenue` | Donations, funding sources, pledges, rent, in-kind, earned income, investment income |
-| Expenses | `/expenses` | Payables, purchase orders, invoices |
+| Expenses | `/expenses` | Purchase orders, invoices, Ramp credit card |
 | Ramp Queue | `/expenses/ramp` | Categorize credit card transactions, manage auto-rules |
 | Payroll | `/payroll` | Pay runs, withholdings, W-2 generation |
 | Bank Rec | `/bank-rec` | Match bank ↔ GL, confirm/reject matches |
@@ -59,7 +59,7 @@
 | Information | Location |
 |-------------|----------|
 | Current bank balances | Dashboard (cash snapshot) or Reports > Cash Position |
-| Outstanding payables | Expenses > Payables or Reports > Outstanding Payables |
+| Outstanding payables | Liabilities > Accounts Payable or Reports > Outstanding Payables |
 | Upcoming deadlines | Dashboard (alerts) or Compliance calendar |
 | Fund-specific financials | Any report > filter by fund, or Reports > Fund Level |
 | Fund drawdown status | Reports > Fund Drawdown |

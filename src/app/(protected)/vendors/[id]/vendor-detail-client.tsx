@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, FileText, Pencil, Save, Upload, X } from 'lucide-react'
+import { ArrowLeft, FileText, Pencil, Plus, Save, Trash2, Upload, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -27,8 +27,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { HelpTooltip } from '@/components/shared/help-tooltip'
-import { updateVendor, toggleVendorActive } from '../actions'
-import type { VendorDetail, VendorArInvoice } from '../actions'
+import {
+  updateVendor,
+  toggleVendorActive,
+  assignVendorToFundFromVendor,
+  removeVendorFromFundFromVendor,
+} from '../actions'
+import type { VendorDetail, VendorArInvoice, VendorFundAssignment } from '../actions'
 import { createArInvoice, recordArInvoicePayment } from '../../revenue/actions'
 import { toast } from 'sonner'
 
@@ -83,6 +88,8 @@ interface VendorDetailClientProps {
   summary1099?: { totalPayments: number; threshold: number; isOver: boolean }
   vendorFunds?: { id: number; name: string; fundingCategory: string | null }[]
   arInvoices?: VendorArInvoice[]
+  fundAssignments?: VendorFundAssignment[]
+  allActiveFunds?: { id: number; name: string; restrictionType: string }[]
 }
 
 const arPaymentStatusColors: Record<string, string> = {
@@ -98,6 +105,8 @@ export function VendorDetailClient({
   summary1099,
   vendorFunds = [],
   arInvoices = [],
+  fundAssignments = [],
+  allActiveFunds = [],
 }: VendorDetailClientProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -131,6 +140,47 @@ export function VendorDetailClient({
   const [arPaymentDate, setArPaymentDate] = useState(
     new Date().toISOString().split('T')[0]
   )
+
+  // Fund assignment state
+  const [isAddFundOpen, setIsAddFundOpen] = useState(false)
+  const [isRemoveFundOpen, setIsRemoveFundOpen] = useState(false)
+  const [selectedFundId, setSelectedFundId] = useState<string | null>(null)
+  const [fundToRemove, setFundToRemove] = useState<VendorFundAssignment | null>(null)
+
+  const assignedFundIds = new Set(fundAssignments.map((fa) => fa.fundId))
+  const availableFunds = allActiveFunds.filter(
+    (f) => !assignedFundIds.has(f.id)
+  )
+
+  function handleAddFund() {
+    if (!selectedFundId) return
+    startTransition(async () => {
+      try {
+        await assignVendorToFundFromVendor(vendor.id, parseInt(selectedFundId, 10))
+        toast.success('Vendor assigned to funding source')
+        setIsAddFundOpen(false)
+        setSelectedFundId(null)
+        router.refresh()
+      } catch {
+        toast.error('Failed to assign to funding source')
+      }
+    })
+  }
+
+  function handleRemoveFund() {
+    if (!fundToRemove) return
+    startTransition(async () => {
+      try {
+        await removeVendorFromFundFromVendor(vendor.id, fundToRemove.fundId)
+        toast.success('Vendor removed from funding source')
+        setIsRemoveFundOpen(false)
+        setFundToRemove(null)
+        router.refresh()
+      } catch {
+        toast.error('Failed to remove from funding source')
+      }
+    })
+  }
 
   const handleW9Upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -653,6 +703,144 @@ export function VendorDetailClient({
           )}
         </CardContent>
       </Card>
+
+      {/* Assigned Funding Sources (Payee assignments — M:M) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>Assigned Funding Sources</span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsAddFundOpen(true)}
+              data-testid="vendor-add-fund-btn"
+            >
+              <Plus className="mr-1 h-4 w-4" />
+              Assign to Fund
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {fundAssignments.length === 0 ? (
+            <p className="text-sm text-muted-foreground" data-testid="vendor-no-fund-assignments">
+              No funding sources assigned.
+            </p>
+          ) : (
+            <div className="space-y-2" data-testid="vendor-fund-assignment-list">
+              {fundAssignments.map((fa) => (
+                <div
+                  key={fa.id}
+                  className="flex items-center justify-between rounded-lg border p-3 text-sm"
+                  data-testid={`vendor-fund-assignment-row-${fa.fundId}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/revenue/funding-sources/${fa.fundId}`}
+                      className="font-medium hover:underline"
+                    >
+                      {fa.fundName}
+                    </Link>
+                    <Badge variant="outline" className={
+                      fa.restrictionType === 'RESTRICTED'
+                        ? 'bg-purple-100 text-purple-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }>
+                      {fa.restrictionType}
+                    </Badge>
+                    <span className="text-muted-foreground text-xs">
+                      Assigned {new Date(fa.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                    </span>
+                  </div>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => {
+                      setFundToRemove(fa)
+                      setIsRemoveFundOpen(true)
+                    }}
+                    data-testid={`vendor-remove-fund-${fa.fundId}-btn`}
+                  >
+                    <Trash2 className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Add Fund Assignment Dialog */}
+      <Dialog open={isAddFundOpen} onOpenChange={setIsAddFundOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign to Funding Source</DialogTitle>
+            <DialogDescription>
+              Select a funding source this vendor is authorized to draw from.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="fund-assign-select">Funding Source</Label>
+            <Select
+              value={selectedFundId ?? ''}
+              onValueChange={(val) => setSelectedFundId(val)}
+            >
+              <SelectTrigger data-testid="vendor-fund-assign-select">
+                <SelectValue placeholder="Select a funding source..." />
+              </SelectTrigger>
+              <SelectContent>
+                {availableFunds.map((f) => (
+                  <SelectItem key={f.id} value={String(f.id)}>
+                    {f.name} ({f.restrictionType})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {availableFunds.length === 0 && (
+              <p className="mt-2 text-sm text-muted-foreground">
+                All active funding sources are already assigned.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddFundOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddFund}
+              disabled={!selectedFundId || isPending}
+              data-testid="vendor-confirm-add-fund-btn"
+            >
+              Assign
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove Fund Assignment Confirmation Dialog */}
+      <Dialog open={isRemoveFundOpen} onOpenChange={setIsRemoveFundOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove Funding Source Assignment</DialogTitle>
+            <DialogDescription>
+              Remove <strong>{fundToRemove?.fundName}</strong> assignment from this vendor?
+              Existing POs and invoices will not be affected.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsRemoveFundOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleRemoveFund}
+              disabled={isPending}
+              data-testid="vendor-confirm-remove-fund-btn"
+            >
+              Remove
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* AR Invoices Card — only shown if vendor has linked funding sources */}
       {vendorFunds.length > 0 && (

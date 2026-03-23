@@ -137,11 +137,10 @@ export async function generateDepositInterest(
     year,
     invoicePayload: {
       direction: 'AP',
-      // TODO (Phase 4): tenants need corresponding vendor records for AP aging to work correctly.
-      // Each tenant should have a vendors row so the AP payable links properly.
-      // For now this is null — the invoice will be created but won't appear in vendor AP aging.
-      // See: compliance-workflow-engine-PHASES.md Phase 4 admin work.
-      vendorId: null,
+      // Uses tenant.vendorId when set (via tenant management UI).
+      // Null until a vendor record is linked — invoice still posts but
+      // won't appear in vendor-specific AP aging reports.
+      vendorId: tenant.vendorId ?? null,
       fundId: fundId ?? null,
       amount: String(interestOwed),
       invoiceDate: today,

@@ -43,6 +43,7 @@ export * from './recurring-expectations'
 export * from './app-settings'
 export * from './weekly-cash-projection-lines'
 export * from './fiscal-year-locks'
+export * from './fund-vendors'
 
 // Re-import for relations definitions
 import { accounts } from './accounts'
@@ -83,6 +84,7 @@ import { importReviewItems } from './import-review'
 import { fundingSourceRateHistory } from './funding-source-rate-history'
 import { recurringExpectations } from './recurring-expectations'
 import { weeklyCashProjectionLines } from './weekly-cash-projection-lines'
+import { fundVendors } from './fund-vendors'
 
 // --- Relations ---
 
@@ -107,6 +109,7 @@ export const fundsRelations = relations(funds, ({ one, many }) => ({
   complianceDeadlines: many(complianceDeadlines),
   arInvoices: many(invoices),
   rateHistory: many(fundingSourceRateHistory),
+  fundVendors: many(fundVendors),
 }))
 
 export const fundingSourceRateHistoryRelations = relations(
@@ -219,6 +222,7 @@ export const vendorsRelations = relations(vendors, ({ one, many }) => ({
   fundedSources: many(funds),
   purchaseOrders: many(purchaseOrders),
   invoices: many(invoices),
+  fundVendors: many(fundVendors),
 }))
 
 export const tenantsRelations = relations(tenants, ({ many }) => ({
@@ -594,6 +598,20 @@ export const importReviewItemsRelations = relations(
     glTransaction: one(transactions, {
       fields: [importReviewItems.glTransactionId],
       references: [transactions.id],
+    }),
+  })
+)
+
+export const fundVendorsRelations = relations(
+  fundVendors,
+  ({ one }) => ({
+    fund: one(funds, {
+      fields: [fundVendors.fundId],
+      references: [funds.id],
+    }),
+    vendor: one(vendors, {
+      fields: [fundVendors.vendorId],
+      references: [vendors.id],
     }),
   })
 )

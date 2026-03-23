@@ -990,7 +990,7 @@ export async function confirmInvoiceMatch(
   if (invoice.purchaseOrderId) {
     revalidatePath(`/expenses/purchase-orders/${invoice.purchaseOrderId}`)
   }
-  revalidatePath('/expenses/payables')
+  revalidatePath('/liabilities/payables')
 
   return {
     success: true,

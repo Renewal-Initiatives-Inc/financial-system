@@ -1,4 +1,4 @@
-import { getOutstandingPayables } from '../actions'
+import { getOutstandingPayables } from '../../expenses/actions'
 import { PayablesClient } from './payables-client'
 
 export default async function PayablesPage() {

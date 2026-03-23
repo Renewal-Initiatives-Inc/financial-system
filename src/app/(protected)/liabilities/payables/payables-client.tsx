@@ -14,7 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { HelpTooltip } from '@/components/shared/help-tooltip'
-import type { PayableItem } from '../actions'
+import type { PayableItem } from '../../expenses/actions'
 import { differenceInDays, parseISO } from 'date-fns'
 
 function formatCurrency(amount: string | number): string {

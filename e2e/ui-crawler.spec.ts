@@ -39,7 +39,7 @@ const ROUTES = [
   '/compliance/functional-allocation',
   '/donors',
   '/expenses',
-  '/expenses/payables',
+  '/liabilities/payables',
   '/expenses/purchase-orders',
   '/expenses/purchase-orders/new',
   '/expenses/ramp',

@@ -123,7 +123,7 @@ test.describe('Purchase Order workflow', () => {
   })
 
   test('verify outstanding payables page shows the payable', async ({ page }) => {
-    await page.goto('/expenses/payables')
+    await page.goto('/liabilities/payables')
 
     // Should show the AP payable from our invoice with Posted status
     await expect(page.getByText('E2E-INV-001')).toBeVisible()
@@ -131,7 +131,7 @@ test.describe('Purchase Order workflow', () => {
   })
 
   test('filter payables by type', async ({ page }) => {
-    await page.goto('/expenses/payables')
+    await page.goto('/liabilities/payables')
 
     // Click AP filter
     await page.getByTestId('payables-filter-ap').click()

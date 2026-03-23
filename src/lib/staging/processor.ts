@@ -1,7 +1,8 @@
 import { eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { stagingRecords, accounts } from '@/lib/db/schema'
+import { accounts, invoices, stagingRecords } from '@/lib/db/schema'
 import { createTransaction } from '@/lib/gl/engine'
+import { resolveVendorByZitadelId } from '@/lib/vendor-resolve'
 import { getUnprocessedRecords, type StagingRecord } from './queries'
 
 // --- Types ---
@@ -55,6 +56,10 @@ async function processExpenseReport(
   const memo = metadata?.memo as string | undefined
   const memoText = [merchant, memo].filter(Boolean).join(' — ') || record.referenceId
 
+  // Resolve employee → vendor for AP invoice linkage.
+  // Returns null if no vendor record is linked to this Zitadel user ID.
+  const vendor = await resolveVendorByZitadelId(record.employeeId)
+
   const result = await createTransaction({
     date: record.dateIncurred,
     memo: `Expense report: ${memoText}`,
@@ -76,6 +81,20 @@ async function processExpenseReport(
         credit: amount,
       },
     ],
+  })
+
+  // Create AP invoice so reimbursement appears in vendor payables / AP aging.
+  // vendorId is null if the employee doesn't have a linked vendor record —
+  // the GL entry still posts; the invoice just won't appear in vendor-specific AP reports.
+  await db.insert(invoices).values({
+    direction: 'AP',
+    vendorId: vendor?.id ?? null,
+    fundId: record.fundId,
+    amount: record.amount,
+    invoiceDate: record.dateIncurred,
+    glTransactionId: result.transaction.id,
+    paymentStatus: 'POSTED',
+    createdBy: 'system:staging-processor',
   })
 
   return { glTransactionId: result.transaction.id }

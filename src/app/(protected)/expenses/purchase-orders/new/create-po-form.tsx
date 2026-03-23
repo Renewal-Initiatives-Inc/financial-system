@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, ChevronsUpDown, Loader2 } from 'lucide-react'
+import { AlertTriangle, Check, ChevronsUpDown, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -51,6 +51,7 @@ interface CreatePOFormProps {
   accounts: AccountRow[]
   funds: { id: number; name: string; restrictionType: string }[]
   cipCostCodes: { id: number; code: string; name: string; category: string }[]
+  fundVendorPairs: string[] // lookup set of "fundId:vendorId" strings
 }
 
 // --- Component ---
@@ -60,6 +61,7 @@ export function CreatePOForm({
   accounts,
   funds,
   cipCostCodes,
+  fundVendorPairs,
 }: CreatePOFormProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -90,6 +92,13 @@ export function CreatePOForm({
   // Derived: does the selected GL account have CIP subType?
   const selectedAccount = accounts.find((a) => a.id === glAccountId)
   const showCipCostCode = selectedAccount?.subType?.includes('CIP') ?? false
+
+  // Fund-vendor assignment warning
+  const fundVendorPairSet = new Set(fundVendorPairs)
+  const showFundVendorWarning =
+    vendorId !== null &&
+    fundId !== '' &&
+    !fundVendorPairSet.has(`${fundId}:${vendorId}`)
 
   // --- Handlers ---
 
@@ -362,6 +371,20 @@ export function CreatePOForm({
               <p className="text-sm text-destructive">{fieldErrors.fund}</p>
             )}
           </div>
+
+          {/* Fund-vendor assignment warning */}
+          {showFundVendorWarning && (
+            <div
+              className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"
+              data-testid="po-fund-vendor-warning"
+            >
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>
+                This vendor is not assigned to the selected funding source. You
+                can still proceed, but consider assigning them first.
+              </span>
+            </div>
+          )}
 
           {/* 7. CIP Cost Code — only when GL account has CIP subType */}
           {showCipCostCode && (
