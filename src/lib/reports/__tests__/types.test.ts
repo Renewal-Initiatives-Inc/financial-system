@@ -228,14 +228,14 @@ describe('getQuarterRange', () => {
 // ---------------------------------------------------------------------------
 
 describe('REPORT_DEFINITIONS', () => {
-  it('has 28 available reports (Phase 15 + Phase 16, minus 2 AHP + amortization schedule)', () => {
+  it('has 26 available reports', () => {
     const available = REPORT_DEFINITIONS.filter((r) => r.isAvailable)
-    expect(available.length).toBe(28)
+    expect(available.length).toBe(26)
   })
 
-  it('has coming-soon Phase 16 reports', () => {
+  it('tracks coming-soon reports', () => {
     const comingSoon = REPORT_DEFINITIONS.filter((r) => !r.isAvailable)
-    expect(comingSoon.length).toBeGreaterThan(0)
+    expect(comingSoon.length).toBe(0)
   })
 
   it('all slugs are unique', () => {

@@ -31,6 +31,9 @@ vi.mock('@/lib/db', () => ({
         }),
       })),
     })),
+    insert: vi.fn().mockImplementation(() => ({
+      values: vi.fn().mockResolvedValue([]),
+    })),
   },
 }))
 
@@ -54,6 +57,11 @@ vi.mock('@/lib/gl/engine', () => ({
     mockGLTransactions.push(txn)
     return Promise.resolve(txn)
   }),
+}))
+
+// Mock vendor resolve
+vi.mock('@/lib/vendor-resolve', () => ({
+  resolveVendorByZitadelId: vi.fn().mockResolvedValue(null),
 }))
 
 // Mock queries module to return our mock data

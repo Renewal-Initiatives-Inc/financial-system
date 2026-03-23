@@ -85,6 +85,9 @@ vi.mock('@/lib/db', () => ({
         }),
       })),
     })),
+    insert: vi.fn().mockImplementation(() => ({
+      values: vi.fn().mockResolvedValue([]),
+    })),
   },
 }))
 
@@ -123,6 +126,11 @@ vi.mock('@/lib/gl/engine', () => ({
       },
     })
   }),
+}))
+
+// Mock vendor resolve
+vi.mock('@/lib/vendor-resolve', () => ({
+  resolveVendorByZitadelId: vi.fn().mockResolvedValue(null),
 }))
 
 // Mock queries
